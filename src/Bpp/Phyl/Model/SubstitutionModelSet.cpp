@@ -7,22 +7,18 @@
 
 /*
   Copyright or <A9> or Copr. CNRS, (November 16, 2004)
-
   This software is a computer program whose purpose is to provide classes
   for phylogenetic data analysis.
-
   This software is governed by the CeCILL  license under French law and
   abiding by the rules of distribution of free software.  You can  use,
   modify and/ or redistribute the software under the terms of the CeCILL
   license as circulated by CEA, CNRS and INRIA at the following URL
   "http://www.cecill.info".
-
   As a counterpart to the access to the source code and  rights to copy,
   modify and redistribute granted by the license, users are provided only
   with a limited warranty  and the software's author,  the holder of the
   economic rights,  and the successive licensors  have only  limited
   liability.
-
   In this respect, the user's attention is drawn to the risks associated
   with loading,  using,  modifying and/or developing or reproducing the
   software by the user in light of its specific status of free software,
@@ -33,13 +29,12 @@
   requirements in conditions enabling the security of their systems and/or
   data to be ensured and,  more generally, to use and operate it in the
   same conditions as regards security.
-
   The fact that you are presently reading this means that you have had
   knowledge of the CeCILL license and that you accept its terms.
 */
 
 #include "SubstitutionModelSet.h"
-#include "MixedSubstitutionModel.h"
+#include "MixedTransitionModel.h"
 
 #include <Bpp/Utils/MapTools.h>
 
@@ -51,7 +46,7 @@ SubstitutionModelSet::SubstitutionModelSet(const SubstitutionModelSet& set) :
   alphabet_             (set.alphabet_),
   nbStates_             (set.nbStates_),
   modelSet_(set.modelSet_.size()),
-  rootFrequencies_(set.stationarity_ ? 0 : dynamic_cast<FrequenciesSet*>(set.rootFrequencies_->clone())),
+  rootFrequencies_(set.stationarity_ ? 0 : dynamic_cast<FrequencySet*>(set.rootFrequencies_->clone())),
   nodeToModel_          (set.nodeToModel_),
   modelToNodes_         (set.modelToNodes_),
   modelParameters_      (set.modelParameters_),
@@ -76,7 +71,7 @@ SubstitutionModelSet& SubstitutionModelSet::operator=(const SubstitutionModelSet
   if (set.stationarity_)
     rootFrequencies_.reset(0);
   else
-    rootFrequencies_.reset(dynamic_cast<FrequenciesSet*>(set.rootFrequencies_->clone()));
+    rootFrequencies_.reset(dynamic_cast<FrequencySet*>(set.rootFrequencies_->clone()));
 
   // Duplicate all model objects:
   modelSet_.resize(set.modelSet_.size());
@@ -103,7 +98,7 @@ void SubstitutionModelSet::clear()
 
 }
 
-void SubstitutionModelSet::setRootFrequencies(FrequenciesSet* rootFreqs)
+void SubstitutionModelSet::setRootFrequencies(FrequencySet* rootFreqs)
 {
   if (rootFreqs){
     stationarity_=false;
@@ -167,6 +162,23 @@ void SubstitutionModelSet::addModel(TransitionModel* model, const std::vector<in
       p->setName(pname + "_" + TextTools::toString(thisModelIndex+1));
       addParameter_(p);
     }
+}
+
+void SubstitutionModelSet::resetModelToNodeIds()
+{
+  // reset nodeToModel_
+  nodeToModel_.clear();
+  // reset modelToNodes_
+  modelToNodes_.clear();
+}
+
+void SubstitutionModelSet::setNodeToModel(size_t modelIndex, int nodeId)
+{
+  if (modelIndex > modelSet_.size()-1)
+    throw Exception("SubstitutionModelSet::setNodesToModel. There is no Substitution Model of index " + TextTools::toString(modelIndex));
+  
+  nodeToModel_[nodeId] = modelIndex;
+  modelToNodes_[modelIndex].push_back(nodeId);
 }
 
 void SubstitutionModelSet::replaceModel(size_t modelIndex, TransitionModel* model)
@@ -298,13 +310,12 @@ bool SubstitutionModelSet::checkUnknownNodes(const Tree& tree, bool throwEx) con
   return true;
 }
 
-bool SubstitutionModelSet::hasMixedSubstitutionModel() const
+bool SubstitutionModelSet::hasMixedTransitionModel() const
 {
   for (size_t i = 0; i < getNumberOfModels(); i++)
     {
-      if ((dynamic_cast<const MixedSubstitutionModel*>(getModel(i)) != NULL) && (modelToNodes_[i].size()>1))
+      if ((dynamic_cast<const MixedTransitionModel*>(getModel(i)) != NULL) && (modelToNodes_[i].size()>1))
         return true;
     }
   return false;
 }
-
