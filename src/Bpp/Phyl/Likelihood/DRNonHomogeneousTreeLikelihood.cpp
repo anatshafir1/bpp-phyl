@@ -92,6 +92,33 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
 }
 
 /******************************************************************************/
+/* DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
+  const Tree& tree,
+  const SiteContainer& data,
+  SubstitutionModelSet* modelSet,
+  DiscreteDistribution* rDist,
+  bool fixedTree,
+  bool verbose,
+  bool reparametrizeRoot) :
+  AbstractNonHomogeneousTreeLikelihood(tree, modelSet, rDist, verbose, reparametrizeRoot),
+  likelihoodData_(0),
+  minusLogLik_(-1.)
+{
+  if (!fixedTree){
+    DRNonHomogeneousTreeLikelihood(tree, data, modelSet, rDist, verbose, reparametrizeRoot);
+  }else{
+    resetParameters_();
+    addParameters_(modelSet_->getIndependentParameters());
+    addParameters_(rateDistribution_->getIndependentParameters());
+  }
+  //fireParameterChanged(getParameters());
+  if (!modelSet->isFullySetUpFor(tree))
+    throw Exception("DRNonHomogeneousTreeLikelihood(constructor). Model set is not fully specified.");
+  init_();
+  setData(data);
+} */
+
+/******************************************************************************/
 
 void DRNonHomogeneousTreeLikelihood::init_()
 {
@@ -845,12 +872,101 @@ void DRNonHomogeneousTreeLikelihood::resetLikelihoodArrays(const Node* node)
 
 void DRNonHomogeneousTreeLikelihood::computeTreeLikelihood()
 {
-  computeSubtreeLikelihoodPostfix(tree_->getRootNode());
-  computeSubtreeLikelihoodPrefix(tree_->getRootNode());
-  computeRootLikelihood();
+  if (modelSet_->getSubstitutionModel(0)->getName() == "Chromosome"){
+    computeTreeLikelihoodWeightedRootFreq();
+  }else{
+    
+    computeSubtreeLikelihoodPostfix(tree_->getRootNode());
+    computeSubtreeLikelihoodPrefix(tree_->getRootNode());
+    computeRootLikelihood();
+
+  }
+
 }
 
 /******************************************************************************/
+void DRNonHomogeneousTreeLikelihood::computeTreeLikelihoodWeightedRootFreq(){
+    computeSubtreeLikelihoodPostfix(tree_->getRootNode());
+    computeRootLikelihood();
+    UpdateAccordingToNewRootFreq();
+    computeSubtreeLikelihoodPrefix(tree_->getRootNode());
+    
+}
+/******************************************************************************/
+void DRNonHomogeneousTreeLikelihood::setWeightedRootFreq(Vdouble* freqs){
+  vector <double> rootFreqsPerState(nbStates_);
+  double sumOfLikelihoods = 0.0;
+  for (size_t x = 0; x < nbStates_; x++){
+    sumOfLikelihoods += (*freqs)[x];
+  }
+  for (size_t x = 0; x < nbStates_; x++){
+    rootFreqsPerState[x] = (*freqs)[x]/sumOfLikelihoods;
+  }
+  //const Alphabet* alpha = likelihoodData_->getAlphabet();
+  
+  FixedFrequenciesSet* rootFreqs = new FixedFrequenciesSet(new CanonicalStateMap(modelSet_->getStateMap(), false), rootFreqsPerState);
+  modelSet_->setRootFrequencies(static_cast<FrequenciesSet*>(rootFreqs));
+  rootFreqs_ = modelSet_->getRootFrequencies();
+
+}
+
+/******************************************************************************/
+void DRNonHomogeneousTreeLikelihood::UpdateAccordingToNewRootFreq(){
+  VVVdouble* rootLikelihoods = &likelihoodData_->getRootLikelihoodArray();
+  Vdouble p = rateDistribution_->getProbabilities();
+  VVdouble* rootLikelihoodsS  = &likelihoodData_->getRootSiteLikelihoodArray();
+  Vdouble* rootLikelihoodsSR = &likelihoodData_->getRootRateSiteLikelihoodArray();
+  for (size_t i = 0; i < nbDistinctSites_; i++)
+  {
+    // For each site in the sequence,
+    VVdouble* rootLikelihoods_i = &(*rootLikelihoods)[i];
+    Vdouble* rootLikelihoodsS_i = &(*rootLikelihoodsS)[i];
+    (*rootLikelihoodsSR)[i] = 0;
+    for (size_t c = 0; c < nbClasses_; c++)
+    {
+      // For each rate classe,
+      Vdouble* rootLikelihoods_i_c = &(*rootLikelihoods_i)[c];
+      double* rootLikelihoodsS_i_c = &(*rootLikelihoodsS_i)[c];
+      (*rootLikelihoodsS_i_c) = 0;
+      setWeightedRootFreq(rootLikelihoods_i_c);
+      for (size_t x = 0; x < nbStates_; x++)
+      {
+        // For each initial state,
+        (*rootLikelihoodsS_i_c) += rootFreqs_[x] * (*rootLikelihoods_i_c)[x];
+      }
+      (*rootLikelihoodsSR)[i] += p[c] * (*rootLikelihoodsS_i_c);
+    }
+
+    // Final checking (for numerical errors):
+    if ((*rootLikelihoodsSR)[i] < 0)
+      (*rootLikelihoodsSR)[i] = 0.;
+  }
+
+
+}
+
+
+/******************************************************************************/
+/* 
+void DRNonHomogeneousTreeLikelihood::setWeightedFreqs(){
+  double sumOfLikelihoods = 0;
+  for (size_t i = 0; i < nbStates_; i++){
+    sumOfLikelihoods += getLikelihoodForASiteForARateClassForAState(0, 0, (int)i);
+  }
+  vector <double> freqs(nbStates_);
+  for (size_t i = 0; i < nbStates_; i++){
+    freqs[i] = getLikelihoodForASiteForARateClassForAState(0, 0, (int)i)/sumOfLikelihoods;
+  }
+  const Alphabet* alpha = likelihoodData_->getAlphabet();
+  FixedFrequenciesSet* rootFreqs = new FixedFrequenciesSet(new CanonicalStateMap(alpha, false), freqs);
+  modelSet_->setRootFrequencies(static_cast<FrequenciesSet*>(rootFreqs));
+  
+
+} */
+
+
+/******************************************************************************/
+
 
 void DRNonHomogeneousTreeLikelihood::computeSubtreeLikelihoodPostfix(const Node* node)
 {

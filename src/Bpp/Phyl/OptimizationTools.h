@@ -347,7 +347,8 @@ public:
     bool reparametrization            = false,
     unsigned int verbose              = 1,
     const std::string& optMethodDeriv = OPTIMIZATION_NEWTON,
-    const std::string& optMethodModel = OPTIMIZATION_BRENT);
+    const std::string& optMethodModel = OPTIMIZATION_BRENT,
+    unsigned int BRENT_bracketing = 0);
 
   /**
    * @brief Optimize numerical parameters (branch length, substitution model & rate distribution) of a TreeLikelihood function.

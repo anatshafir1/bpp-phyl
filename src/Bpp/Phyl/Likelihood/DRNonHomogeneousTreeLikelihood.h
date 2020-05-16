@@ -117,6 +117,16 @@ class DRNonHomogeneousTreeLikelihood:
       bool verbose = true,
       bool reparametrizeRoot = false);
 
+
+/*       DRNonHomogeneousTreeLikelihood(
+      const Tree& tree,
+      const SiteContainer& data,
+      SubstitutionModelSet* modelSet,
+      DiscreteDistribution* rDist,
+      bool fixedTree,
+      bool verbose,
+      bool reparametrizeRoot); */
+
     /**
      * @brief Copy constructor.
      */ 
@@ -153,6 +163,9 @@ class DRNonHomogeneousTreeLikelihood:
     /** @} */
 
     void computeTreeLikelihood();
+    
+    // Addition for the ChromEvol model-> computes the likelihood with freq(i)=Li/sum(Lj)
+    void computeTreeLikelihoodWeightedRootFreq();
 
     
     /**
@@ -184,6 +197,9 @@ class DRNonHomogeneousTreeLikelihood:
      */
     double getValue() const;
     
+    // get the weighted frequencies
+    
+
     /**
      * @name DerivableFirstOrder interface.
      *
@@ -213,6 +229,11 @@ class DRNonHomogeneousTreeLikelihood:
       
   protected:
     virtual void computeLikelihoodAtNode_(const Node* node, VVVdouble& likelihoodArray) const;
+
+    /*Sets the frequencies of the modelset to pi = Li/sum(Lj)
+    */
+    void setWeightedRootFreq(Vdouble* freqs);
+    void UpdateAccordingToNewRootFreq();
 
   
     /**

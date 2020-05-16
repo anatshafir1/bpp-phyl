@@ -8,6 +8,7 @@
 # File list
 set (CPP_FILES
   Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
+  Bpp/Phyl/App/ChromEvolOptions.cpp
   Bpp/Phyl/BipartitionList.cpp
   Bpp/Phyl/BipartitionTools.cpp
   Bpp/Phyl/Distance/AbstractAgglomerativeDistanceMethod.cpp
@@ -82,6 +83,7 @@ set (CPP_FILES
   Bpp/Phyl/Model/AbstractSubstitutionModel.cpp
   Bpp/Phyl/Model/AbstractWordSubstitutionModel.cpp
   Bpp/Phyl/Model/BinarySubstitutionModel.cpp
+  Bpp/Phyl/Model/ChromosomeSubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAARateSubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAAFitnessSubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonClusterAASubstitutionModel.cpp

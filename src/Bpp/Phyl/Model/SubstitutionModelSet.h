@@ -456,10 +456,11 @@ public:
    *
    * @param modelIndex the index of the model in the set
    *
-   * @return The parameters attached to the model.
+   * @return The parameters attached to the model (Anat added the implementation).
    */
 
-  ParameterList getModelParameters(size_t modelIndex) const;
+  ParameterList getModelParameters(size_t modelIndex) const {return modelParameters_[modelIndex];}
+
 
   const Alphabet* getAlphabet() const { return alphabet_; }
 

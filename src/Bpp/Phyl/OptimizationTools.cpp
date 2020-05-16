@@ -156,7 +156,8 @@ unsigned int OptimizationTools::optimizeNumericalParameters(
   bool reparametrization,
   unsigned int verbose,
   const std::string& optMethodDeriv,
-  const std::string& optMethodModel)
+  const std::string& optMethodModel,
+  unsigned int BRENT_bracketing)
 {
   DerivableSecondOrder* f = tl;
   ParameterList pl = parameters;
@@ -195,11 +196,24 @@ unsigned int OptimizationTools::optimizeNumericalParameters(
   if (optMethodModel == OPTIMIZATION_BRENT)
   {
     ParameterList plsm = parameters.getCommonParametersWith(tl->getSubstitutionModelParameters());
-    desc->addOptimizer("Substitution model parameter", new SimpleMultiDimensions(f), plsm.getParameterNames(), 0, MetaOptimizerInfos::IT_TYPE_STEP);
+    SimpleMultiDimensions* multiDimOptimizer = new SimpleMultiDimensions(f);
+    if (BRENT_bracketing == 1){
+      BrentOneDimension* brentOptimizer = dynamic_cast<BrentOneDimension*>(&(multiDimOptimizer->getOneDimensionOptimizer()));
+      brentOptimizer->setBracketing(BrentOneDimension::BRACKET_INWARD);
+      //Optimizer& abstractBrentOptimizer = multiDimOptimizer->getOneDimensionOptimizer();
+      //Optimizer* abstractBrentOptimizerPtr = &abstractBrentOptimizer;
+      //dynamic_cast<BrentOneDimension*>(abstractBrentOptimizerPtr)->setBracketing(BrentOneDimension::BRACKET_INWARD);
+    }
+    desc->addOptimizer("Substitution model parameter", multiDimOptimizer, plsm.getParameterNames(), 0, MetaOptimizerInfos::IT_TYPE_STEP);
 
 
     ParameterList plrd = parameters.getCommonParametersWith(tl->getRateDistributionParameters());
-    desc->addOptimizer("Rate distribution parameter", new SimpleMultiDimensions(f), plrd.getParameterNames(), 0, MetaOptimizerInfos::IT_TYPE_STEP);
+    SimpleMultiDimensions* multiDimRateDistOptimizer = new SimpleMultiDimensions(f);
+    if (BRENT_bracketing == 1){
+      BrentOneDimension* BrentRateDistOptimizer = dynamic_cast<BrentOneDimension*>(&(multiDimRateDistOptimizer->getOneDimensionOptimizer()));
+      BrentRateDistOptimizer->setBracketing(BrentOneDimension::BRACKET_INWARD);
+    }
+    desc->addOptimizer("Rate distribution parameter", multiDimRateDistOptimizer, plrd.getParameterNames(), 0, MetaOptimizerInfos::IT_TYPE_STEP);
     poptimizer = new MetaOptimizer(f, desc, nstep);
   }
   else if (optMethodModel == OPTIMIZATION_BFGS)

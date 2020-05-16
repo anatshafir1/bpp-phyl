@@ -156,8 +156,9 @@ void SubstitutionModelSet::addModel(TransitionModel* model, const std::vector<in
   string pname;
 
   vector<string> nplm=model->getParameters().getParameterNames();
-  
-  modelParameters_.push_back(*model->getParameters().clone());
+  ParameterList* modelParams = model->getParameters().clone();  
+  modelParameters_.push_back(*modelParams);
+  delete modelParams;
   
   for (size_t i  = 0; i < nplm.size(); i++)
     {
