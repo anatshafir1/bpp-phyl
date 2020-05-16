@@ -20,7 +20,7 @@ using namespace std;
 /******************************************************************************/
 ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, double gain, double loss, double dupl, double demi, rootFreqType freqType):
     AbstractParameterAliasable("Chromosome."),
-    AbstractSubstitutionModel(alpha, new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false), "Chromosome."),
+    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
     gain_(gain),
     loss_(loss),
     dupl_(dupl),
@@ -40,56 +40,31 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(const ChromosomeAlpha
 }
 
 /******************************************************************************/
-ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, rootFreqType freqType):
-    AbstractParameterAliasable("Chromosome."),
-    AbstractSubstitutionModel(alpha, new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false), "Chromosome."),
-    gain_(RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam)),
-    loss_(RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam)),
-    dupl_(RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam)),
-    demiploidy_(RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam)),
-    freqType_(freqType),
-    ChrMinNum_(alpha->getMin()),
-    ChrMaxNum_(alpha->getMax()),
-    vPowExp_(),
-    parameterIncluded_()
-{
-
-    IntervalConstraint interval = IntervalConstraint(lowerBoundOfRateParam, upperBoundOfRateParam, true, true);
-    addParameter_(new Parameter("Chromosome.gain", gain_, &interval));
-    addParameter_(new Parameter("Chromosome.loss", loss_, &interval));
-    addParameter_(new Parameter("Chromosome.dupl", dupl_, &interval));
-    addParameter_(new Parameter("Chromosome.demi", demiploidy_, &interval));
-    computeFrequencies(false);
-    isScalable_ = false;    //in ChromEvol the matrix should be not normalized
-    updateMatrices();
-
-}
-/******************************************************************************/
 void ChromosomeSubstitutionModel::updateParameters(){
-    IntervalConstraint interval = IntervalConstraint(lowerBoundOfRateParam, upperBoundOfRateParam, true, true);
+    std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, true, true);
     if (gain_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.gain", gain_, &interval));
+      addParameter_(new Parameter("Chromosome.gain", gain_, interval));
       parameterIncluded_.push_back(1);
     }else{
       gain_ = 0;
       parameterIncluded_.push_back(0);
     }
     if (loss_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.loss", loss_, &interval));
+      addParameter_(new Parameter("Chromosome.loss", loss_, interval));
       parameterIncluded_.push_back(1);
     }else{
       loss_ = 0;
       parameterIncluded_.push_back(0);
     }
     if (dupl_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.dupl", dupl_, &interval));
+      addParameter_(new Parameter("Chromosome.dupl", dupl_, interval));
       parameterIncluded_.push_back(1);
     }else{
       dupl_ = 0;
       parameterIncluded_.push_back(0);
     }
     if ((demiploidy_ != IgnoreParam) & (demiploidy_!= DemiEqualDupl)){
-      addParameter_(new Parameter("Chromosome.demi", demiploidy_, &interval));
+      addParameter_(new Parameter("Chromosome.demi", demiploidy_, interval));
       parameterIncluded_.push_back(1);
     }else{
       if (demiploidy_ == IgnoreParam){

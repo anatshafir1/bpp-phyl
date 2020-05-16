@@ -131,7 +131,7 @@ int main(){
     //ChromosomeAlphabet* alphc = new ChromosomeAlphabet(20);
     double scale_tree_factor = 999;
     Newick newick;
-    TreeTemplate<Node>* tree = newick.read(path_tree);
+    TreeTemplate<Node>* tree = newick.readTree(path_tree);
     rescale_tree(tree, scale_tree_factor, maxObservedChrNum-minObservedChrNum);
     ChromosomeSubstitutionModel* chr_model = new ChromosomeSubstitutionModel(chr_alpha, 2, 1, 3, 1.3, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL);
     RowMatrix<double> Qij;

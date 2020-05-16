@@ -145,7 +145,7 @@ VectorSiteContainer* ChromEvolOptions::resizeAlphabetForSequenceContainer(Vector
 /****************************************************************************/
 TreeTemplate<Node>* ChromEvolOptions::getTree(const string& path, unsigned int NumOfUniqueCharacterStates){
     Newick newick;
-    TreeTemplate<Node>* tree = newick.read(path);
+    TreeTemplate<Node>* tree = newick.readTree(path);
     rescale_tree(tree, NumOfUniqueCharacterStates);
     return tree;
 

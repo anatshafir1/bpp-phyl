@@ -47,7 +47,6 @@ protected:
 
 public:
   ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, double gain, double loss, double dupl, double demi, rootFreqType freqType);
-  ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, rootFreqType freqType);
 
   virtual ~ChromosomeSubstitutionModel() {}
 

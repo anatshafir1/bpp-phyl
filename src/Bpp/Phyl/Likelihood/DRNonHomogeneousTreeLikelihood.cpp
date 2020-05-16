@@ -904,8 +904,8 @@ void DRNonHomogeneousTreeLikelihood::setWeightedRootFreq(Vdouble* freqs){
   }
   //const Alphabet* alpha = likelihoodData_->getAlphabet();
   
-  FixedFrequenciesSet* rootFreqs = new FixedFrequenciesSet(new CanonicalStateMap(modelSet_->getStateMap(), false), rootFreqsPerState);
-  modelSet_->setRootFrequencies(static_cast<FrequenciesSet*>(rootFreqs));
+  FixedFrequencySet* rootFreqs = new FixedFrequencySet(std::shared_ptr<const StateMap>(new CanonicalStateMap(modelSet_->getStateMap(), false)), rootFreqsPerState);
+  modelSet_->setRootFrequencies(static_cast<FrequencySet*>(rootFreqs));
   rootFreqs_ = modelSet_->getRootFrequencies();
 
 }
