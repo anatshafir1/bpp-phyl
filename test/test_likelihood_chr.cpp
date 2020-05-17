@@ -195,7 +195,7 @@ void deleteTreeLikAssociatedAttributes(DRNonHomogeneousTreeLikelihood &lik){
 /******************************************************************************/
 
 void printLikelihoodVectorValues(std::vector <DRNonHomogeneousTreeLikelihood> lik_vec){
-    std :: cout <<"The likelihoods at rhe end of cycle are :"<<endl;
+    std :: cout <<"The likelihoods at the end of cycle are :"<<endl;
     for (size_t i = 0; i < lik_vec.size(); i++){
         std :: cout << lik_vec[i].getValue() << endl;
     }
@@ -340,8 +340,6 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec,
     
     //create starting models
     for (size_t n = 0; n < ChromEvolOptions::OptPointsNum_[0]; n++){
-        std::cout <<"##################################" << endl;
-        std:: cout << "*********  cycle 0  **************"<<endl;
         DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
         SubstitutionModelSet* modelSet = new SubstitutionModelSet(alpha);
         ChromosomeSubstitutionModel* chrModel;
@@ -356,7 +354,7 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec,
         //initializing the likelihood instance
         lik.initialize();
         lik_vec.push_back(lik);//add to vector of likelihoods
-        printLikParameters(lik, 0);
+
         
     }
 
@@ -376,7 +374,7 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
         std:: cout << "*********  cycle "<< i <<"  **************"<<endl;     
         //Go over each point at cycle i 
         for (size_t j = 0; j < ChromEvolOptions::OptPointsNum_[i]; j++){
-            std::cout << "Optimizing Point #" << j <<"...."<<endl;;
+            std::cout << "Starting cycle with Point #" << j <<"...."<<endl;;
             printLikParameters(lik_vec[j], 0);
             //If the number of optimization iterations is larger than zero, optimize the number of times as specified
             double prevLogLik;
