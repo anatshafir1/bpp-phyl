@@ -50,11 +50,13 @@ ChromosomeSubstitutionModel* initRandomModel();
 void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec);
 
 /******************************************************************************/
+//Delete items from the vector of likelihood until reaching the required size new_size
 void clearVectorOfLikelihoods(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, size_t cycle){
     size_t new_size = 0;
     if ((cycle < ChromEvolOptions::OptPointsNum_.size()) & (cycle != ChromEvolOptions::OptPointsNum_.size()-1)){
         new_size = ChromEvolOptions::OptPointsNum_[cycle + 1];
     }
+    //if we are in the last cycle there is no need to delete the items for the next cycle. It will cleared until size 0
     if (cycle != ChromEvolOptions::OptPointsNum_.size()-1){
         while(lik_vec.size() > new_size){
             deleteTreeLikAssociatedAttributes(lik_vec[lik_vec.size()-1]);
@@ -90,13 +92,13 @@ void printRootFrequencies(DRNonHomogeneousTreeLikelihood &lik){
 /******************************************************************************/
 
 void printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimized){
-    double res = lik.getLikelihood();
+    //double res = lik.getLikelihood();
     if (optimized == 0){
         std:: cout << "Initial likelihood is : "<< lik.getValue() << endl;
     }else{
         std:: cout << "Optimized likelihood is : "<< lik.getValue() << endl;
     }
-    std:: cout << "likelihood is : " << res << endl;
+    //std:: cout << "likelihood is : " << res << endl;
     
     std:: cout << "Parameters are:" << endl;
     ParameterList params = lik.getSubstitutionModelParameters();
@@ -108,7 +110,7 @@ void printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimi
 
 }
 /******************************************************************************/
-
+//For likelihood sorting
 bool compareLikValues(DRNonHomogeneousTreeLikelihood &lik1, DRNonHomogeneousTreeLikelihood &lik2){
     return (lik1.getValue() < lik2.getValue());
 }
@@ -126,23 +128,31 @@ ChromosomeSubstitutionModel* initModel(){
 /******************************************************************************/
 ChromosomeSubstitutionModel* initRandomModel(){
     double gain, loss, dupl, demiDupl;
+    double upperBound = upperBoundOfRateParam;
+    if (ChromEvolOptions::maxParsimonyBound_){
+        TreeTemplate<Node>* tree = ChromEvolOptions::tree_->clone();
+        DRTreeParsimonyScore maxParsimonyObject = DRTreeParsimonyScore(*tree, *ChromEvolOptions::vsc_);
+        upperBound = (maxParsimonyObject.getScore())/(ChromEvolOptions::tree_->getTotalLength());
+        delete tree;
+
+    }
     if (ChromEvolOptions::constGain_ != IgnoreParam){
-        gain = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam);    
+        gain = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);    
     }else{
         gain = IgnoreParam;
     }
     if (ChromEvolOptions::constLoss_ != IgnoreParam){
-        loss = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam);
+        loss = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
     }else{
         loss = IgnoreParam;
     }
     if (ChromEvolOptions::constDupl_ != IgnoreParam){
-        dupl = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam);
+        dupl = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
     }else{
         dupl = IgnoreParam;
     }
     if ((ChromEvolOptions::constDemiDupl_ != IgnoreParam) & (ChromEvolOptions::constDemiDupl_ != DemiEqualDupl)){
-        demiDupl = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBoundOfRateParam);
+        demiDupl = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
 
     }else{
         demiDupl = ChromEvolOptions::constDemiDupl_;
@@ -179,26 +189,31 @@ void testOptimizeLikelihood(){
     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
     SubstitutionModelSet* modelSet = new SubstitutionModelSet(ChromEvolOptions::alpha_);
     ChromosomeSubstitutionModel* chrModel = initModel();
+    // setting the likelihood instance (the root is not attached to any model in the modelset)
     vector <int> nodeIds = ChromEvolOptions::tree_->getNodesId();
     nodeIds.pop_back();
     modelSet->addModel(chrModel, nodeIds);
     DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*ChromEvolOptions::tree_, *ChromEvolOptions::vsc_, modelSet, rdist);
+    //initializing and printing the initial likelihood value and the associated parameters
     lik.initialize();
     printLikParameters(lik, 0);
     printRootFrequencies(lik);
 
     // optimize likelihood
-    ParameterList params = lik.getSubstitutionModelParameters();
+    ParameterList params = lik.getSubstitutionModelParameters();//the model is already set to include only the unignored parameters
     unsigned int optimization_res = OptimizationTools::optimizeNumericalParameters(&lik, params, 0, 1, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, ApplicationTools::message.get(), ApplicationTools::message.get(), false, 1, OptimizationTools::OPTIMIZATION_NEWTON, OptimizationTools::OPTIMIZATION_BRENT, 1);
     std::cout <<"optimization iterations : "<< optimization_res<<endl;
     printLikParameters(lik, 1);
+    //free pointers
     delete modelSet;
     delete rdist;
-    //delete chr_alpha;
+
 
 }
 /******************************************************************************/
+//Setting the initial starting points
 void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec){
+    //Preparing tree nodes for the creation of likelihood instance (excluding the root)
     vector <int> nodeIds = ChromEvolOptions::tree_->getNodesId();
     nodeIds.pop_back();
     
@@ -217,8 +232,9 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec)
         modelSet->addModel(chrModel, nodeIds);
         DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*ChromEvolOptions::tree_, *ChromEvolOptions::vsc_, modelSet, rdist);
 
+        //initializing the likelihood instance
         lik.initialize();
-        lik_vec.push_back(lik);
+        lik_vec.push_back(lik);//add to vector of likelihoods
         printLikParameters(lik, 0);
         
     }
@@ -227,17 +243,20 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec)
 
 /******************************************************************************/
 void OptimizeMultiStartingPoints(){
+    //initializing the stating points at cycle 0
     std::vector <DRNonHomogeneousTreeLikelihood> lik_vec;
     lik_vec.reserve(ChromEvolOptions::OptPointsNum_[0]);
     initLikelihoodVector(lik_vec);
- 
+
+    //Go over each cycle
     for (size_t i = 0; i < ChromEvolOptions::OptIterNum_.size(); i++){ 
         std::cout <<"##################################" << endl;
         std:: cout << "*********  cycle "<< i <<"  **************"<<endl;     
-      
+        //Go over each point at cycle i 
         for (size_t j = 0; j < ChromEvolOptions::OptPointsNum_[i]; j++){
             std::cout << "Optimizing Point #" << j <<"...."<<endl;;
             printLikParameters(lik_vec[j], 0);
+            //If the number of optimization iterations is larger than zero, optimize the number of times as specified
             if (ChromEvolOptions::OptIterNum_[i] > 0){
                 ParameterList params;
                 for (size_t it = 0; it < ChromEvolOptions::OptIterNum_[i]; it++){
@@ -249,16 +268,19 @@ void OptimizeMultiStartingPoints(){
                 std::cout <<"..."<<endl;                                
             }            
         }
+        //sort the vector of likelihoods, such that the worst likelihood is at the end
         sort(lik_vec.begin(), lik_vec.end(), compareLikValues);
         printLikelihoodVectorValues(lik_vec);
+        //Clear the vector of likelihoods, such that it will contain the number of points as specified for the next iteration
         clearVectorOfLikelihoods(lik_vec, i);
         
     }
     printRootFrequencies(lik_vec[0]);
     std::cout <<"*****  Final Optimized -logL *********"  <<endl;
     printLikParameters(lik_vec[0], 1);
+    //Clear the vector of likelihoods entirely
     clearVectorOfLikelihoods(lik_vec, ChromEvolOptions::OptPointsNum_.size());
-    std::cout << "Length of vector is: "<< lik_vec.size() << endl;
+    //std::cout << "Length of vector is: "<< lik_vec.size() << endl;
     //delete chr_alpha;
 
 }
@@ -282,7 +304,8 @@ int main(int args, char **argv) {
         cout << e.what() << endl;
         return 1;
     }
-
+    delete ChromEvolOptions::tree_;
+    delete ChromEvolOptions::vsc_;
 
     return 0;
 }
