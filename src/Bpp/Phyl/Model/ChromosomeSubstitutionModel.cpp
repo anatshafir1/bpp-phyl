@@ -42,11 +42,11 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(const ChromosomeAlpha
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateParameters(){
     std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, true, true);
-    if (gain_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.gain", gain_, interval));
+    if (dupl_ != IgnoreParam){
+      addParameter_(new Parameter("Chromosome.dupl", dupl_, interval));
       parameterIncluded_.push_back(1);
     }else{
-      gain_ = 0;
+      dupl_ = 0;
       parameterIncluded_.push_back(0);
     }
     if (loss_ != IgnoreParam){
@@ -56,11 +56,11 @@ void ChromosomeSubstitutionModel::updateParameters(){
       loss_ = 0;
       parameterIncluded_.push_back(0);
     }
-    if (dupl_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.dupl", dupl_, interval));
+    if (gain_ != IgnoreParam){
+      addParameter_(new Parameter("Chromosome.gain", gain_, interval));
       parameterIncluded_.push_back(1);
     }else{
-      dupl_ = 0;
+      gain_ = 0;
       parameterIncluded_.push_back(0);
     }
     if ((demiploidy_ != IgnoreParam) & (demiploidy_!= DemiEqualDupl)){
