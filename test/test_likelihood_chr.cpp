@@ -57,9 +57,9 @@ TreeTemplate<Node>* getTree(const std :: string &path, unsigned int numOfUniqueC
 //void testOptimizeLikelihood(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree);
 
 void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree);
-void optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);//, unsigned int inwardBracketing, bool standardOptimization);
-void optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);
-void optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);
+unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);//, unsigned int inwardBracketing, bool standardOptimization);
+unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);
+unsigned int optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);
 
 //Axillary functions for likelihood optimization
 bool compareLikValues(DRNonHomogeneousTreeLikelihood &lik1, DRNonHomogeneousTreeLikelihood &lik2);
@@ -370,7 +370,8 @@ ChromosomeSubstitutionModel* initRandomModel2(const ChromosomeAlphabet* alpha, V
 
 } */
 /******************************************************************************/
-void optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
+unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
+    unsigned int numOfEvaluations = 0;
     if (ChromEvolOptions::standardOptimization_){
         double prevLogLik;
         ParameterList params;
@@ -378,7 +379,7 @@ void optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, uns
             std::cout << "Iteration #"<<i <<endl;
             prevLogLik = tl->getValue();
             params = tl->getSubstitutionModelParameters();
-            OptimizationTools::optimizeNumericalParameters(tl, params, 0, 1, tol, 2, ApplicationTools::message.get(), ApplicationTools::message.get(), false, 0, OptimizationTools::OPTIMIZATION_NEWTON, OptimizationTools::OPTIMIZATION_BRENT, (unsigned int)(ChromEvolOptions::BrentBracketing_));
+            numOfEvaluations += OptimizationTools::optimizeNumericalParameters(tl, params, 0, 1, tol, 2, ApplicationTools::message.get(), ApplicationTools::message.get(), false, 0, OptimizationTools::OPTIMIZATION_NEWTON, OptimizationTools::OPTIMIZATION_BRENT, (unsigned int)(ChromEvolOptions::BrentBracketing_));
             printLikParameters(*tl, 1);
             if (abs(tl->getValue() - prevLogLik) < tol){
                 break;
@@ -387,24 +388,27 @@ void optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, uns
         std::cout <<"..."<<endl;
     }else{
         if (ChromEvolOptions::optimizationMethod_ == "Brent"){
-            optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations);
+            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations);
         }else{
 /*             ParameterList params = tl->getSubstitutionModelParameters();
             std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam + 0.00000001, upperBoundOfRateParam, true, true);
             for (size_t j = 0; j < params.size(); j++){
                 params[j].setConstraint(interval);
             } */
-            optimizeMultiDimensions(tl, tol, maxNumOfIterations);
+            numOfEvaluations += optimizeMultiDimensions(tl, tol, maxNumOfIterations);
             //OptimizationTools::optimizeNumericalParameters(tl, params, 0, 1, tol, 2, ApplicationTools::message.get(), ApplicationTools::message.get(), false, 0, OptimizationTools::OPTIMIZATION_NEWTON, OptimizationTools::OPTIMIZATION_BRENT, (unsigned int)(ChromEvolOptions::BrentBracketing_));
             //OptimizationTools::optimizeNumericalParameters2(tl, params, 0, 0.01, 1000, ApplicationTools::message.get(), ApplicationTools::message.get(), false, false, 1, OptimizationTools::OPTIMIZATION_GRADIENT);
             //OptimizationTools::optimizeNumericalParameters2(tl, params);//, 0, 0.000001, 1000000, ApplicationTools::message.get(), ApplicationTools::message.get(), false, false, 1, OptimizationTools::OPTIMIZATION_GRADIENT);
         }
         
     }
+    
+    return numOfEvaluations;
+    
 
 }
 /******************************************************************************/
-void optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
+unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
     BrentOneDimension* optimizer = new BrentOneDimension(tl);
     optimizer->setVerbose(1);
     optimizer->setProfiler(0);
@@ -422,6 +426,7 @@ void optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, dou
     
     double currentLikelihood = tl->getValue();
     double prevLikelihood;
+    unsigned int numOfEvaluations = 0;
 
     for (size_t i = 0; i < maxNumOfIterations; i++){
         std::cout << "Iteration #"<<i <<endl;
@@ -447,15 +452,17 @@ void optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, dou
         if (abs(prevLikelihood-currentLikelihood) < tol){
             break;
         }
-
-        
+        numOfEvaluations += optimizer->getNumberOfEvaluations();
+       
     }
     std::cout <<"..."<<endl;
+    //std:: cout << "final number of evaluations is : " << numOfEvaluations << endl;
     delete optimizer;
+    return numOfEvaluations;
 }
 
 /*******************************************************************************/
-void optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
+unsigned int optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
     DerivableSecondOrder* f = tl;
     unique_ptr<AbstractNumericalDerivative> fnum;
     fnum.reset(new TwoPointsNumericalDerivative(f));
@@ -470,6 +477,7 @@ void optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, uns
     optimizer->getStopCondition()->setTolerance(tol* 0.1);
     optimizer->setMaximumNumberOfEvaluations(1000);
 
+    unsigned int numOfEvaluations = 0;
     double currentLikelihood = tl->getValue();
     double prevLikelihood;
     for (size_t i = 0; i < maxNumOfIterations; i++){
@@ -487,9 +495,13 @@ void optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, uns
             break;
         }
         
+        
     }
+    numOfEvaluations += optimizer->getNumberOfEvaluations();
+    //std::cout << "The final number of evaluations is: "<< numOfEvaluations << endl;
     std::cout <<"..."<<endl;
     delete optimizer;
+    return numOfEvaluations;
 
 }
 /*******************************************************************************/
@@ -543,6 +555,7 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
     std::vector <DRNonHomogeneousTreeLikelihood> lik_vec;
     lik_vec.reserve(ChromEvolOptions::OptPointsNum_[0]);
     initLikelihoodVector(lik_vec, alpha, vsc, tree);
+    unsigned int numOfEvaluations = 0;
 
     //Go over each cycle
     for (size_t i = 0; i < ChromEvolOptions::OptIterNum_.size(); i++){
@@ -555,7 +568,7 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
             printLikParameters(lik_vec[j], 0);
             //If the number of optimization iterations is larger than zero, optimize the number of times as specified
             if (ChromEvolOptions::OptIterNum_[i] > 0){
-                optimizeModelParameters(&lik_vec[j], ChromEvolOptions::tolerance_, ChromEvolOptions::OptIterNum_[i]);
+                numOfEvaluations += optimizeModelParameters(&lik_vec[j], ChromEvolOptions::tolerance_, ChromEvolOptions::OptIterNum_[i]);
                           
             }            
         }
@@ -569,6 +582,7 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
     printLikParameters(lik_vec[0], 1);
     //Clear the vector of likelihoods entirely
     clearVectorOfLikelihoods(lik_vec, 0);
+    std:: cout << "final number of evaluations is : " << numOfEvaluations << endl;
 
 
 }
