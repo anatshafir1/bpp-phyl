@@ -48,6 +48,9 @@ public:
     static double tolerance_;
     static unsigned int maxIterations_;
     static bool maxParsimonyBound_;
+    static bool standardOptimization_;
+    static int BrentBracketing_;
+    static string optimizationMethod_;
     static unsigned int maxAlpha_;
     static unsigned int minAlpha_;
 

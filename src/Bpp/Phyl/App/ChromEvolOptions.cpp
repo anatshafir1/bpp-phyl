@@ -19,6 +19,9 @@ unsigned int ChromEvolOptions::maxIterations_;
 bool ChromEvolOptions::maxParsimonyBound_;
 unsigned int ChromEvolOptions::maxAlpha_;
 unsigned int ChromEvolOptions::minAlpha_;
+int ChromEvolOptions::BrentBracketing_;
+bool ChromEvolOptions::standardOptimization_;
+string ChromEvolOptions::optimizationMethod_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -40,6 +43,9 @@ void ChromEvolOptions::initDefaultParameters(){
     constDupl_ = IgnoreParam;
     constDemiDupl_= IgnoreParam;
     maxParsimonyBound_ = false;
+    standardOptimization_ = false;
+    BrentBracketing_ = 2;
+    optimizationMethod_ = "Brent";
 
 }
 /*************************************************************************/
@@ -60,6 +66,9 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     constDupl_ = ApplicationTools::getDoubleParameter("_duplConstR", ChromEvol.getParams(), constDupl_, "", true, 0);
     constDemiDupl_ = ApplicationTools::getDoubleParameter("_demiPloidyR", ChromEvol.getParams(), constDemiDupl_, "", true, 0);
     maxParsimonyBound_ = ApplicationTools::getBooleanParameter("_maxParsimonyBound", ChromEvol.getParams(), maxParsimonyBound_, "", true, 0);
+    standardOptimization_ = ApplicationTools::getBooleanParameter("_standardOptimization", ChromEvol.getParams(), standardOptimization_, "", true, 0);
+    BrentBracketing_ = ApplicationTools::getIntParameter("_BrentBracketing", ChromEvol.getParams(), BrentBracketing_, "", true, 0);
+    optimizationMethod_ = ApplicationTools::getStringParameter("_optimizationMethod", ChromEvol.getParams(), optimizationMethod_, "", true, 0);
     string defaultValForOptPointsNum = "10,3,1";
     string defaultValForOptIterNum = "0,2,5";
     OptPointsNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizePointsNum", ChromEvol.getParams(), ',', defaultValForOptPointsNum, "", true, 0);
