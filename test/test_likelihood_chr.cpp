@@ -229,7 +229,8 @@ void printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimi
     }else{
         std:: cout << "Optimized likelihood is : "<< lik.getValue() << endl;
     }
-    //std:: cout << "likelihood is : " << res << endl;
+    unsigned int numOfLikEvaluations = lik.getNumberOfLikelihoodEvaluations();
+    std:: cout << "number of likelihood evaluations is : " << numOfLikEvaluations << endl;
     
     std:: cout << "Parameters are:" << endl;
     ParameterList params = lik.getSubstitutionModelParameters();
@@ -510,6 +511,9 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec,
     //Preparing tree nodes for the creation of likelihood instance (excluding the root)
     vector <int> nodeIds = tree->getNodesId();
     nodeIds.pop_back();
+    if (ChromEvolOptions::seed_ != 0){
+        RandomTools::setSeed(static_cast<long>(ChromEvolOptions::seed_));
+    }
     
     //create starting models
     for (size_t n = 0; n < ChromEvolOptions::OptPointsNum_[0]; n++){
@@ -555,23 +559,31 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
     std::vector <DRNonHomogeneousTreeLikelihood> lik_vec;
     lik_vec.reserve(ChromEvolOptions::OptPointsNum_[0]);
     initLikelihoodVector(lik_vec, alpha, vsc, tree);
-    unsigned int numOfEvaluations = 0;
+    unsigned int totalNumOfEvaluations = 0;
+    unsigned int numOfEvaluations;
+    unsigned int numOfEvaluationsPerCycle;
 
     //Go over each cycle
     for (size_t i = 0; i < ChromEvolOptions::OptIterNum_.size(); i++){
+        numOfEvaluationsPerCycle = 0;
         clearVectorOfLikelihoods(lik_vec, ChromEvolOptions::OptPointsNum_[i]);
         std::cout <<"##################################" << endl;
         std:: cout << "*********  cycle "<< i <<"  **************"<<endl;     
         //Go over each point at cycle i 
         for (size_t j = 0; j < ChromEvolOptions::OptPointsNum_[i]; j++){
+            numOfEvaluations = 0;
             std::cout << "Starting cycle with Point #" << j <<"...."<<endl;;
             printLikParameters(lik_vec[j], 0);
             //If the number of optimization iterations is larger than zero, optimize the number of times as specified
             if (ChromEvolOptions::OptIterNum_[i] > 0){
-                numOfEvaluations += optimizeModelParameters(&lik_vec[j], ChromEvolOptions::tolerance_, ChromEvolOptions::OptIterNum_[i]);
+                numOfEvaluations = optimizeModelParameters(&lik_vec[j], ChromEvolOptions::tolerance_, ChromEvolOptions::OptIterNum_[i]);
                           
-            }            
+            }
+            std:: cout << "Number of evaluations per point is : " << numOfEvaluations << endl;
+            numOfEvaluationsPerCycle += numOfEvaluations;
+            std:: cout <<"*****************************" << endl;            
         }
+        totalNumOfEvaluations += numOfEvaluationsPerCycle;
         //sort the vector of likelihoods, such that the worst likelihood is at the end
         sort(lik_vec.begin(), lik_vec.end(), compareLikValues);
         printLikelihoodVectorValues(lik_vec);
@@ -582,7 +594,7 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
     printLikParameters(lik_vec[0], 1);
     //Clear the vector of likelihoods entirely
     clearVectorOfLikelihoods(lik_vec, 0);
-    std:: cout << "final number of evaluations is : " << numOfEvaluations << endl;
+    std:: cout << "final number of evaluations is : " << totalNumOfEvaluations << endl;
 
 
 }

@@ -72,6 +72,7 @@ class DRNonHomogeneousTreeLikelihood:
   protected:
     mutable DRASDRTreeLikelihoodData *likelihoodData_;
     double minusLogLik_;
+    unsigned int numOfLikelihoodCalculations_; //for debug pursposes
    
   public:
     /**
@@ -226,6 +227,8 @@ class DRNonHomogeneousTreeLikelihood:
     {
       computeLikelihoodAtNode_(tree_->getNode(nodeId), likelihoodArray);
     }
+    // For debug perposes
+    unsigned int getNumberOfLikelihoodEvaluations(){return numOfLikelihoodCalculations_;}
       
   protected:
     virtual void computeLikelihoodAtNode_(const Node* node, VVVdouble& likelihoodArray) const;

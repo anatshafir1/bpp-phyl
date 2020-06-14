@@ -65,7 +65,8 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
   bool reparametrizeRoot) :
   AbstractNonHomogeneousTreeLikelihood(tree, modelSet, rDist, verbose, reparametrizeRoot),
   likelihoodData_(0),
-  minusLogLik_(-1.)
+  minusLogLik_(-1.),
+  numOfLikelihoodCalculations_(0)
 {
   if (!modelSet->isFullySetUpFor(tree))
     throw Exception("DRNonHomogeneousTreeLikelihood(constructor). Model set is not fully specified.");
@@ -83,7 +84,8 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
   bool reparametrizeRoot) :
   AbstractNonHomogeneousTreeLikelihood(tree, modelSet, rDist, verbose, reparametrizeRoot),
   likelihoodData_(0),
-  minusLogLik_(-1.)
+  minusLogLik_(-1.),
+  numOfLikelihoodCalculations_(0)
 {
   if (!modelSet->isFullySetUpFor(tree))
     throw Exception("DRNonHomogeneousTreeLikelihood(constructor). Model set is not fully specified.");
@@ -132,7 +134,8 @@ void DRNonHomogeneousTreeLikelihood::init_()
 DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(const DRNonHomogeneousTreeLikelihood& lik) :
   AbstractNonHomogeneousTreeLikelihood(lik),
   likelihoodData_(0),
-  minusLogLik_(lik.minusLogLik_)
+  minusLogLik_(lik.minusLogLik_),
+  numOfLikelihoodCalculations_(lik.numOfLikelihoodCalculations_)
 {
   likelihoodData_ = dynamic_cast<DRASDRTreeLikelihoodData*>(lik.likelihoodData_->clone());
   likelihoodData_->setTree(tree_);
@@ -148,6 +151,7 @@ DRNonHomogeneousTreeLikelihood& DRNonHomogeneousTreeLikelihood::operator=(const 
   likelihoodData_ = dynamic_cast<DRASDRTreeLikelihoodData*>(lik.likelihoodData_->clone());
   likelihoodData_->setTree(tree_);
   minusLogLik_ = lik.minusLogLik_;
+  numOfLikelihoodCalculations_ = lik.numOfLikelihoodCalculations_;
   return *this;
 }
 
@@ -872,6 +876,7 @@ void DRNonHomogeneousTreeLikelihood::resetLikelihoodArrays(const Node* node)
 
 void DRNonHomogeneousTreeLikelihood::computeTreeLikelihood()
 {
+  numOfLikelihoodCalculations_ += 1;
   if (modelSet_->getSubstitutionModel(0)->getName() == "Chromosome"){
     computeTreeLikelihoodWeightedRootFreq();
   }else{

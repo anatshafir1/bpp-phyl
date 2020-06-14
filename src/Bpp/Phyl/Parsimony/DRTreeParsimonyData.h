@@ -52,7 +52,8 @@
 
 namespace bpp
 {
-typedef std::bitset<21> Bitset; // 20AA + gaps, codon not lalowed so far :s
+//typedef std::bitset<21> Bitset; // 20AA + gaps, codon not lalowed so far :s
+typedef std::bitset<501> Bitset;  //adjusting to chromosome alphabet as the one which contains the largest # states
 
 /**
  * @brief Parsimony data structure for a node.

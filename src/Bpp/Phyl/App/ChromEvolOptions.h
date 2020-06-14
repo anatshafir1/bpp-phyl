@@ -53,6 +53,7 @@ public:
     static string optimizationMethod_;
     static unsigned int maxAlpha_;
     static unsigned int minAlpha_;
+    static int seed_;
 
 private:
     static void initDefaultParameters();

@@ -22,6 +22,7 @@ unsigned int ChromEvolOptions::minAlpha_;
 int ChromEvolOptions::BrentBracketing_;
 bool ChromEvolOptions::standardOptimization_;
 string ChromEvolOptions::optimizationMethod_;
+int ChromEvolOptions::seed_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -46,12 +47,14 @@ void ChromEvolOptions::initDefaultParameters(){
     standardOptimization_ = false;
     BrentBracketing_ = 2;
     optimizationMethod_ = "Brent";
+    seed_ = 0;
 
 }
 /*************************************************************************/
 void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     maxChrNum_ = ApplicationTools::getIntParameter("_maxChrNum", ChromEvol.getParams(), maxChrNum_, "", true, 0);
     minChrNum_ = ApplicationTools::getIntParameter("_minChrNum", ChromEvol.getParams(), minChrNum_, "", true, 0);
+    seed_ = ApplicationTools::getIntParameter("_seed", ChromEvol.getParams(), seed_, "", true, 0);
     characterFilePath_ = ApplicationTools::getAFilePath("_dataFile", ChromEvol.getParams(), true, true, "", true, "none", 1);
     treeFilePath_ = ApplicationTools::getAFilePath("_treeFile", ChromEvol.getParams(), true, true, "", true, "none", 1);
     //unsigned int numberOfUniqueCharacterStates = 0;
