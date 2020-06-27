@@ -262,6 +262,7 @@ class DRASRTreeLikelihoodData :
     size_t getNumberOfClasses() const { return nbClasses_; }
     
     void initLikelihoods(const SiteContainer& sites, const TransitionModel& model);
+    void initLikelihoodsForAncestralReconstruction(const SiteContainer& sites, const TransitionModel& model, std::map<int, VVVdouble>* pxy, std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors);
 
   protected:
     /**
@@ -296,7 +297,7 @@ class DRASRTreeLikelihoodData :
      * @param model     The model to use.
      * @return The shrunk sub-dataset + indices for the subtree defined by <i>node</i>.
      */
-    virtual SitePatterns* initLikelihoodsWithPatterns(const Node* node, const SiteContainer& sequences, const TransitionModel& model);
+    virtual SitePatterns* initLikelihoodsWithPatterns(const Node* node, const SiteContainer& sequences, const TransitionModel& model, std::map<int, VVVdouble>* pxy = 0,  std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors = 0);
   
 };
 

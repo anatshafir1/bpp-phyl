@@ -29,6 +29,7 @@
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
 #include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Likelihood/MLAncestralStateReconstruction.h>
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
 #include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
 #include <Bpp/Phyl/Model/SubstitutionModelSet.h>
@@ -72,6 +73,7 @@ ChromosomeSubstitutionModel* initModel(const ChromosomeAlphabet* alpha);
 ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum);
 ChromosomeSubstitutionModel* initRandomModel2(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum);
 void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec);
+void testAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik);
 
 /******************************************************************************/
 //Delete items from the vector of likelihood until reaching the required size new_size
@@ -592,10 +594,32 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
     printRootFrequencies(lik_vec[0]);
     std::cout <<"*****  Final Optimized -logL *********"  <<endl;
     printLikParameters(lik_vec[0], 1);
+    testAncestralReconstruction(&lik_vec[0]);
     //Clear the vector of likelihoods entirely
     clearVectorOfLikelihoods(lik_vec, 0);
     std:: cout << "final number of evaluations is : " << totalNumOfEvaluations << endl;
 
+
+}
+/******************************************************************************/
+void testAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik){
+    TransitionModel* model = lik->getSubstitutionModelSet()->getModel(0);
+    std::vector<double> rootFreqs = lik->getRootFrequencies(0);
+    std::map<int, VVVdouble> Pijt;
+    vector <int> nodesIds = lik->getTree().getNodesId();
+    for (size_t n = 0; n < nodesIds.size(); n++){
+        Pijt[nodesIds[n]] = lik->getTransitionProbabilitiesPerRateClass(nodesIds[n], 0);
+    }
+    MLAncestralStateReconstruction* ancr = new MLAncestralStateReconstruction(lik, model, rootFreqs, &Pijt);
+    ancr->computeJointLikelihood();
+    std::map<int, std::vector<size_t> > ancestors = ancr->getAllAncestralStates();
+    for (size_t n= 0; n < nodesIds.size(); n++){
+        for (size_t i = 0; i < ancestors[nodesIds[0]].size(); i++){
+            std::cout << "node Id: "<<nodesIds[n]<< " state index: " << ancestors[nodesIds[n]][i]<<endl;
+        }
+        
+    }
+    delete ancr;
 
 }
 /******************************************************************************/

@@ -88,6 +88,32 @@ void DRASRTreeLikelihoodData::initLikelihoods(const SiteContainer& sites, const 
   }
   delete patterns;
 }
+/******************************************************************************/
+void DRASRTreeLikelihoodData::initLikelihoodsForAncestralReconstruction(const SiteContainer& sites, const TransitionModel& model, std::map<int, VVVdouble>* pxy, std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors){
+  if (sites.getNumberOfSequences() == 1)
+    throw Exception("Error, only 1 sequence!");
+  if (sites.getNumberOfSequences() == 0)
+    throw Exception("Error, no sequence!");
+  if (sites.getAlphabet()->getAlphabetType()
+      != model.getAlphabet()->getAlphabetType())
+    throw AlphabetMismatchException("DRASDRTreeLikelihoodData::initLikelihoods. Data and model must have the same alphabet type.",
+                                    sites.getAlphabet(),
+                                    model.getAlphabet());
+  alphabet_ = sites.getAlphabet();
+  nbStates_ = model.getNumberOfStates();
+  nbSites_  = sites.getNumberOfSites();
+  if (shrunkData_)
+    delete shrunkData_;
+  SitePatterns* patterns;
+
+  patterns          = initLikelihoodsWithPatterns(tree_->getRootNode(), sites, model, pxy, ancestors);
+  shrunkData_       = patterns->getSites();
+  rootWeights_      = patterns->getWeights();
+  rootPatternLinks_ = patterns->getIndices();
+  nbDistinctSites_  = shrunkData_->getNumberOfSites();
+  
+  delete patterns;
+}
 
 /******************************************************************************/
 
@@ -189,7 +215,7 @@ void DRASRTreeLikelihoodData::initLikelihoods(const Node* node, const SiteContai
 
 /******************************************************************************/
 
-SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* node, const SiteContainer& sequences, const TransitionModel& model)
+SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* node, const SiteContainer& sequences, const TransitionModel& model, std::map<int, VVVdouble>* pxy, std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors)
 {
   SiteContainer* tmp = PatternTools::getSequenceSubset(sequences, *node);
   SitePatterns* patterns = new SitePatterns(tmp, true);
@@ -259,8 +285,22 @@ SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* n
           // Leaves likelihood are set to 1 if the char correspond to the site in the sequence,
           // otherwise value set to 0:
           // cout << "i=" << i << "\tc=" << c << "\ts=" << s << endl;
-          (*_likelihoods_node_i_c)[s] = model.getInitValue(s, state);
-          test += (*_likelihoods_node_i_c)[s];
+          if (pxy){
+            if (model.getInitValue(s, state) == 1.0){
+              
+              for (size_t j = 0; j < nbStates_; j++){
+                (*_likelihoods_node_i_c)[j] = (*pxy)[node->getId()][c][j][s];
+                test += (*_likelihoods_node_i_c)[j];
+                (*ancestors)[node->getId()][i][j] = s;
+              }
+              break;
+            }
+
+          }else{
+            (*_likelihoods_node_i_c)[s] = model.getInitValue(s, state);
+            test += (*_likelihoods_node_i_c)[s];
+          }
+          
         }
         if (test < 0.000001)
           std::cerr << "WARNING!!! Likelihood will be 0 for site " << i << std::endl;
@@ -282,7 +322,7 @@ SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* n
       std::vector<size_t>* patternLinks__node_son = &(*patternLinks__node)[son->getId()];
 
       // Initialize subtree 'l' and retrieves corresponding subSequences:
-      SitePatterns* subPatterns = initLikelihoodsWithPatterns(son, *subSequences, model);
+      SitePatterns* subPatterns = initLikelihoodsWithPatterns(son, *subSequences, model, pxy, ancestors);
       (*patternLinks__node_son) = subPatterns->getIndices();
       delete subPatterns;
     }
