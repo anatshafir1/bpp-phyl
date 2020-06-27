@@ -74,7 +74,8 @@ ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, Ve
 ChromosomeSubstitutionModel* initRandomModel2(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum);
 void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec);
 void testAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik);
-
+string printTree(const TreeTemplate<Node>& tree);
+string nodeToParenthesis(const Node& node);
 /******************************************************************************/
 //Delete items from the vector of likelihood until reaching the required size new_size
 void clearVectorOfLikelihoods(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, size_t new_size){
@@ -606,7 +607,8 @@ void testAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik){
     TransitionModel* model = lik->getSubstitutionModelSet()->getModel(0);
     std::vector<double> rootFreqs = lik->getRootFrequencies(0);
     std::map<int, VVVdouble> Pijt;
-    vector <int> nodesIds = lik->getTree().getNodesId();
+    TreeTemplate<Node> tree = lik->getTree();
+    vector <int> nodesIds = tree.getNodesId();
     for (size_t n = 0; n < nodesIds.size(); n++){
         Pijt[nodesIds[n]] = lik->getTransitionProbabilitiesPerRateClass(nodesIds[n], 0);
     }
@@ -615,14 +617,89 @@ void testAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik){
     std::map<int, std::vector<size_t> > ancestors = ancr->getAllAncestralStates();
     for (size_t n= 0; n < nodesIds.size(); n++){
         for (size_t i = 0; i < ancestors[nodesIds[0]].size(); i++){
-            std::cout << "node Id: "<<nodesIds[n]<< " state index: " << ancestors[nodesIds[n]][i]<<endl;
+            size_t state = ancestors[nodesIds[n]][i] + (dynamic_cast<const ChromosomeAlphabet*>(lik->getAlphabet()))->getMin();
+            std::cout << "node Id: "<<nodesIds[n]<< " state index: " << state <<endl;
+            std::string prevName;
+            
+            if (tree.isLeaf(nodesIds[n])){
+                prevName = tree.getNodeName(nodesIds[n]);
+                const std::string newName = (prevName + "-"+ std::to_string(state));
+                tree.setNodeName(nodesIds[n], newName);
+            }else{
+                prevName = "N" + std::to_string(nodesIds[n]);
+                const std::string newName = (prevName + "-"+ std::to_string(state));
+                tree.setNodeName(nodesIds[n], newName);
+            }
+            
+            
         }
         
     }
+    string tree_str = printTree(tree);
+    std:: cout << tree_str << endl;
     delete ancr;
 
 }
 /******************************************************************************/
+/******************************************************************************/
+
+string printTree(const TreeTemplate<Node>& tree)
+{
+  ostringstream s;
+  s << "(";
+  const Node* node = tree.getRootNode();
+  if (node->isLeaf() && node->hasName()) // In case we have a tree like ((A:1.0)); where the root node is an unamed leaf!
+  {
+    s << node->getName();
+    for (size_t i = 0; i < node->getNumberOfSons(); ++i)
+    {
+      s << "," << nodeToParenthesis(*node->getSon(i));
+    }
+  }
+  else
+  {
+    s << nodeToParenthesis(*node->getSon(0));
+    for (size_t i = 1; i < node->getNumberOfSons(); ++i)
+    {
+      s << "," << nodeToParenthesis(*node->getSon(i));
+    }
+  }
+  s << ")";
+  if (node->hasDistanceToFather())
+    s << ":" << node->getDistanceToFather();
+ 
+  s << tree.getRootNode()->getName();
+  s << ";" << endl;
+  return s.str();
+}
+
+/******************************************************************************/
+string nodeToParenthesis(const Node& node)
+{
+  ostringstream s;
+  if (node.isLeaf())
+  {
+    s << node.getName();
+  }
+  else
+  {
+    s << "(";
+    s << nodeToParenthesis(*node[0]);
+    for (int i = 1; i < static_cast<int>(node.getNumberOfSons()); i++)
+    {
+      s << "," << nodeToParenthesis(*node[i]);
+    }
+    s << ")";
+  }
+  if (! node.isLeaf()){
+      s << node.getName();
+  }
+  
+  if (node.hasDistanceToFather())
+    s << ":" << node.getDistanceToFather();
+  return s.str();
+}
+/***********************************************************************************************************/
 
 
 int main(int args, char **argv) {
