@@ -54,6 +54,7 @@ public:
     static unsigned int maxAlpha_;
     static unsigned int minAlpha_;
     static int seed_;
+    static std::vector <double> probsForMixedOptimization_;
 
 private:
     static void initDefaultParameters();

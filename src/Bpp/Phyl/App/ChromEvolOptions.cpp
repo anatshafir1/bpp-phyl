@@ -23,6 +23,7 @@ int ChromEvolOptions::BrentBracketing_;
 bool ChromEvolOptions::standardOptimization_;
 string ChromEvolOptions::optimizationMethod_;
 int ChromEvolOptions::seed_;
+std::vector <double> ChromEvolOptions::probsForMixedOptimization_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -74,8 +75,10 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     optimizationMethod_ = ApplicationTools::getStringParameter("_optimizationMethod", ChromEvol.getParams(), optimizationMethod_, "", true, 0);
     string defaultValForOptPointsNum = "10,3,1";
     string defaultValForOptIterNum = "0,2,5";
+    string defaultValForProbsForMixedOpt = "1,0";
     OptPointsNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizePointsNum", ChromEvol.getParams(), ',', defaultValForOptPointsNum, "", true, 0);
     OptIterNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizeIterNum", ChromEvol.getParams(), ',', defaultValForOptIterNum, "", true, 0);
+    probsForMixedOptimization_ = ApplicationTools::getVectorParameter<double>("_probsForMixedOptimization", ChromEvol.getParams(), ',', defaultValForProbsForMixedOpt, "", true, 0);
 
 }
 /*************************************************************************/
