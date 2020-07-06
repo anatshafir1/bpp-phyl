@@ -82,7 +82,6 @@ class MLAncestralStateReconstruction
 		size_t nbStates_;
     std::vector<size_t> rootPatternLinks_;
     std::vector<double> r_;
-    size_t nbCategories_;
     std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors_;
     //std::vector<double> l_;
 		
@@ -101,7 +100,6 @@ class MLAncestralStateReconstruction
 			nbStates_ (drl->getLikelihoodData()->getNumberOfStates()),
 			rootPatternLinks_(drl->getLikelihoodData()->getRootArrayPositions()),
       r_ (drl->getRateDistribution()->getProbabilities()),
-      nbCategories_(drl->getRateDistribution()->getNumberOfCategories()),
       ancestors_(0)
     {}
 
@@ -119,7 +117,6 @@ class MLAncestralStateReconstruction
       nbStates_        (masr.nbStates_),
       rootPatternLinks_(masr.rootPatternLinks_),
       r_               (masr.r_), 
-      nbCategories_    (masr.nbCategories_),
       ancestors_       (masr.ancestors_)
     {}
 
@@ -138,7 +135,6 @@ class MLAncestralStateReconstruction
       nbStates_         = masr.nbStates_;
       rootPatternLinks_ = masr.rootPatternLinks_;
       r_                = masr.r_;
-      nbCategories_     = masr.nbCategories_;
       ancestors_        = masr.ancestors_;
       return *this;
     }

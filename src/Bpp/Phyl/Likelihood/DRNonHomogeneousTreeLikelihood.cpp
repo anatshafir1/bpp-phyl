@@ -892,83 +892,41 @@ void DRNonHomogeneousTreeLikelihood::computeTreeLikelihood()
 /******************************************************************************/
 void DRNonHomogeneousTreeLikelihood::computeTreeLikelihoodWeightedRootFreq(){
     computeSubtreeLikelihoodPostfix(tree_->getRootNode());
-    computeRootLikelihood();
-    UpdateAccordingToNewRootFreq();
-    computeSubtreeLikelihoodPrefix(tree_->getRootNode());
+    computeRootLikelihood(true);
     
 }
+
 /******************************************************************************/
-void DRNonHomogeneousTreeLikelihood::setWeightedRootFreq(Vdouble* freqs){
-  vector <double> rootFreqsPerState(nbStates_);
-  double sumOfLikelihoods = 0.0;
-  for (size_t x = 0; x < nbStates_; x++){
-    sumOfLikelihoods += (*freqs)[x];
+void DRNonHomogeneousTreeLikelihood::setWeightedRootFreq(VVVdouble* rootLikelihoods, Vdouble p){
+  std::vector <double> likelihoodsPerState;
+  std::vector <double> rootFreqsVector;
+  likelihoodsPerState.reserve(nbStates_);
+  rootFreqsVector.reserve(nbStates_);
+  double sumOfLikelhoods = 0;
+  for (size_t x = 0; x < nbStates_; x++)
+  {
+    double Likelihood_x = 0;
+    // For each state
+    for (size_t i = 0; i < nbDistinctSites_; i++)
+    {
+      // For each site in the sequence
+      for (size_t c = 0; c < nbClasses_; c++)
+      {
+        // For each class,
+        Likelihood_x +=  p[c] * (*rootLikelihoods)[i][c][x];
+      }
+    }
+    likelihoodsPerState.push_back(Likelihood_x);
+    sumOfLikelhoods += Likelihood_x;
   }
   for (size_t x = 0; x < nbStates_; x++){
-    rootFreqsPerState[x] = (*freqs)[x]/sumOfLikelihoods;
+    rootFreqsVector.push_back(likelihoodsPerState[x]/sumOfLikelhoods);
   }
-  //const Alphabet* alpha = likelihoodData_->getAlphabet();
-  
-  FixedFrequencySet* rootFreqs = new FixedFrequencySet(std::shared_ptr<const StateMap>(new CanonicalStateMap(modelSet_->getStateMap(), false)), rootFreqsPerState);
+  FixedFrequencySet* rootFreqs = new FixedFrequencySet(std::shared_ptr<const StateMap>(new CanonicalStateMap(modelSet_->getStateMap(), false)), rootFreqsVector);
   modelSet_->setRootFrequencies(static_cast<FrequencySet*>(rootFreqs));
   rootFreqs_ = modelSet_->getRootFrequencies();
 
 }
-
-/******************************************************************************/
-void DRNonHomogeneousTreeLikelihood::UpdateAccordingToNewRootFreq(){
-  VVVdouble* rootLikelihoods = &likelihoodData_->getRootLikelihoodArray();
-  Vdouble p = rateDistribution_->getProbabilities();
-  VVdouble* rootLikelihoodsS  = &likelihoodData_->getRootSiteLikelihoodArray();
-  Vdouble* rootLikelihoodsSR = &likelihoodData_->getRootRateSiteLikelihoodArray();
-  for (size_t i = 0; i < nbDistinctSites_; i++)
-  {
-    // For each site in the sequence,
-    VVdouble* rootLikelihoods_i = &(*rootLikelihoods)[i];
-    Vdouble* rootLikelihoodsS_i = &(*rootLikelihoodsS)[i];
-    (*rootLikelihoodsSR)[i] = 0;
-    for (size_t c = 0; c < nbClasses_; c++)
-    {
-      // For each rate classe,
-      Vdouble* rootLikelihoods_i_c = &(*rootLikelihoods_i)[c];
-      double* rootLikelihoodsS_i_c = &(*rootLikelihoodsS_i)[c];
-      (*rootLikelihoodsS_i_c) = 0;
-      setWeightedRootFreq(rootLikelihoods_i_c);
-      for (size_t x = 0; x < nbStates_; x++)
-      {
-        // For each initial state,
-        (*rootLikelihoodsS_i_c) += rootFreqs_[x] * (*rootLikelihoods_i_c)[x];
-      }
-      (*rootLikelihoodsSR)[i] += p[c] * (*rootLikelihoodsS_i_c);
-    }
-
-    // Final checking (for numerical errors):
-    if ((*rootLikelihoodsSR)[i] < 0)
-      (*rootLikelihoodsSR)[i] = 0.;
-  }
-
-
-}
-
-
-/******************************************************************************/
-/* 
-void DRNonHomogeneousTreeLikelihood::setWeightedFreqs(){
-  double sumOfLikelihoods = 0;
-  for (size_t i = 0; i < nbStates_; i++){
-    sumOfLikelihoods += getLikelihoodForASiteForARateClassForAState(0, 0, (int)i);
-  }
-  vector <double> freqs(nbStates_);
-  for (size_t i = 0; i < nbStates_; i++){
-    freqs[i] = getLikelihoodForASiteForARateClassForAState(0, 0, (int)i)/sumOfLikelihoods;
-  }
-  const Alphabet* alpha = likelihoodData_->getAlphabet();
-  FixedFrequenciesSet* rootFreqs = new FixedFrequenciesSet(new CanonicalStateMap(alpha, false), freqs);
-  modelSet_->setRootFrequencies(static_cast<FrequenciesSet*>(rootFreqs));
-  
-
-} */
-
 
 /******************************************************************************/
 
@@ -1032,7 +990,144 @@ void DRNonHomogeneousTreeLikelihood::computeSubtreeLikelihoodPostfix(const Node*
 }
 
 /******************************************************************************/
+void DRNonHomogeneousTreeLikelihood::computeLikelihoodPrefixConditionalOnRoot(const Node* node, size_t initState){
+  if (!node->hasFather())
+  {
+    // 'node' is the root of the tree.
+    // Just call the method on each son node:
+    size_t nbSons = node->getNumberOfSons();
+    for (size_t n = 0; n < nbSons; n++)
+    {
+      computeLikelihoodPrefixConditionalOnRoot(node->getSon(n), initState);
+    }
+    return;
+  }
+  else
+  {
+    const Node* father = node->getFather();
+    map<int, VVVdouble>* _likelihoods_node = &likelihoodData_->getLikelihoodArrays(node->getId());
+    map<int, VVVdouble>* _likelihoods_father = &likelihoodData_->getLikelihoodArrays(father->getId());
+    VVVdouble* _likelihoods_node_father = &(*_likelihoods_node)[father->getId()];
+    resetLikelihoodArray(*_likelihoods_node_father);
+    
 
+    if (father->isLeaf())
+    {
+      // If the tree is rooted by a leaf
+      VVdouble* _likelihoods_leaf = &likelihoodData_->getLeafLikelihoods(father->getId());
+      for (size_t i = 0; i < nbDistinctSites_; i++)
+      {
+        // For each site in the sequence,
+        Vdouble* _likelihoods_leaf_i = &(*_likelihoods_leaf)[i];
+        VVdouble* _likelihoods_node_father_i = &(*_likelihoods_node_father)[i];
+        for (size_t c = 0; c < nbClasses_; c++)
+        {
+          // For each rate classe,
+          Vdouble* _likelihoods_node_father_i_c = &(*_likelihoods_node_father_i)[c];
+          for (size_t x = 0; x < nbStates_; x++)
+          {
+            // For each initial state,
+            (*_likelihoods_node_father_i_c)[x] = (*_likelihoods_leaf_i)[x];
+          }
+        }
+      }
+    }
+    else
+    {
+      vector<const Node*> nodes;
+      // Add brothers:
+      size_t nbFatherSons = father->getNumberOfSons();
+      for (size_t n = 0; n < nbFatherSons; n++)
+      {
+        const Node* son = father->getSon(n);
+        if (son->getId() != node->getId())
+          nodes.push_back(son);  // This is a real brother, not current node!
+      }
+      // Now the real stuff... We've got to compute the likelihoods for the
+      // subtree defined by node 'father'.
+      // This is the same as postfix method, but with different subnodes.
+
+      size_t nbSons = nodes.size(); // In case of a bifurcating tree this is equal to 1.
+
+      vector<const VVVdouble*> iLik(nbSons);
+      vector<const VVVdouble*> tProb(nbSons);
+      for (size_t n = 0; n < nbSons; n++)
+      {
+        const Node* fatherSon = nodes[n];
+        tProb[n] = &pxy_[fatherSon->getId()];
+        iLik[n] = &(*_likelihoods_father)[fatherSon->getId()];
+      }
+
+      if (father->hasFather())
+      {
+        const Node* fatherFather = father->getFather();
+        computeLikelihoodFromArrays(iLik, tProb, &(*_likelihoods_father)[fatherFather->getId()], &pxy_[father->getId()], *_likelihoods_node_father, nbSons, nbDistinctSites_, nbClasses_, nbStates_, false);
+      }
+      else
+      {
+        computeLikelihoodRootSonConditionalOnState(iLik, tProb, *_likelihoods_node_father, nbSons, nbDistinctSites_, nbClasses_, nbStates_, initState);
+      }
+    }
+
+    // Call the method on each son node:
+    size_t nbNodeSons = node->getNumberOfSons();
+    for (size_t i = 0; i < nbNodeSons; i++)
+    {
+      computeLikelihoodPrefixConditionalOnRoot(node->getSon(i), initState); // Recursive method.
+    }
+  }
+
+}
+/******************************************************************************/
+void DRNonHomogeneousTreeLikelihood::computeLikelihoodRootSonConditionalOnState(
+      const std::vector<const VVVdouble*>& iLik, 
+      const std::vector<const VVVdouble*>& tProb, 
+      VVVdouble& oLik, 
+      size_t nbSons, 
+      size_t nbDistinctSites, 
+      size_t nbClasses, 
+      size_t nbStates,
+      size_t initState)
+{
+
+  for (size_t n = 0; n < nbSons; n++)
+  {
+    const VVVdouble* pxy_n = tProb[n];
+    const VVVdouble* iLik_n = iLik[n];
+
+    for (size_t i = 0; i < nbDistinctSites; i++)
+    {
+      // For each site in the sequence,
+      const VVdouble* iLik_n_i = &(*iLik_n)[i];
+      VVdouble* oLik_i = &(oLik)[i];
+
+      for (size_t c = 0; c < nbClasses; c++)
+      {
+        // For each rate classe,
+        const Vdouble* iLik_n_i_c = &(*iLik_n_i)[c];
+        Vdouble* oLik_i_c = &(*oLik_i)[c];
+        const VVdouble* pxy_n_c = &(*pxy_n)[c];
+        for (size_t x = 0; x < nbStates; x++)
+        {
+          // For each initial state,
+          double likelihood = 0;
+          //The state of the root can be only initState and since
+          //here it is the father, only this father state is possible
+          if (x == initState){
+            const Vdouble* pxy_n_c_x = &(*pxy_n_c)[x];
+            for (size_t y = 0; y < nbStates; y++)
+            {
+              likelihood += (*pxy_n_c_x)[y] * (*iLik_n_i_c)[y];
+            }
+          }
+          // We store this conditionnal likelihood into the corresponding array:
+          (*oLik_i_c)[x] *= likelihood;
+        }
+      }
+    }
+  }
+}
+/******************************************************************************/
 void DRNonHomogeneousTreeLikelihood::computeSubtreeLikelihoodPrefix(const Node* node)
 {
   if (!node->hasFather())
@@ -1143,7 +1238,7 @@ void DRNonHomogeneousTreeLikelihood::computeSubtreeLikelihoodPrefix(const Node* 
 
 /******************************************************************************/
 
-void DRNonHomogeneousTreeLikelihood::computeRootLikelihood()
+void DRNonHomogeneousTreeLikelihood::computeRootLikelihood(bool weighedRootFreq)
 {
   const Node* root = tree_->getRootNode();
   VVVdouble* rootLikelihoods = &likelihoodData_->getRootLikelihoodArray();
@@ -1183,6 +1278,9 @@ void DRNonHomogeneousTreeLikelihood::computeRootLikelihood()
   computeLikelihoodFromArrays(iLik, tProb, *rootLikelihoods, nbNodes, nbDistinctSites_, nbClasses_, nbStates_, false);
 
   Vdouble p = rateDistribution_->getProbabilities();
+  if (weighedRootFreq){
+    setWeightedRootFreq(rootLikelihoods, p);
+  }
   VVdouble* rootLikelihoodsS  = &likelihoodData_->getRootSiteLikelihoodArray();
   Vdouble* rootLikelihoodsSR = &likelihoodData_->getRootRateSiteLikelihoodArray();
   for (size_t i = 0; i < nbDistinctSites_; i++)

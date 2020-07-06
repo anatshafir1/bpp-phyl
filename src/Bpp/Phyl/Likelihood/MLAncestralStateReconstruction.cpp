@@ -19,7 +19,7 @@ void MLAncestralStateReconstruction::computeJointLikelihood(){
         (*ancestors_)[nodesIds[i]][j] = ancestorsPerSite;
       }     
     }
-    likelihoodData_ = new DRASRTreeLikelihoodData(&tree_, nbCategories_);
+    likelihoodData_ = new DRASRTreeLikelihoodData(&tree_, nbClasses_);
     likelihoodData_->initLikelihoodsForAncestralReconstruction(*data_, *model_, pxy_, ancestors_);
     computeSubtreeBestLikelihood(tree_.getRootNode());
 

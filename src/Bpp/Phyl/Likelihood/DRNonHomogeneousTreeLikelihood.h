@@ -229,14 +229,15 @@ class DRNonHomogeneousTreeLikelihood:
     }
     // For debug perposes
     unsigned int getNumberOfLikelihoodEvaluations(){return numOfLikelihoodCalculations_;}
+    // For ancestral reconstruction for non-reversible models
+    virtual void computeLikelihoodPrefixConditionalOnRoot(const Node* node, size_t initState);
       
   protected:
     virtual void computeLikelihoodAtNode_(const Node* node, VVVdouble& likelihoodArray) const;
 
     /*Sets the frequencies of the modelset to pi = Li/sum(Lj)
     */
-    void setWeightedRootFreq(Vdouble* freqs);
-    void UpdateAccordingToNewRootFreq();
+    void setWeightedRootFreq(VVVdouble* rootLikelihoods, Vdouble rateProbs);
 
   
     /**
@@ -250,8 +251,9 @@ class DRNonHomogeneousTreeLikelihood:
      * son nodes to be be computed.
      */
     virtual void computeSubtreeLikelihoodPrefix(const Node* node); //Recursive method.
+    
 
-    virtual void computeRootLikelihood();
+    virtual void computeRootLikelihood(bool weightedRootFreq = false);
 
     virtual void computeTreeDLikelihoodAtNode(const Node* node);
     virtual void computeTreeDLikelihoods();
@@ -327,6 +329,17 @@ class DRNonHomogeneousTreeLikelihood:
         size_t nbClasses,
         size_t nbStates,
         bool reset = true);
+
+
+    static void computeLikelihoodRootSonConditionalOnState(
+      const std::vector<const VVVdouble*>& iLik, 
+      const std::vector<const VVVdouble*>& tProb, 
+      VVVdouble& oLik, 
+      size_t nbSons, 
+      size_t nbDistinctSites, 
+      size_t nbClasses, 
+      size_t nbStates,
+      size_t initState);
 
   friend class DRNonHomogeneousMixedTreeLikelihood;
 };
