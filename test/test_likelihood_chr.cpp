@@ -4,6 +4,8 @@
 #include <Bpp/Numeric/Prob/GammaDiscreteDistribution.h>
 #include <Bpp/Numeric/Matrix/MatrixTools.h>
 #include <Bpp/Numeric/Random/RandomTools.h>
+#include <Bpp/Io/FileTools.h>
+#include <Bpp/Text/TextTools.h>
 #include <Bpp/App/BppApplication.h>
 #include <Bpp/Numeric/Function/BrentOneDimension.h>
 #include <Bpp/Numeric/Function/ConjugateGradientMultiDimensions.h>
@@ -48,33 +50,38 @@ using namespace std;
 
 //Functions for initialization of Data
 VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc);
-VectorSiteContainer* getCharacterData(const std :: string &path, unsigned int* numberOfUniqueStates);
+VectorSiteContainer* getCharacterData(const std :: string &path, unsigned int* numberOfUniqueStates, unsigned int* chrRange);
 void setMaxChrNum(unsigned int maxNumberOfChr);
 void setMinChrNum(unsigned int minNumberOfChr);
 void rescale_tree(TreeTemplate<Node>* tree, unsigned int chrRange);
 TreeTemplate<Node>* getTree(const std :: string &path, unsigned int numOfUniqueCharacterStates);
+void setFixedRootFrequencies(const std::string &path, SubstitutionModelSet* modelSet);
 
 //Likelihood Optimization Functions
 //void testInitialLikelihood(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree);
 //void testOptimizeLikelihood(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree);
 
-void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree);
+void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int chrRange);
 unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);//, unsigned int inwardBracketing, bool standardOptimization);
 unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed = false, unsigned int currentIterNum = 0);
 unsigned int optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed = false, unsigned int currentIterNum = 0);
 unsigned int useMixedOptimizers(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);
+DRNonHomogeneousTreeLikelihood getLikelihoodFunction(TreeTemplate<Node>* tree, VectorSiteContainer* vsc, SubstitutionModelSet* modelSet, DiscreteDistribution* rdist);
 
 //Axillary functions for likelihood optimization
+void setNewBounds(ParameterList params, Parameter &param, double* lowerBound);
+double getLowerBoundForGainR(double gain);
+double getLowerBoundForLossR(double loss);
 bool compareLikValues(DRNonHomogeneousTreeLikelihood &lik1, DRNonHomogeneousTreeLikelihood &lik2);
 void printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimized);
 void printRootFrequencies(DRNonHomogeneousTreeLikelihood &lik);
 void printLikelihoodVectorValues(std::vector <DRNonHomogeneousTreeLikelihood> lik_vec);
 void deleteTreeLikAssociatedAttributes(DRNonHomogeneousTreeLikelihood &lik);
+void deleteTreeLikAssociatedAttributes(DRNonHomogeneousTreeLikelihood* lik);
 void clearVectorOfLikelihoods(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, size_t new_size);
-ChromosomeSubstitutionModel* initModel(const ChromosomeAlphabet* alpha);
-ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum);
-ChromosomeSubstitutionModel* initRandomModel2(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum);
-void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec);
+ChromosomeSubstitutionModel* initModel(const ChromosomeAlphabet* alpha, unsigned int chrRange);
+ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum, unsigned int chrRange);
+void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, unsigned int chrRange);
 void testJointMLAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik);
 void testMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik);
 void printTreeWithStates(DRNonHomogeneousTreeLikelihood* lik, TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs = 0);
@@ -90,7 +97,19 @@ void clearVectorOfLikelihoods(std::vector <DRNonHomogeneousTreeLikelihood> &lik_
 }
 
 /******************************************************************************/
-VectorSiteContainer* getCharacterData (const string& path, unsigned int* numberOfUniqueCharacterStates){
+DRNonHomogeneousTreeLikelihood getLikelihoodFunction(TreeTemplate<Node>* tree, VectorSiteContainer* vsc, SubstitutionModelSet* modelSet, DiscreteDistribution* rdist){
+    if (ChromEvolOptions::fixedFrequenciesFilePath_ != "none"){
+        setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, modelSet);
+        DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, modelSet, rdist);
+        return lik;
+    }else{
+        DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, true, modelSet, rdist);
+        return lik;
+
+    }
+}
+/******************************************************************************/
+VectorSiteContainer* getCharacterData (const string& path, unsigned int* numberOfUniqueCharacterStates, unsigned int* chrRange){
     Fasta fasta;
     ChromosomeAlphabet* alphaInitial = new ChromosomeAlphabet(ChromEvolOptions::minAlpha_, ChromEvolOptions::maxAlpha_);
     VectorSequenceContainer* initialSetOfSequences = fasta.readSequences(path, alphaInitial);
@@ -125,6 +144,7 @@ VectorSiteContainer* getCharacterData (const string& path, unsigned int* numberO
 
     }
     *numberOfUniqueCharacterStates = (unsigned int)UniqueCharacterStates.size();
+    *chrRange = maxNumberOfChr - minNumOfChr;
     cout <<"Number of unique states is " << *numberOfUniqueCharacterStates <<endl;
 
     setMaxChrNum(maxNumberOfChr);
@@ -158,6 +178,63 @@ void setMinChrNum(unsigned int minNumberOfChr){
     }
 }
 /****************************************************************************/
+double getLowerBoundForGainR(double gain){
+    return (-gain/(ChromEvolOptions::maxChrNum_-1));
+
+}
+/****************************************************************************/
+double getLowerBoundForLossR(double loss){
+    return (-loss/(ChromEvolOptions::maxChrNum_-1));
+}
+/****************************************************************************/
+void setNewBounds(ParameterList params, Parameter &param, double* lowerBound){
+    if (ChromEvolOptions::rateChangeType_ != ChromosomeSubstitutionModel::LINEAR){
+        if (*lowerBound == 0){
+            *lowerBound = 1e-10;
+        }
+    }else{
+        string paramName = param.getName();
+        if (paramName == "Chromosome.gainR_1" ){
+            double gain = params.getParameterValue("Chromosome.gain_1");
+            *lowerBound = -gain/(ChromEvolOptions::maxChrNum_-1);            
+        }
+        else if (paramName == "Chromosome.lossR_1"){
+            double loss = params.getParameterValue("Chromosome.loss_1");
+            *lowerBound = -loss/(ChromEvolOptions::maxChrNum_-1);
+
+        }else{
+            if (paramName != "Chromosome.baseNumR_1"){
+                if ((paramName == "Chromosome.gain_1") && (ChromEvolOptions::gainR_ != IgnoreParam)){
+                    double gainR = params.getParameterValue("Chromosome.gainR_1");
+                    if (gainR < 0){
+                        *lowerBound = -gainR * (ChromEvolOptions::maxChrNum_-1);
+                    }else{
+                        if (*lowerBound == 0){
+                            *lowerBound = 1e-10;
+                        }
+                    }
+                }else if ((paramName == "Chromosome.loss_1")&&(ChromEvolOptions::lossR_ != IgnoreParam)){
+                    double lossR = params.getParameterValue("Chromosome.lossR_1");
+                    if (lossR < 0){
+                        *lowerBound = -lossR * (ChromEvolOptions::maxChrNum_-1);
+                    }else{
+                        if (*lowerBound == 0){
+                            *lowerBound = 1e-10;
+                        }
+                    }
+
+                }else{
+                    if (*lowerBound == 0){
+                        *lowerBound = 1e-10;
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/*****************************************************************************/
 VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc){
     size_t numOfSequences = vsc->getNumberOfSequences();
     vector <string> sequenceNames = vsc->getSequencesNames();
@@ -211,6 +288,15 @@ void deleteTreeLikAssociatedAttributes(DRNonHomogeneousTreeLikelihood &lik){
     delete rateDist;
 }
 /******************************************************************************/
+void deleteTreeLikAssociatedAttributes(DRNonHomogeneousTreeLikelihood* lik){
+    const SubstitutionModelSet* modelSet = lik->getSubstitutionModelSet();
+    const DiscreteDistribution* rateDist = lik->getRateDistribution();
+    delete modelSet;
+    delete rateDist;
+    delete lik;
+}
+
+/******************************************************************************/
 
 void printLikelihoodVectorValues(std::vector <DRNonHomogeneousTreeLikelihood> lik_vec){
     std :: cout <<"The likelihoods at the end of cycle are :"<<endl;
@@ -255,24 +341,31 @@ bool compareLikValues(DRNonHomogeneousTreeLikelihood &lik1, DRNonHomogeneousTree
 }
 
 /******************************************************************************/
-ChromosomeSubstitutionModel* initModel(const ChromosomeAlphabet* alpha){
+ChromosomeSubstitutionModel* initModel(const ChromosomeAlphabet* alpha, unsigned int chrRange){
     double gain = ChromEvolOptions::constGain_;
     double loss = ChromEvolOptions::constLoss_;
     double dupl = ChromEvolOptions::constDupl_;
     double demiDupl = ChromEvolOptions::constDemiDupl_;
-    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl,  demiDupl, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL);
+    double gainR = ChromEvolOptions::gainR_;
+    double lossR = ChromEvolOptions::lossR_;
+    int baseNum = ChromEvolOptions::baseNum_;
+    double baseNumR = ChromEvolOptions::baseNumR_;
+    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl, demiDupl, gainR, lossR, baseNum, baseNumR, chrRange, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, ChromEvolOptions::optimizeBaseNumber_);
     return chrModel;
 
 }
 /******************************************************************************/
-ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum){
-    double gain, loss, dupl, demiDupl;
+ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum, unsigned int chrRange){
+    double gain, loss, dupl, demiDupl, gainR, lossR, baseNumR;
+    int baseNum;
     double upperBound = upperBoundOfRateParam;
+    double upperBoundLinear = upperBoundLinearRateParam;
     if (ChromEvolOptions::maxParsimonyBound_){
         TreeTemplate<Node>* treeForParsimonyBound = tree->clone();
         DRTreeParsimonyScore maxParsimonyObject = DRTreeParsimonyScore(*treeForParsimonyBound, *vsc);
         double parsimonyBound = pointNum * ((maxParsimonyObject.getScore())/(tree->getTotalLength()));
         upperBound = std::min(upperBoundOfRateParam, parsimonyBound);
+        upperBoundLinear = std::min(upperBoundLinearRateParam, parsimonyBound);
         delete treeForParsimonyBound;
 
     }
@@ -297,34 +390,42 @@ ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, Ve
     }else{
         demiDupl = ChromEvolOptions::constDemiDupl_;
     }
-    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl,  demiDupl, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL);
-    return chrModel;
+    if ((ChromEvolOptions::gainR_ != IgnoreParam)){
+        if (ChromEvolOptions::rateChangeType_ == ChromosomeSubstitutionModel::LINEAR){
+            double lowerBoundForGainR = -gain/(ChromEvolOptions::maxChrNum_-1);
+            gainR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForGainR, upperBoundLinear);
+        }else{
+            gainR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);
 
-}
-/******************************************************************************/
-ChromosomeSubstitutionModel* initRandomModel2(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum){
-    double gain, loss, dupl, demiDupl;
-    if (pointNum == 1){
-        gain = 2.49352;
-        //gain = 1.90524e-10;
-        loss = 72.1097;
-        dupl = 2.09731e-10;
-        //dupl = 1.99374e-10;
-        demiDupl = 25.3846;
-        //demiDupl = 27.1901;
-    }else if (pointNum == 2){
-        gain = 3.03083;
-        loss = 83.0494;
-        dupl = 1.84826e-10;
-        demiDupl = 30.7345;
+        }
+
     }else{
-        gain = 86.1248;
-        loss = 69.2078;
-        dupl = 42.4456;
-        demiDupl = 41.4413;
+        gainR = ChromEvolOptions::gainR_;
     }
+    if ((ChromEvolOptions::lossR_ != IgnoreParam)){
+        if (ChromEvolOptions::rateChangeType_ == ChromosomeSubstitutionModel::LINEAR){
+            double lowerBoundForlossR = -loss/(ChromEvolOptions::maxChrNum_-1);
+            lossR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForlossR, upperBoundLinear);
+        }else{
+            lossR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);
+        }
 
-    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl,  demiDupl, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL);
+    }else{
+        lossR = ChromEvolOptions::lossR_;
+    }
+    if ((ChromEvolOptions::baseNum_ != IgnoreParam) && (ChromEvolOptions::optimizeBaseNumber_)){
+        int lowerBoundBaseNum = lowerBoundBaseNumber;
+        int upperBoundBaseNum = std::max((int)chrRange, lowerBoundBaseNumber+1);
+        baseNum = lowerBoundBaseNum + RandomTools::giveIntRandomNumberBetweenZeroAndEntry(upperBoundBaseNum-lowerBoundBaseNum);
+    }else{
+        baseNum = ChromEvolOptions::baseNum_;
+    }
+    if (ChromEvolOptions::baseNumR_ != IgnoreParam){
+        baseNumR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
+    }else{
+        baseNumR = ChromEvolOptions::baseNumR_;
+    }
+    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl, demiDupl, gainR, lossR, baseNum, baseNumR, chrRange, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, ChromEvolOptions::optimizeBaseNumber_);
     return chrModel;
 
 }
@@ -442,24 +543,38 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
             std::cout << "Iteration #"<<i <<endl;
         }
         
-        ParameterList params = tl->getSubstitutionModelParameters();
+        //ParameterList params = tl->getSubstitutionModelParameters();
+        size_t nbParams = (tl->getSubstitutionModelParameters()).size();
         prevLikelihood = currentLikelihood;
-        for (size_t j = 0; j < params.size(); j ++){
+        for (size_t j = 0; j < nbParams; j ++){
+            ParameterList params = tl->getSubstitutionModelParameters();
+            const string nameOfParam = params[j].getName();
+            std::cout << "Parameter name is: "<< nameOfParam <<endl;
+
             std::shared_ptr<Constraint> parameterConstraints = params[j].getConstraint();
             std::shared_ptr<IntervalConstraint> parameterIntervals = dynamic_pointer_cast<IntervalConstraint>(parameterConstraints);
             double lowerBound = parameterIntervals->getLowerBound();
             double upperBound = parameterIntervals->getUpperBound();
+            //if (lowerBound == 0){
+                //lowerBound = 1e-10;
+            //}
+            std::cout << "Parameter old lowerBound is: " << lowerBound<< endl;
+            setNewBounds(params, params[j], &lowerBound);
+            std::cout << "Parameter new lowerBound is: " << lowerBound<< endl;
+            std::cout << "Parameter upperBound is: " << upperBound <<endl;
+            std::cout << "Parameter value before optimization: "<< params[j].getValue() <<endl;
+            
             if ((i == 1) & (maxNumOfIterations > 2)){
                 optimizer->getStopCondition()->setTolerance(tol* 2);
             }else{
                 optimizer->getStopCondition()->setTolerance(tol);
             }
-            if (lowerBound == 0){
-                lowerBound = 1e-10;
-            }
+ 
             optimizer->setInitialInterval(lowerBound, upperBound);
             optimizer->init(params.createSubList(j));
             currentLikelihood = optimizer->optimize();
+            std::cout <<"Parameter value after optimization: "<< tl->getSubstitutionModelParameters()[j].getValue()<<endl;
+            std::cout <<"max chromosome number: " << ChromEvolOptions::maxChrNum_ << endl;
             
         }
         printLikParameters(*tl, 1);
@@ -534,7 +649,7 @@ unsigned int optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double 
 }
 /*******************************************************************************/
 //Setting the initial starting points
-void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree){
+void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int chrRange){
     //Preparing tree nodes for the creation of likelihood instance (excluding the root)
     vector <int> nodeIds = tree->getNodesId();
     nodeIds.pop_back();
@@ -548,13 +663,13 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec,
         SubstitutionModelSet* modelSet = new SubstitutionModelSet(alpha);
         ChromosomeSubstitutionModel* chrModel;
         if (n == 0){
-            chrModel = initModel(alpha);
+            chrModel = initModel(alpha, chrRange);
         }else{
-            chrModel = initRandomModel(alpha, vsc, tree, static_cast<unsigned int>(n));
-            //chrModel = initRandomModel2(alpha, vsc, tree, static_cast<unsigned int>(n));
+            chrModel = initRandomModel(alpha, vsc, tree, static_cast<unsigned int>(n), chrRange);
         }       
         modelSet->addModel(chrModel, nodeIds);
-        DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, modelSet, rdist);
+        DRNonHomogeneousTreeLikelihood lik = getLikelihoodFunction(tree, vsc, modelSet, rdist);
+        
         lik.initialize();
         
         while (std::isnan(lik.getValue())|| std::isinf(lik.getValue()))
@@ -562,9 +677,10 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec,
             deleteTreeLikAssociatedAttributes(lik);
             rdist = new GammaDiscreteRateDistribution(1, 1.0);
             modelSet = new SubstitutionModelSet(alpha);
-            chrModel = initRandomModel(alpha, vsc, tree, static_cast<unsigned int>(n));
+            chrModel = initRandomModel(alpha, vsc, tree, static_cast<unsigned int>(n), chrRange);
             modelSet->addModel(chrModel, nodeIds);
-            lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, modelSet, rdist);
+            lik = getLikelihoodFunction(tree, vsc, modelSet, rdist);
+            
             lik.initialize();
 
         }
@@ -580,11 +696,11 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec,
 }
 
 /******************************************************************************/
-void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree){
+void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int chrRange){
     //initializing the stating points at cycle 0
     std::vector <DRNonHomogeneousTreeLikelihood> lik_vec;
     lik_vec.reserve(ChromEvolOptions::OptPointsNum_[0]);
-    initLikelihoodVector(lik_vec, alpha, vsc, tree);
+    initLikelihoodVector(lik_vec, alpha, vsc, tree, chrRange);
     unsigned int totalNumOfEvaluations = 0;
     unsigned int numOfEvaluations;
     unsigned int numOfEvaluationsPerCycle;
@@ -779,6 +895,30 @@ string nodeToParenthesis(const Node& node)
   return s.str();
 }
 /***********************************************************************************************************/
+void setFixedRootFrequencies(const std::string &path, SubstitutionModelSet* modelSet){
+    ifstream stream;
+    stream.open(path.c_str());
+    vector <double> freqs;
+    vector <string> lines = FileTools::putStreamIntoVectorOfStrings(stream);
+    stream.close();
+    for (size_t i = 0; i < lines.size(); i++){
+        string freq_i_str = TextTools::removeSurroundingWhiteSpaces(lines[i]);
+        if (freq_i_str == ""){
+            continue;
+        }
+        double freq_i = TextTools::toDouble(freq_i_str);
+        freqs.push_back(freq_i);
+    }
+    size_t nbStates = modelSet->getNumberOfStates();
+    if (nbStates != freqs.size()){
+        throw "Invalid fixed frequencies file!";
+    }
+    FixedFrequencySet* rootFreqs = new FixedFrequencySet(std::shared_ptr<const StateMap>(new CanonicalStateMap(modelSet->getStateMap(), false)), freqs);
+    modelSet->setRootFrequencies(static_cast<FrequencySet*>(rootFreqs));
+   
+
+}
+/***********************************************************************************************************/
 
 
 int main(int args, char **argv) {
@@ -791,10 +931,11 @@ int main(int args, char **argv) {
         BppApplication ChromEvol(args, argv, "ChromEvol");
         ChromEvolOptions::initAllParameters(ChromEvol);
         unsigned int numberOfUniqueStates = 0;
-        VectorSiteContainer* vsc = getCharacterData(ChromEvolOptions::characterFilePath_, &numberOfUniqueStates);
+        unsigned int chrRange = 0;
+        VectorSiteContainer* vsc = getCharacterData(ChromEvolOptions::characterFilePath_, &numberOfUniqueStates, &chrRange);
         const ChromosomeAlphabet* alpha = dynamic_cast<const ChromosomeAlphabet*>(vsc->getAlphabet());
         TreeTemplate<Node>* tree = getTree(ChromEvolOptions::treeFilePath_, numberOfUniqueStates);
-        OptimizeMultiStartingPoints(alpha, vsc, tree);
+        OptimizeMultiStartingPoints(alpha, vsc, tree, chrRange);
         delete vsc;
         delete tree;
         delete alpha;

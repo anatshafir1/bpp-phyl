@@ -45,6 +45,10 @@ public:
     static double constLoss_;
     static double constDupl_;
     static double constDemiDupl_;
+    static double gainR_;
+    static double lossR_;
+    static int baseNum_;
+    static double baseNumR_;
     static double tolerance_;
     static unsigned int maxIterations_;
     static bool maxParsimonyBound_;
@@ -55,6 +59,10 @@ public:
     static unsigned int minAlpha_;
     static int seed_;
     static std::vector <double> probsForMixedOptimization_;
+    static string rootFreqs_;
+    static string fixedFrequenciesFilePath_;
+    static ChromosomeSubstitutionModel::rateChangeFunc rateChangeType_;
+    static bool optimizeBaseNumber_;
 
 private:
     static void initDefaultParameters();

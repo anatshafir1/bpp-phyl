@@ -66,7 +66,8 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
   AbstractNonHomogeneousTreeLikelihood(tree, modelSet, rDist, verbose, reparametrizeRoot),
   likelihoodData_(0),
   minusLogLik_(-1.),
-  numOfLikelihoodCalculations_(0)
+  numOfLikelihoodCalculations_(0),
+  weightedRootFreq_(false)
 {
   if (!modelSet->isFullySetUpFor(tree))
     throw Exception("DRNonHomogeneousTreeLikelihood(constructor). Model set is not fully specified.");
@@ -85,7 +86,8 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
   AbstractNonHomogeneousTreeLikelihood(tree, modelSet, rDist, verbose, reparametrizeRoot),
   likelihoodData_(0),
   minusLogLik_(-1.),
-  numOfLikelihoodCalculations_(0)
+  numOfLikelihoodCalculations_(0),
+  weightedRootFreq_(false)
 {
   if (!modelSet->isFullySetUpFor(tree))
     throw Exception("DRNonHomogeneousTreeLikelihood(constructor). Model set is not fully specified.");
@@ -94,6 +96,26 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
 }
 
 /******************************************************************************/
+DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
+  const Tree& tree,
+  const SiteContainer& data,
+  bool weighedRootFreq,
+  SubstitutionModelSet* modelSet,
+  DiscreteDistribution* rDist,
+  bool verbose,
+  bool reparametrizeRoot) :
+  AbstractNonHomogeneousTreeLikelihood(tree, modelSet, rDist, verbose, reparametrizeRoot),
+  likelihoodData_(0),
+  minusLogLik_(-1.),
+  numOfLikelihoodCalculations_(0),
+  weightedRootFreq_(weighedRootFreq)
+{
+  if (!modelSet->isFullySetUpFor(tree))
+    throw Exception("DRNonHomogeneousTreeLikelihood(constructor). Model set is not fully specified.");
+  init_();
+  setData(data);
+}
+/*****************************************************************************************************/
 /* DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
   const Tree& tree,
   const SiteContainer& data,
@@ -135,7 +157,8 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(const DRNonHomoge
   AbstractNonHomogeneousTreeLikelihood(lik),
   likelihoodData_(0),
   minusLogLik_(lik.minusLogLik_),
-  numOfLikelihoodCalculations_(lik.numOfLikelihoodCalculations_)
+  numOfLikelihoodCalculations_(lik.numOfLikelihoodCalculations_),
+  weightedRootFreq_(lik.weightedRootFreq_)
 {
   likelihoodData_ = dynamic_cast<DRASDRTreeLikelihoodData*>(lik.likelihoodData_->clone());
   likelihoodData_->setTree(tree_);
@@ -152,6 +175,7 @@ DRNonHomogeneousTreeLikelihood& DRNonHomogeneousTreeLikelihood::operator=(const 
   likelihoodData_->setTree(tree_);
   minusLogLik_ = lik.minusLogLik_;
   numOfLikelihoodCalculations_ = lik.numOfLikelihoodCalculations_;
+  weightedRootFreq_ = lik.weightedRootFreq_;
   return *this;
 }
 
@@ -892,7 +916,7 @@ void DRNonHomogeneousTreeLikelihood::computeTreeLikelihood()
 /******************************************************************************/
 void DRNonHomogeneousTreeLikelihood::computeTreeLikelihoodWeightedRootFreq(){
     computeSubtreeLikelihoodPostfix(tree_->getRootNode());
-    computeRootLikelihood(true);
+    computeRootLikelihood(weightedRootFreq_);
     
 }
 

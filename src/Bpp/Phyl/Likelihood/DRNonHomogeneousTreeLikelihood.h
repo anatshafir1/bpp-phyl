@@ -73,6 +73,7 @@ class DRNonHomogeneousTreeLikelihood:
     mutable DRASDRTreeLikelihoodData *likelihoodData_;
     double minusLogLik_;
     unsigned int numOfLikelihoodCalculations_; //for debug pursposes
+    bool weightedRootFreq_;
    
   public:
     /**
@@ -113,6 +114,30 @@ class DRNonHomogeneousTreeLikelihood:
     DRNonHomogeneousTreeLikelihood(
       const Tree& tree,
       const SiteContainer& data,
+      SubstitutionModelSet* modelSet,
+      DiscreteDistribution* rDist,
+      bool verbose = true,
+      bool reparametrizeRoot = false);
+
+       /**
+     * @brief Build a new DRNonHomogeneousTreeLikelihood object and compute the corresponding likelihood.
+     *
+     * This constructor initializes all parameters, data, and likelihood arrays.
+     *
+     * @param tree The tree to use.
+     * @param data Sequences to use.
+     * @param weightedRootFreq if true the root frequencies are weighted
+     * @param modelSet The set of substitution models to use.
+     * @param rDist The rate across sites distribution to use.
+     * If true, any rooted tree will be unrooted before likelihood computation.
+     * @param verbose Should I display some info?
+     * @param reparametrizeRoot Should we reparametrize the branch lengths at root?
+     * @throw Exception in an error occured.
+     */
+    DRNonHomogeneousTreeLikelihood(
+      const Tree& tree,
+      const SiteContainer& data,
+      bool weightedRootFreq,
       SubstitutionModelSet* modelSet,
       DiscreteDistribution* rDist,
       bool verbose = true,

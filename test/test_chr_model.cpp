@@ -133,7 +133,7 @@ int main(){
     Newick newick;
     TreeTemplate<Node>* tree = newick.readTree(path_tree);
     rescale_tree(tree, scale_tree_factor, maxObservedChrNum-minObservedChrNum);
-    ChromosomeSubstitutionModel* chr_model = new ChromosomeSubstitutionModel(chr_alpha, 2, 1, 3, 1.3, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL);
+    ChromosomeSubstitutionModel* chr_model = new ChromosomeSubstitutionModel(chr_alpha, 2, 1, 3, 1.3, IgnoreParam, IgnoreParam, IgnoreParam, IgnoreParam, maxObservedChrNum-minObservedChrNum, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromosomeSubstitutionModel::LINEAR, false);
     RowMatrix<double> Qij;
     MatrixTools::copy(chr_model->getGenerator(), Qij);
     MatrixTools::print(Qij);

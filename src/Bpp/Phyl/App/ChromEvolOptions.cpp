@@ -14,6 +14,10 @@ double ChromEvolOptions::constGain_;
 double ChromEvolOptions::constLoss_;
 double ChromEvolOptions::constDupl_;
 double ChromEvolOptions::constDemiDupl_;
+double ChromEvolOptions::gainR_;
+double ChromEvolOptions::lossR_;
+int ChromEvolOptions::baseNum_;
+double ChromEvolOptions::baseNumR_;
 double ChromEvolOptions::tolerance_;
 unsigned int ChromEvolOptions::maxIterations_;
 bool ChromEvolOptions::maxParsimonyBound_;
@@ -24,6 +28,10 @@ bool ChromEvolOptions::standardOptimization_;
 string ChromEvolOptions::optimizationMethod_;
 int ChromEvolOptions::seed_;
 std::vector <double> ChromEvolOptions::probsForMixedOptimization_;
+string ChromEvolOptions::rootFreqs_;
+string ChromEvolOptions::fixedFrequenciesFilePath_;
+ChromosomeSubstitutionModel::rateChangeFunc ChromEvolOptions::rateChangeType_;
+bool ChromEvolOptions::optimizeBaseNumber_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -44,11 +52,18 @@ void ChromEvolOptions::initDefaultParameters(){
     constLoss_ = IgnoreParam;
     constDupl_ = IgnoreParam;
     constDemiDupl_= IgnoreParam;
+    gainR_ = IgnoreParam;
+    lossR_ = IgnoreParam;
+    baseNum_ = IgnoreParam;
+    baseNumR_ = IgnoreParam;
     maxParsimonyBound_ = false;
     standardOptimization_ = false;
     BrentBracketing_ = 2;
     optimizationMethod_ = "Brent";
     seed_ = 0;
+    rootFreqs_ = "weighted";
+    rateChangeType_ = ChromosomeSubstitutionModel::LINEAR;
+    optimizeBaseNumber_ = false;
 
 }
 /*************************************************************************/
@@ -69,6 +84,10 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     constLoss_ = ApplicationTools::getDoubleParameter("_lossConstR", ChromEvol.getParams(), constLoss_, "", true, 0);
     constDupl_ = ApplicationTools::getDoubleParameter("_duplConstR", ChromEvol.getParams(), constDupl_, "", true, 0);
     constDemiDupl_ = ApplicationTools::getDoubleParameter("_demiPloidyR", ChromEvol.getParams(), constDemiDupl_, "", true, 0);
+    gainR_ = ApplicationTools::getDoubleParameter("_gainR", ChromEvol.getParams(), gainR_, "", true, 0);
+    lossR_ = ApplicationTools::getDoubleParameter("_lossR", ChromEvol.getParams(), lossR_, "", true, 0);
+    baseNum_ = ApplicationTools::getIntParameter("_baseNum", ChromEvol.getParams(), baseNum_, "", true, 0);
+    baseNumR_ = ApplicationTools::getDoubleParameter("_baseNumR", ChromEvol.getParams(), baseNumR_, "", true, 0);
     maxParsimonyBound_ = ApplicationTools::getBooleanParameter("_maxParsimonyBound", ChromEvol.getParams(), maxParsimonyBound_, "", true, 0);
     standardOptimization_ = ApplicationTools::getBooleanParameter("_standardOptimization", ChromEvol.getParams(), standardOptimization_, "", true, 0);
     BrentBracketing_ = ApplicationTools::getIntParameter("_BrentBracketing", ChromEvol.getParams(), BrentBracketing_, "", true, 0);
@@ -79,6 +98,15 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     OptPointsNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizePointsNum", ChromEvol.getParams(), ',', defaultValForOptPointsNum, "", true, 0);
     OptIterNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizeIterNum", ChromEvol.getParams(), ',', defaultValForOptIterNum, "", true, 0);
     probsForMixedOptimization_ = ApplicationTools::getVectorParameter<double>("_probsForMixedOptimization", ChromEvol.getParams(), ',', defaultValForProbsForMixedOpt, "", true, 0);
+    fixedFrequenciesFilePath_ = ApplicationTools::getAFilePath("_fixedFrequenciesFilePath", ChromEvol.getParams(), false, true, "", true, "none", 0);
+    rootFreqs_ = ApplicationTools::getStringParameter("_rootFreqs", ChromEvol.getParams(), rootFreqs_, "", true, 0);
+    int rateChangeType = ApplicationTools::getIntParameter("_rateChangeType", ChromEvol.getParams(), rateChangeType_, "", true, 0);
+    if (rateChangeType){
+        rateChangeType_ = ChromosomeSubstitutionModel::EXP;
+    }else{
+        rateChangeType_ = ChromosomeSubstitutionModel::LINEAR;
+    }
+    optimizeBaseNumber_ = ApplicationTools::getBooleanParameter("_optimizeBaseNumber", ChromEvol.getParams(), optimizeBaseNumber_, "", true, 0);
 
 }
 /*************************************************************************/
