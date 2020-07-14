@@ -188,9 +188,12 @@ double getLowerBoundForLossR(double loss){
 }
 /****************************************************************************/
 void setNewBounds(ParameterList params, Parameter &param, double* lowerBound){
+    if (param.getName() == "Chromosome.baseNum_1"){
+        return;
+    }
     if (ChromEvolOptions::rateChangeType_ != ChromosomeSubstitutionModel::LINEAR){
         if (*lowerBound == 0){
-            *lowerBound = 1e-10;
+            *lowerBound = lowerBoundOfRateParam;
         }
     }else{
         string paramName = param.getName();
@@ -206,26 +209,16 @@ void setNewBounds(ParameterList params, Parameter &param, double* lowerBound){
             if (paramName != "Chromosome.baseNumR_1"){
                 if ((paramName == "Chromosome.gain_1") && (ChromEvolOptions::gainR_ != IgnoreParam)){
                     double gainR = params.getParameterValue("Chromosome.gainR_1");
-                    if (gainR < 0){
-                        *lowerBound = -gainR * (ChromEvolOptions::maxChrNum_-1);
-                    }else{
-                        if (*lowerBound == 0){
-                            *lowerBound = 1e-10;
-                        }
-                    }
+                    *lowerBound = std::max(lowerBoundOfRateParam, -gainR * (ChromEvolOptions::maxChrNum_-1));
+
                 }else if ((paramName == "Chromosome.loss_1")&&(ChromEvolOptions::lossR_ != IgnoreParam)){
                     double lossR = params.getParameterValue("Chromosome.lossR_1");
-                    if (lossR < 0){
-                        *lowerBound = -lossR * (ChromEvolOptions::maxChrNum_-1);
-                    }else{
-                        if (*lowerBound == 0){
-                            *lowerBound = 1e-10;
-                        }
-                    }
+                    *lowerBound = std::max(lowerBoundOfRateParam, -lossR * (ChromEvolOptions::maxChrNum_-1));
+
 
                 }else{
                     if (*lowerBound == 0){
-                        *lowerBound = 1e-10;
+                        *lowerBound = lowerBoundOfRateParam;
                     }
                 }
             }
@@ -322,14 +315,19 @@ void printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimi
     }else{
         std:: cout << "Optimized likelihood is : "<< lik.getValue() << endl;
     }
-    unsigned int numOfLikEvaluations = lik.getNumberOfLikelihoodEvaluations();
-    std:: cout << "number of likelihood evaluations is : " << numOfLikEvaluations << endl;
+    //unsigned int numOfLikEvaluations = lik.getNumberOfLikelihoodEvaluations();
+    //std:: cout << "number of likelihood evaluations is : " << numOfLikEvaluations << endl;
     
     std:: cout << "Parameters are:" << endl;
     ParameterList params = lik.getSubstitutionModelParameters();
     std::vector<std::string> paramsNames = params.getParameterNames();
     for (int i = 0; i < (int)(paramsNames.size()); i++){
-        std::cout << paramsNames[i] << "value is "<< params.getParameterValue(paramsNames[i])<<endl;
+        if (paramsNames[i] == "Chromosome.baseNum_1"){
+            std::cout << paramsNames[i] << "value is "<< (int)(params.getParameterValue(paramsNames[i]))<<endl;
+        }else{
+            std::cout << paramsNames[i] << "value is "<< params.getParameterValue(paramsNames[i])<<endl;
+        }
+        
     }
     std::cout <<"***"<<endl;
 
@@ -524,6 +522,7 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
     //optimizer->getStopCondition()->setTolerance(tol);
     optimizer->setConstraintPolicy(AutoParameter::CONSTRAINTS_AUTO);
     optimizer->setMaximumNumberOfEvaluations(100);
+    std::cout <<"max chromosome number: " << ChromEvolOptions::maxChrNum_ << endl;
     if (ChromEvolOptions::BrentBracketing_ == 1){
         optimizer->setBracketing(BrentOneDimension::BRACKET_INWARD);
 
@@ -534,6 +533,7 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
     double currentLikelihood = tl->getValue();
     double prevLikelihood;
     unsigned int numOfEvaluations = 0;
+    unsigned int numOfBaseNumEval = 0;
 
     for (size_t i = 0; i < maxNumOfIterations; i++){
         if (mixed){
@@ -542,11 +542,13 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
         }else{
             std::cout << "Iteration #"<<i <<endl;
         }
-        
         //ParameterList params = tl->getSubstitutionModelParameters();
         size_t nbParams = (tl->getSubstitutionModelParameters()).size();
         prevLikelihood = currentLikelihood;
+        unsigned int numOfLikEvaluations;
+        
         for (size_t j = 0; j < nbParams; j ++){
+            numOfLikEvaluations = tl->getNumberOfLikelihoodEvaluations();
             ParameterList params = tl->getSubstitutionModelParameters();
             const string nameOfParam = params[j].getName();
             std::cout << "Parameter name is: "<< nameOfParam <<endl;
@@ -558,26 +560,39 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
             //if (lowerBound == 0){
                 //lowerBound = 1e-10;
             //}
-            std::cout << "Parameter old lowerBound is: " << lowerBound<< endl;
+            //std::cout << "Parameter lowerBound is: " << lowerBound<< endl;
+            //need to set bounds- the bounds of the parameters of the model are updated in the model
+            //itself but not in the likelihood function, therefore I need to set the bounds here.
+            //It also means that when a linear model is used, I can use only Brent.
             setNewBounds(params, params[j], &lowerBound);
-            std::cout << "Parameter new lowerBound is: " << lowerBound<< endl;
-            std::cout << "Parameter upperBound is: " << upperBound <<endl;
-            std::cout << "Parameter value before optimization: "<< params[j].getValue() <<endl;
+            //std::cout << "Parameter new lowerBound is: " << lowerBound<< endl;
+            //std::cout << "Parameter upperBound is: " << upperBound <<endl;
+            //std::cout << "Parameter value before optimization: "<< params[j].getValue() <<endl;
             
             if ((i == 1) & (maxNumOfIterations > 2)){
                 optimizer->getStopCondition()->setTolerance(tol* 2);
             }else{
                 optimizer->getStopCondition()->setTolerance(tol);
             }
+            if (params[j].getName() != "Chromosome.baseNum_1"){
+                optimizer->setInitialInterval(lowerBound + 1e-10, upperBound);
+            }else{
+                optimizer->setInitialInterval(lowerBound, upperBound);
+            }
  
-            optimizer->setInitialInterval(lowerBound, upperBound);
+            
             optimizer->init(params.createSubList(j));
             currentLikelihood = optimizer->optimize();
-            std::cout <<"Parameter value after optimization: "<< tl->getSubstitutionModelParameters()[j].getValue()<<endl;
-            std::cout <<"max chromosome number: " << ChromEvolOptions::maxChrNum_ << endl;
+            //std::cout <<"Parameter value after optimization: "<< tl->getSubstitutionModelParameters()[j].getValue()<<endl;
+            numOfLikEvaluations = tl->getNumberOfLikelihoodEvaluations() - numOfLikEvaluations;
+            if (params[j].getName() == "Chromosome.baseNum_1"){
+                numOfBaseNumEval += numOfLikEvaluations;
+            }
+            
             
         }
         printLikParameters(*tl, 1);
+        
 
         if (abs(prevLikelihood-currentLikelihood) < tol){
             break;
@@ -588,6 +603,7 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
         numOfEvaluations += optimizer->getNumberOfEvaluations();
        
     }
+    std::cout << "Number of likelihood evaluations per parameter is "<< numOfBaseNumEval << endl;
     if (!mixed){
         std::cout <<"..."<<endl;
     }
@@ -935,6 +951,8 @@ int main(int args, char **argv) {
         VectorSiteContainer* vsc = getCharacterData(ChromEvolOptions::characterFilePath_, &numberOfUniqueStates, &chrRange);
         const ChromosomeAlphabet* alpha = dynamic_cast<const ChromosomeAlphabet*>(vsc->getAlphabet());
         TreeTemplate<Node>* tree = getTree(ChromEvolOptions::treeFilePath_, numberOfUniqueStates);
+        std::cout << "****** Max allowed chromosome number: "<< ChromEvolOptions::maxChrNum_ <<endl;
+        std::cout << "****** Max observed chromosome range: " << chrRange <<endl;
         OptimizeMultiStartingPoints(alpha, vsc, tree, chrRange);
         delete vsc;
         delete tree;

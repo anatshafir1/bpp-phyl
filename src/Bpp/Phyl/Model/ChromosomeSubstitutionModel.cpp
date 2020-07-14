@@ -60,7 +60,7 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
 
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateParameters(){
-    std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, true, true);
+    std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
     
     if (dupl_ != IgnoreParam){
       addParameter_(new Parameter("Chromosome.dupl", dupl_, interval));
@@ -71,11 +71,10 @@ void ChromosomeSubstitutionModel::updateParameters(){
       }else{
         double lowerBound = lowerBoundOfRateParam;
         if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-          if (lossR_ < 0){
-            lowerBound = -lossR_*(getMax()-1);
-          }
+          lowerBound = std::max(lowerBoundOfRateParam, -lossR_*(getMax()-1));
+          
         }
-        std::shared_ptr<IntervalConstraint> intervalLoss = make_shared<IntervalConstraint>(lowerBound, upperBoundOfRateParam, true, true);
+        std::shared_ptr<IntervalConstraint> intervalLoss = make_shared<IntervalConstraint>(lowerBound, upperBoundOfRateParam, false, true);
         addParameter_(new Parameter("Chromosome.loss", loss_, intervalLoss));
 
       }
@@ -86,22 +85,21 @@ void ChromosomeSubstitutionModel::updateParameters(){
       }else{
         double lowerBound = lowerBoundOfRateParam;
         if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-          if (gainR_ < 0){
-            lowerBound = -gainR_ * (getMax()-1);
-          }
+          lowerBound = std::max(lowerBoundOfRateParam, -gainR_ * (getMax()-1));         
         }
-        std::shared_ptr<IntervalConstraint> intervalGain = make_shared<IntervalConstraint>(lowerBound, upperBoundOfRateParam, true, true);
+        std::shared_ptr<IntervalConstraint> intervalGain = make_shared<IntervalConstraint>(lowerBound, upperBoundOfRateParam, false, true);
         addParameter_(new Parameter("Chromosome.gain", gain_, intervalGain));
       }
     }
-    if ((demiploidy_ != IgnoreParam) & (demiploidy_!= DemiEqualDupl)){
-      addParameter_(new Parameter("Chromosome.demi", demiploidy_, interval));
-          
-    }
+
     if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
       updateLinearParameters();
     }else if (rateChangeFuncType_ == rateChangeFunc::EXP){
       updateExpParameters();
+    }
+    if ((demiploidy_ != IgnoreParam) & (demiploidy_!= DemiEqualDupl)){
+      addParameter_(new Parameter("Chromosome.demi", demiploidy_, interval));
+          
     }
     if ((baseNum_ != IgnoreParam) && (baseNumR_ != IgnoreParam)){
       updateBaseNumParameters(interval); 
@@ -112,30 +110,30 @@ void ChromosomeSubstitutionModel::updateParameters(){
 }
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateExpParameters(){
-  std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfExpParam, upperBoundOfRateParam, true, true);
-
-  if (gainR_ != IgnoreParam){
-    addParameter_(new Parameter("Chromosome.gainR", gainR_, interval));
-  }
+  std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfExpParam, upperBoundOfRateParam, false, true);
   if (lossR_ != IgnoreParam){
     addParameter_(new Parameter("Chromosome.lossR", lossR_, interval));
 
   }
+  if (gainR_ != IgnoreParam){
+    addParameter_(new Parameter("Chromosome.gainR", gainR_, interval));
+  }
 }
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateLinearParameters(){
-
-  if (gainR_ != IgnoreParam){
-    double lowerBound = -(gain_/(getMax()-1));
-    std::shared_ptr<IntervalConstraint> interval_gainR = make_shared<IntervalConstraint>(lowerBound, upperBoundLinearRateParam, true, true);
-    addParameter_(new Parameter("Chromosome.gainR", gainR_, interval_gainR));
-  }
   if (lossR_ != IgnoreParam){
     double lowerBound = -(loss_/(getMax()-1));
-    std::shared_ptr<IntervalConstraint> interval_lossR = make_shared<IntervalConstraint>(lowerBound, upperBoundLinearRateParam, true, true);
+    std::shared_ptr<IntervalConstraint> interval_lossR = make_shared<IntervalConstraint>(lowerBound, upperBoundLinearRateParam, false, true);
     addParameter_(new Parameter("Chromosome.lossR", lossR_, interval_lossR));
 
   }
+
+  if (gainR_ != IgnoreParam){
+    double lowerBound = -(gain_/(getMax()-1));
+    std::shared_ptr<IntervalConstraint> interval_gainR = make_shared<IntervalConstraint>(lowerBound, upperBoundLinearRateParam, false, true);
+    addParameter_(new Parameter("Chromosome.gainR", gainR_, interval_gainR));
+  }
+
 
 }
 /******************************************************************************/
@@ -167,11 +165,11 @@ void ChromosomeSubstitutionModel::getParametersValues(){
       if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
         std::shared_ptr<Constraint> parameterConstraintsGainR = getParameter("gainR").getConstraint();
         std::shared_ptr<IntervalConstraint> parameterIntervalsGainR = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsGainR);
-        parameterIntervalsGainR->setLowerBound(-gain_/(getMax()-1), false);
+        parameterIntervalsGainR->setLowerBound(-gain_/(getMax()-1), true);
 
         std::shared_ptr<Constraint> parameterConstraintsGain = getParameter("gain").getConstraint();
         std::shared_ptr<IntervalConstraint> parameterIntervalsGain = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsGain);
-        parameterIntervalsGain->setLowerBound(std::max(lowerBoundOfRateParam, -gainR_ * (getMax()-1)), false);
+        parameterIntervalsGain->setLowerBound(std::max(lowerBoundOfRateParam, -gainR_ * (getMax()-1)), true);
         
       }
     }
@@ -180,11 +178,11 @@ void ChromosomeSubstitutionModel::getParametersValues(){
       if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
         std::shared_ptr<Constraint> parameterConstraintsLossR = getParameter("lossR").getConstraint();
         std::shared_ptr<IntervalConstraint> parameterIntervalsLossR = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsLossR);
-        parameterIntervalsLossR->setLowerBound(-loss_/(getMax()-1), false);
+        parameterIntervalsLossR->setLowerBound(-loss_/(getMax()-1), true);
  
         std::shared_ptr<Constraint> parameterConstraintsLoss = getParameter("loss").getConstraint();
         std::shared_ptr<IntervalConstraint> parameterIntervalsLoss = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsLoss);
-        parameterIntervalsLoss->setLowerBound(std::max(lowerBoundOfRateParam, -lossR_*(getMax()-1)), false);
+        parameterIntervalsLoss->setLowerBound(std::max(lowerBoundOfRateParam, -lossR_*(getMax()-1)), true);
         
       }
     }
