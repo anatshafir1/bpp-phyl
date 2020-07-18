@@ -63,6 +63,7 @@ public:
     static string fixedFrequenciesFilePath_;
     static ChromosomeSubstitutionModel::rateChangeFunc rateChangeType_;
     static bool optimizeBaseNumber_;
+    static string baseNumOptimizationMethod_;
 
 private:
     static void initDefaultParameters();

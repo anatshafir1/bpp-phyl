@@ -61,7 +61,9 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateParameters(){
     std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
-    
+    if ((baseNum_ != IgnoreParam) && (baseNumR_ != IgnoreParam)){
+      updateBaseNumParameters(interval); 
+    }   
     if (dupl_ != IgnoreParam){
       addParameter_(new Parameter("Chromosome.dupl", dupl_, interval));
     }
@@ -101,11 +103,6 @@ void ChromosomeSubstitutionModel::updateParameters(){
       addParameter_(new Parameter("Chromosome.demi", demiploidy_, interval));
           
     }
-    if ((baseNum_ != IgnoreParam) && (baseNumR_ != IgnoreParam)){
-      updateBaseNumParameters(interval); 
-
-    }
-     
 
 }
 /******************************************************************************/

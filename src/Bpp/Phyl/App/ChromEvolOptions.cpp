@@ -32,6 +32,7 @@ string ChromEvolOptions::rootFreqs_;
 string ChromEvolOptions::fixedFrequenciesFilePath_;
 ChromosomeSubstitutionModel::rateChangeFunc ChromEvolOptions::rateChangeType_;
 bool ChromEvolOptions::optimizeBaseNumber_;
+string ChromEvolOptions::baseNumOptimizationMethod_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -64,6 +65,7 @@ void ChromEvolOptions::initDefaultParameters(){
     rootFreqs_ = "weighted";
     rateChangeType_ = ChromosomeSubstitutionModel::LINEAR;
     optimizeBaseNumber_ = false;
+    baseNumOptimizationMethod_ = "Brent";
 
 }
 /*************************************************************************/
@@ -107,6 +109,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
         rateChangeType_ = ChromosomeSubstitutionModel::LINEAR;
     }
     optimizeBaseNumber_ = ApplicationTools::getBooleanParameter("_optimizeBaseNumber", ChromEvol.getParams(), optimizeBaseNumber_, "", true, 0);
+    baseNumOptimizationMethod_ = ApplicationTools::getStringParameter("_baseNumOptimizationMethod", ChromEvol.getParams(), baseNumOptimizationMethod_, "", true, 0);
 
 }
 /*************************************************************************/

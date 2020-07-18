@@ -67,6 +67,7 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
 unsigned int optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed = false, unsigned int currentIterNum = 0);
 unsigned int useMixedOptimizers(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);
 DRNonHomogeneousTreeLikelihood getLikelihoodFunction(TreeTemplate<Node>* tree, VectorSiteContainer* vsc, SubstitutionModelSet* modelSet, DiscreteDistribution* rdist);
+void optimizeBaseNum(ParameterList &params, size_t j, DRNonHomogeneousTreeLikelihood* tl, double* currentLikelihood, unsigned int* numOfBaseNumEval, unsigned int* numOfLikEvaluations, double lowerBound, double upperBound);
 
 //Axillary functions for likelihood optimization
 void setNewBounds(ParameterList params, Parameter &param, double* lowerBound);
@@ -512,6 +513,23 @@ unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double 
     
 
 }
+/*******************************************************************************/
+void optimizeBaseNum(ParameterList &params, size_t j, DRNonHomogeneousTreeLikelihood* tl, double* currentLikelihood, unsigned int* numOfBaseNumEval, unsigned int* numOfLikEvaluations, double lowerBound, double upperBound){
+    Function* func = tl;
+    size_t best_i = (size_t)(params[j].getValue());
+    double f_value = func->f(params);
+    for (size_t i = (size_t)lowerBound; i <= (size_t)upperBound; i++){
+        params[j].setValue((double)i);
+        double f_i = func->f(params);
+        if (f_i < f_value){
+            best_i = i;
+            f_value = f_i;
+        }
+    }
+    params[j].setValue((double)best_i);
+    func->f(params);
+
+}
 /******************************************************************************/
 unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed, unsigned curentIterNum){
     BrentOneDimension* optimizer = new BrentOneDimension(tl);
@@ -568,6 +586,11 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
             //std::cout << "Parameter new lowerBound is: " << lowerBound<< endl;
             //std::cout << "Parameter upperBound is: " << upperBound <<endl;
             //std::cout << "Parameter value before optimization: "<< params[j].getValue() <<endl;
+            if ((ChromEvolOptions::baseNumOptimizationMethod_ != "Brent") && (params[j].getName() == "Chromosome.baseNum_1")){
+                optimizeBaseNum(params, j, tl, &currentLikelihood, &numOfBaseNumEval, &numOfLikEvaluations, lowerBound, upperBound);
+                continue;
+
+            }
             
             if ((i == 1) & (maxNumOfIterations > 2)){
                 optimizer->getStopCondition()->setTolerance(tol* 2);
