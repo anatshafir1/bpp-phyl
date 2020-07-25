@@ -33,6 +33,7 @@ string ChromEvolOptions::fixedFrequenciesFilePath_;
 ChromosomeSubstitutionModel::rateChangeFunc ChromEvolOptions::rateChangeType_;
 bool ChromEvolOptions::optimizeBaseNumber_;
 string ChromEvolOptions::baseNumOptimizationMethod_;
+std::vector<unsigned int> ChromEvolOptions::fixedParams_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -67,6 +68,38 @@ void ChromEvolOptions::initDefaultParameters(){
     optimizeBaseNumber_ = false;
     baseNumOptimizationMethod_ = "Brent";
 
+}
+/*************************************************************************/
+void ChromEvolOptions::setFixedParams(std::vector<unsigned int> fixedParams){
+    
+    if (optimizeBaseNumber_){
+        if (baseNum_ != IgnoreParam){
+            fixedParams_.push_back(fixedParams[0]);
+        }
+        
+    }
+
+    if (baseNumR_ != IgnoreParam){
+        fixedParams_.push_back(fixedParams[1]);
+    }
+    if (constDupl_ != IgnoreParam){
+        fixedParams_.push_back(fixedParams[2]);
+    }
+    if (constLoss_ != IgnoreParam){
+        fixedParams_.push_back(fixedParams[3]);
+    }
+    if (constGain_ != IgnoreParam){
+        fixedParams_.push_back(fixedParams[4]);
+    }
+    if (lossR_ != IgnoreParam){
+        fixedParams_.push_back(fixedParams[5]);
+    }
+    if (gainR_ != IgnoreParam){
+        fixedParams_.push_back(fixedParams[6]);
+    }
+    if ((constDemiDupl_ != IgnoreParam) && (constDemiDupl_ != DemiEqualDupl)){
+        fixedParams_.push_back(fixedParams[7]);
+    }
 }
 /*************************************************************************/
 void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
@@ -110,6 +143,9 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     }
     optimizeBaseNumber_ = ApplicationTools::getBooleanParameter("_optimizeBaseNumber", ChromEvol.getParams(), optimizeBaseNumber_, "", true, 0);
     baseNumOptimizationMethod_ = ApplicationTools::getStringParameter("_baseNumOptimizationMethod", ChromEvol.getParams(), baseNumOptimizationMethod_, "", true, 0);
+    string defaultValForFixedParams = "0,0,0,0,0,0,0,0";
+    std::vector<unsigned int> fixedParams = ApplicationTools::getVectorParameter<unsigned int>("_fixedParams", ChromEvol.getParams(), ',', defaultValForFixedParams, "", true, 0);
+    setFixedParams(fixedParams);
 
 }
 /*************************************************************************/

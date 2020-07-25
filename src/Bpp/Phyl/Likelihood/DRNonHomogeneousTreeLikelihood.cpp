@@ -100,6 +100,7 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
   const Tree& tree,
   const SiteContainer& data,
   bool weighedRootFreq,
+  bool calculateDerivatives,
   SubstitutionModelSet* modelSet,
   DiscreteDistribution* rDist,
   bool verbose,
@@ -110,6 +111,8 @@ DRNonHomogeneousTreeLikelihood::DRNonHomogeneousTreeLikelihood(
   numOfLikelihoodCalculations_(0),
   weightedRootFreq_(weighedRootFreq)
 {
+  computeFirstOrderDerivatives_ = calculateDerivatives;
+  computeSecondOrderDerivatives_ = calculateDerivatives;
   if (!modelSet->isFullySetUpFor(tree))
     throw Exception("DRNonHomogeneousTreeLikelihood(constructor). Model set is not fully specified.");
   init_();
@@ -944,7 +947,13 @@ void DRNonHomogeneousTreeLikelihood::setWeightedRootFreq(VVVdouble* rootLikeliho
     sumOfLikelhoods += Likelihood_x;
   }
   for (size_t x = 0; x < nbStates_; x++){
-    rootFreqsVector.push_back(likelihoodsPerState[x]/sumOfLikelhoods);
+    if (sumOfLikelhoods == 0){
+      // We want to avoid devision by zero!
+      rootFreqsVector.push_back(1/(double)nbStates_);
+
+    }else{
+      rootFreqsVector.push_back(likelihoodsPerState[x]/sumOfLikelhoods);
+    }
   }
   FixedFrequencySet* rootFreqs = new FixedFrequencySet(std::shared_ptr<const StateMap>(new CanonicalStateMap(modelSet_->getStateMap(), false)), rootFreqsVector);
   modelSet_->setRootFrequencies(static_cast<FrequencySet*>(rootFreqs));

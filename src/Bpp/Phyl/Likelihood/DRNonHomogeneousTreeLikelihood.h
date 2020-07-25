@@ -127,6 +127,7 @@ class DRNonHomogeneousTreeLikelihood:
      * @param tree The tree to use.
      * @param data Sequences to use.
      * @param weightedRootFreq if true the root frequencies are weighted
+     * @param calculateDerivatives true if we want to calculate first and second derivatives
      * @param modelSet The set of substitution models to use.
      * @param rDist The rate across sites distribution to use.
      * If true, any rooted tree will be unrooted before likelihood computation.
@@ -138,6 +139,7 @@ class DRNonHomogeneousTreeLikelihood:
       const Tree& tree,
       const SiteContainer& data,
       bool weightedRootFreq,
+      bool calculateDerivatives,
       SubstitutionModelSet* modelSet,
       DiscreteDistribution* rDist,
       bool verbose = true,

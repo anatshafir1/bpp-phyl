@@ -64,10 +64,12 @@ public:
     static ChromosomeSubstitutionModel::rateChangeFunc rateChangeType_;
     static bool optimizeBaseNumber_;
     static string baseNumOptimizationMethod_;
+    static std::vector<unsigned int> fixedParams_; //1 if parameter should be fixed. The order corresponds to the one in the model definition.
 
 private:
     static void initDefaultParameters();
     static void initParametersFromFile(BppApplication& ChromEvol);
+    static void setFixedParams(std::vector<unsigned int> fixedParams);
 
 };
 

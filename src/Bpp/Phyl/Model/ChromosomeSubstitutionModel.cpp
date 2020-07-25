@@ -48,6 +48,8 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
     optimizeBaseNum_(optimizeBaseNumber),
     ChrMinNum_(alpha->getMin()),
     ChrMaxNum_(alpha->getMax()),
+    firstNormQ_(0),
+    pijtCalledFromDeriv_(false),
     vPowExp_()
 {
 
@@ -228,6 +230,7 @@ void ChromosomeSubstitutionModel::updateMatrices(){
     }
     setDiagonal();  //sets Qii to -sigma(Qij)
     updateEigenMatrices();
+    firstNormQ_ = getFirstNorm();
 
 }
 /*******************************************************************************/
@@ -596,12 +599,15 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t(double t) const
     MatrixTools::getId(size_, pijt_temp);
     double s = 1.0;
     double v = rate_ * t;
+    double norm = v * firstNormQ_;
     size_t m = 0;
     bool converged = false;
-    while (v > 0.5)    // exp(r*t*A)=(exp(r*t/(2^m) A))^(2^m)
+    //while (v > 0.5)    // exp(r*t*A)=(exp(r*t/(2^m) A))^(2^m)
+    while (norm > 0.5)
     {
       m += 1;
       v /= 2;
+      norm /= 2;
     }
     for (size_t iternum = 2; iternum <  vPowExp_.size(); iternum++){
       calculateExp_Qt(iternum, &s, v);
@@ -614,7 +620,8 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t(double t) const
       }
       MatrixTools::copy(pijt_, pijt_temp);
       if (iternum > 250){
-        std :: cout << "ERROR: Pijt did not reach convergence for t = "<< t <<"!"<<endl;
+        //std :: cout << "ERROR: Pijt did not reach convergence for t = "<< t <<"!"<<endl;
+        throw Exception("ChromosomeSubstitutionModel: Taylor series did not reach convergence!");
         break;
       }
       if (iternum == vPowExp_.size()-1 && !converged){  //need to add more powers to the matrix
@@ -634,7 +641,36 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t(double t) const
       m--;
     }
   }
+  
+  //just for test/////////////////////
+  // bool correct = true;
+  if (!pijtCalledFromDeriv_){
+    for (size_t i = 0; i < size_; i++){
+      for (size_t j = 0; j < size_; j++){
+        if (pijt_(i,j) < 0){
+          pijt_(i,j) = NumConstants::VERY_TINY(); // trying to do it exactly as in ChromEvol. Maybe the "nan" problem will be solved
+        }
+        else if (pijt_(i, j) > 1){
+          pijt_(i,j) = 1.0;
+        }
+
+      }
+    }
+
+  }
+
+  /////////////////////////////
   return pijt_;
+}
+double ChromosomeSubstitutionModel::getFirstNorm() const{
+  double norm = 0;
+  for (size_t i = 0; i < size_; i++){
+    for (size_t j = 0; j < size_; j++){
+      norm += fabs(generator_(i,j));
+
+    }
+  }
+  return norm;
 }
 
   /*     for (size_t iternum = 2; iternum <  vPowExp_.size(); iternum++){
@@ -669,6 +705,8 @@ bool ChromosomeSubstitutionModel::checkIfReachedConvergence(const Matrix<double>
             double diff = fabs(pijt(i,j) - mt_prev(i,j));
             if (diff > get_epsilon()){
                 return false;
+            }else if ((pijt(i,j) + get_epsilon() < 0) || (pijt(i,j) > 1 + get_epsilon())){
+              return false;
             }
         }
     }
@@ -694,6 +732,7 @@ void ChromosomeSubstitutionModel::calculateExp_Qt(size_t pow, double s, size_t m
 
 /******************************************************************************/
 const Matrix<double>& ChromosomeSubstitutionModel::getdPij_dt  (double d) const{
+  pijtCalledFromDeriv_ = true;
   RowMatrix<double> pijt;
   //if (!pijt_calculated_){
   pijt = getPij_t(d);
@@ -705,6 +744,7 @@ const Matrix<double>& ChromosomeSubstitutionModel::getdPij_dt  (double d) const{
   //}
   
   // dp(t) = p(t)*rate_*Q
+  pijtCalledFromDeriv_ = false;
   return dpijt_;
 
 }
@@ -712,6 +752,7 @@ const Matrix<double>& ChromosomeSubstitutionModel::getdPij_dt  (double d) const{
 
 /******************************************************************************/
 const Matrix<double>& ChromosomeSubstitutionModel::getd2Pij_dt2(double d) const{
+  pijtCalledFromDeriv_ = true;
   RowMatrix<double> pijt;
   //if (!pijt_calculated_){
   pijt = getPij_t(d);
@@ -723,6 +764,7 @@ const Matrix<double>& ChromosomeSubstitutionModel::getd2Pij_dt2(double d) const{
     //mult(vPowGen_[2], pijt_, d2pijt_);
   //}
   // ddp(t) = Q^2 * p(t)*rate_^2
+  pijtCalledFromDeriv_ = false;
   return d2pijt_;
 }
 /******************************************************************************/

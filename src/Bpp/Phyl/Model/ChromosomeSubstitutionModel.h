@@ -18,6 +18,7 @@
 #define upperBoundLinearRateParam 5.0
 #define IgnoreParam -999
 #define DemiEqualDupl -2
+#define EPSILON 2.22045e-016
 using namespace std;
 namespace bpp
 {
@@ -45,6 +46,9 @@ private:
   bool optimizeBaseNum_;
   int ChrMinNum_;
   int ChrMaxNum_;
+  double firstNormQ_;
+  mutable bool pijtCalledFromDeriv_;
+
   
 
 protected:
@@ -105,6 +109,7 @@ protected:
   void getParametersValues();
   void calculateExp_Qt(size_t pow, double s, size_t m, double v) const;
   void calculateExp_Qt(size_t pow, double* s, double v) const;
+  double getFirstNorm() const;
   double get_epsilon() const{ return 0.0001;};
 };
 } // end of namespace bpp.

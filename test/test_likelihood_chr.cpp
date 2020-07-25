@@ -62,14 +62,17 @@ void setFixedRootFrequencies(const std::string &path, SubstitutionModelSet* mode
 //void testOptimizeLikelihood(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree);
 
 void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int chrRange);
-unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);//, unsigned int inwardBracketing, bool standardOptimization);
-unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed = false, unsigned int currentIterNum = 0);
+unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector<unsigned int> &baseNumCandidates);//, unsigned int inwardBracketing, bool standardOptimization);
+unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector<unsigned int> &baseNumCandidates, bool mixed = false, unsigned int currentIterNum = 0);
 unsigned int optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed = false, unsigned int currentIterNum = 0);
-unsigned int useMixedOptimizers(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations);
+unsigned int useMixedOptimizers(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates);
 DRNonHomogeneousTreeLikelihood getLikelihoodFunction(TreeTemplate<Node>* tree, VectorSiteContainer* vsc, SubstitutionModelSet* modelSet, DiscreteDistribution* rdist);
-void optimizeBaseNum(ParameterList &params, size_t j, DRNonHomogeneousTreeLikelihood* tl, double* currentLikelihood, unsigned int* numOfBaseNumEval, unsigned int* numOfLikEvaluations, double lowerBound, double upperBound);
+void optimizeBaseNum(ParameterList &params, size_t j, DRNonHomogeneousTreeLikelihood* tl, std::vector <unsigned int> baseNumCandidates, double* currentLikelihood, unsigned int* numOfBaseNumEval, unsigned int* numOfLikEvaluations, double lowerBound, double upperBound);
 
 //Axillary functions for likelihood optimization
+std::vector <string> getNonFixedParams(std::vector <unsigned int> fixedParams, ParameterList &allParams);
+void fillVectorOfBaseNumCandidates(std::vector <unsigned int> &baseNumCandidates, VectorSiteContainer* vsc, double lowerBound, double upperBound);
+void getAllPossibleChrRanges(std::vector <unsigned int> &baseNumCandidates, VectorSiteContainer* vsc);
 void setNewBounds(ParameterList params, Parameter &param, double* lowerBound);
 double getLowerBoundForGainR(double gain);
 double getLowerBoundForLossR(double loss);
@@ -99,12 +102,16 @@ void clearVectorOfLikelihoods(std::vector <DRNonHomogeneousTreeLikelihood> &lik_
 
 /******************************************************************************/
 DRNonHomogeneousTreeLikelihood getLikelihoodFunction(TreeTemplate<Node>* tree, VectorSiteContainer* vsc, SubstitutionModelSet* modelSet, DiscreteDistribution* rdist){
+    bool calculateDerivatives = true;
+    if (ChromEvolOptions::optimizationMethod_ == "Brent"){
+        calculateDerivatives  = false;
+    }
     if (ChromEvolOptions::fixedFrequenciesFilePath_ != "none"){
         setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, modelSet);
-        DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, modelSet, rdist);
+        DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, false, calculateDerivatives, modelSet, rdist);
         return lik;
     }else{
-        DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, true, modelSet, rdist);
+        DRNonHomogeneousTreeLikelihood lik = DRNonHomogeneousTreeLikelihood(*tree, *vsc, true, calculateDerivatives, modelSet, rdist);
         return lik;
 
     }
@@ -155,6 +162,66 @@ VectorSiteContainer* getCharacterData (const string& path, unsigned int* numberO
     delete initialSetOfSequences;
     delete alphaInitial;
     return vsc;
+}
+/****************************************************************************/
+void getAllPossibleChrRanges(std::vector <unsigned int> &baseNumCandidates, VectorSiteContainer* vsc){
+    size_t numOfSequences = vsc->getNumberOfSequences();
+    unsigned int minRange = 0;
+    vector <string> sequenceNames = vsc->getSequencesNames();
+    for (size_t i = 0; i < numOfSequences; i++){
+        if (i == numOfSequences-1){
+            continue;
+        }
+        BasicSequence seq1 = vsc->getSequence(sequenceNames[i]);
+        int chrNum1 = seq1.getValue(0);
+        if (chrNum1 == -1){
+            continue;
+        }
+        for (size_t j = i + 1; j < numOfSequences; j++){
+            BasicSequence seq2 = vsc->getSequence(sequenceNames[j]);
+            int chrNum2 = seq2.getValue(0);
+            if (chrNum2 == -1){
+                continue;
+            }
+            unsigned int chrRange = (unsigned int)(abs(chrNum1 - chrNum2));
+            if (chrRange == 0 || chrRange == 1){
+                continue;
+            }
+            else if (chrRange == 2){
+                continue;
+            }
+            if (!std::count(baseNumCandidates.begin(), baseNumCandidates.end(), chrRange)){
+                if (minRange == 0){
+                    minRange = chrRange;
+                }else{
+                    if (chrRange < minRange){
+                        minRange = chrRange;
+                    }
+                }
+                baseNumCandidates.push_back(chrRange);
+
+            }
+
+        }
+    }
+    if (minRange > 3){
+        for (unsigned int i = 3; i < minRange; i++){
+            baseNumCandidates.push_back(i);
+        }
+
+    }
+
+}
+/****************************************************************************/
+std::vector <string> getNonFixedParams(std::vector <unsigned int> fixedParams, ParameterList &allParams){
+    std:: vector <string> paramsNames;
+    for (size_t i = 0; i < allParams.size(); i++){
+        if (!(fixedParams[i])){
+            paramsNames.push_back(allParams[i].getName());
+        }
+
+    }
+    return paramsNames;
 }
 /****************************************************************************/
 void setMaxChrNum(unsigned int maxNumberOfChr){
@@ -478,7 +545,7 @@ ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, Ve
 
 } */
 /******************************************************************************/
-unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
+unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates){
     unsigned int numOfEvaluations = 0;
     if (ChromEvolOptions::standardOptimization_){
         double prevLogLik;
@@ -496,7 +563,7 @@ unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double 
         std::cout <<"..."<<endl;
     }else{
         if (ChromEvolOptions::optimizationMethod_ == "Brent"){
-            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations);
+            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations, baseNumCandidates);
         }else if (ChromEvolOptions::optimizationMethod_ == "gradient"){
 
             numOfEvaluations += optimizeMultiDimensions(tl, tol, maxNumOfIterations);
@@ -504,7 +571,7 @@ unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double 
             //OptimizationTools::optimizeNumericalParameters2(tl, params, 0, 0.01, 1000, ApplicationTools::message.get(), ApplicationTools::message.get(), false, false, 1, OptimizationTools::OPTIMIZATION_GRADIENT);
             //OptimizationTools::optimizeNumericalParameters2(tl, params);//, 0, 0.000001, 1000000, ApplicationTools::message.get(), ApplicationTools::message.get(), false, false, 1, OptimizationTools::OPTIMIZATION_GRADIENT);
         }else{
-            numOfEvaluations += useMixedOptimizers(tl, tol, maxNumOfIterations);
+            numOfEvaluations += useMixedOptimizers(tl, tol, maxNumOfIterations, baseNumCandidates);
         }
         
     }
@@ -514,30 +581,52 @@ unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double 
 
 }
 /*******************************************************************************/
-void optimizeBaseNum(ParameterList &params, size_t j, DRNonHomogeneousTreeLikelihood* tl, double* currentLikelihood, unsigned int* numOfBaseNumEval, unsigned int* numOfLikEvaluations, double lowerBound, double upperBound){
+void fillVectorOfBaseNumCandidates(std::vector <unsigned int> &baseNumCandidates, VectorSiteContainer* vsc, double lowerBound, double upperBound){
+    if (ChromEvolOptions::baseNumOptimizationMethod_ == "Ranges"){
+        getAllPossibleChrRanges(baseNumCandidates, vsc);
+
+    }
+    else if ((ChromEvolOptions::baseNumOptimizationMethod_ == "Sequential") || (baseNumCandidates.size() == 0)){
+
+        for (unsigned int chr = (unsigned int)lowerBound; chr <= (unsigned int)upperBound; chr++){
+            baseNumCandidates.push_back(chr);
+        }
+
+    }
+
+}
+/*******************************************************************************/
+void optimizeBaseNum(ParameterList &params, size_t j, DRNonHomogeneousTreeLikelihood* tl, std::vector <unsigned int> baseNumCandidates, double* currentLikelihood, unsigned int* numOfBaseNumEval, unsigned int* numOfLikEvaluations, double lowerBound, double upperBound){
+
+    *numOfBaseNumEval += (unsigned int)baseNumCandidates.size();
     Function* func = tl;
     size_t best_i = (size_t)(params[j].getValue());
-    double f_value = func->f(params);
-    for (size_t i = (size_t)lowerBound; i <= (size_t)upperBound; i++){
-        params[j].setValue((double)i);
+    //double f_value = func->f(params);
+    double f_value = *currentLikelihood;
+    for (size_t i = 0; i < baseNumCandidates.size(); i++){
+        unsigned int baseNum = baseNumCandidates[i];
+        params[j].setValue((double)baseNum);
         double f_i = func->f(params);
         if (f_i < f_value){
-            best_i = i;
+            best_i = baseNum;
             f_value = f_i;
         }
     }
     params[j].setValue((double)best_i);
     func->f(params);
+    *currentLikelihood = f_value;
 
 }
 /******************************************************************************/
-unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed, unsigned curentIterNum){
+unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, bool mixed, unsigned curentIterNum){
+
+    // Initialize optimizer
     BrentOneDimension* optimizer = new BrentOneDimension(tl);
     optimizer->setVerbose(1);
+    //optimizer->setProfiler(ApplicationTools::message.get());
+    //optimizer->setMessageHandler(ApplicationTools::message.get());
     optimizer->setProfiler(0);
     optimizer->setMessageHandler(0);
-    //optimizer->setMaximumNumberOfEvaluations(tlEvalMax);
-    //optimizer->getStopCondition()->setTolerance(tol);
     optimizer->setConstraintPolicy(AutoParameter::CONSTRAINTS_AUTO);
     optimizer->setMaximumNumberOfEvaluations(100);
     std::cout <<"max chromosome number: " << ChromEvolOptions::maxChrNum_ << endl;
@@ -568,6 +657,9 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
         for (size_t j = 0; j < nbParams; j ++){
             numOfLikEvaluations = tl->getNumberOfLikelihoodEvaluations();
             ParameterList params = tl->getSubstitutionModelParameters();
+            if (ChromEvolOptions::fixedParams_[j]){
+                continue;
+            }
             const string nameOfParam = params[j].getName();
             std::cout << "Parameter name is: "<< nameOfParam <<endl;
 
@@ -575,21 +667,25 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
             std::shared_ptr<IntervalConstraint> parameterIntervals = dynamic_pointer_cast<IntervalConstraint>(parameterConstraints);
             double lowerBound = parameterIntervals->getLowerBound();
             double upperBound = parameterIntervals->getUpperBound();
-            //if (lowerBound == 0){
-                //lowerBound = 1e-10;
-            //}
+            std::cout << "old lower bound: "<< lowerBound <<endl;
+
             //std::cout << "Parameter lowerBound is: " << lowerBound<< endl;
             //need to set bounds- the bounds of the parameters of the model are updated in the model
             //itself but not in the likelihood function, therefore I need to set the bounds here.
             //It also means that when a linear model is used, I can use only Brent.
             setNewBounds(params, params[j], &lowerBound);
+            std::cout <<"new lower bound: " << lowerBound << endl;
+            std::cout <<"parameter value before optimization is "<< params[j].getValue() << endl;
             //std::cout << "Parameter new lowerBound is: " << lowerBound<< endl;
             //std::cout << "Parameter upperBound is: " << upperBound <<endl;
             //std::cout << "Parameter value before optimization: "<< params[j].getValue() <<endl;
             if ((ChromEvolOptions::baseNumOptimizationMethod_ != "Brent") && (params[j].getName() == "Chromosome.baseNum_1")){
-                optimizeBaseNum(params, j, tl, &currentLikelihood, &numOfBaseNumEval, &numOfLikEvaluations, lowerBound, upperBound);
-                continue;
+                if (ChromEvolOptions::optimizeBaseNumber_){
+                    optimizeBaseNum(params, j, tl, baseNumCandidates, &currentLikelihood, &numOfBaseNumEval, &numOfLikEvaluations, lowerBound, upperBound);
+                    std::cout << "parameter value after optimization "<< params[j].getValue() << endl;
+                    continue;
 
+                }
             }
             
             if ((i == 1) & (maxNumOfIterations > 2)){
@@ -606,7 +702,8 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
             
             optimizer->init(params.createSubList(j));
             currentLikelihood = optimizer->optimize();
-            //std::cout <<"Parameter value after optimization: "<< tl->getSubstitutionModelParameters()[j].getValue()<<endl;
+            std::cout <<"Parameter value after optimization: "<< tl->getSubstitutionModelParameters()[j].getValue()<<endl;
+            std::cout << "***"<<endl;
             numOfLikEvaluations = tl->getNumberOfLikelihoodEvaluations() - numOfLikEvaluations;
             if (params[j].getName() == "Chromosome.baseNum_1"){
                 numOfBaseNumEval += numOfLikEvaluations;
@@ -662,7 +759,9 @@ unsigned int optimizeMultiDimensions(DRNonHomogeneousTreeLikelihood* tl, double 
             std::cout << "Iteration #"<< i <<endl;
         }
         
-        ParameterList params = tl->getSubstitutionModelParameters();
+        ParameterList paramsFull = tl->getSubstitutionModelParameters();
+        std::vector <string> paramsNames = getNonFixedParams(ChromEvolOptions::fixedParams_, paramsFull);
+        ParameterList params = paramsFull.createSubList(paramsNames);
         std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam + 0.0000000001, upperBoundOfRateParam, true, true);
         for (size_t j = 0; j < params.size(); j++){
             params[j].setConstraint(interval);
@@ -710,8 +809,11 @@ void initLikelihoodVector(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec,
         DRNonHomogeneousTreeLikelihood lik = getLikelihoodFunction(tree, vsc, modelSet, rdist);
         
         lik.initialize();
+        if (std::isnan(lik.getValue())){
+            std::cout << "value is nan"<<endl;
+        }
         
-        while (std::isnan(lik.getValue())|| std::isinf(lik.getValue()))
+        while (std::isinf(lik.getValue()))
         {
             deleteTreeLikAssociatedAttributes(lik);
             rdist = new GammaDiscreteRateDistribution(1, 1.0);
@@ -743,6 +845,18 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
     unsigned int totalNumOfEvaluations = 0;
     unsigned int numOfEvaluations;
     unsigned int numOfEvaluationsPerCycle;
+    std::vector <unsigned int> baseNumCandidates;
+
+    // If base number is one of the parameters
+    if ((ChromEvolOptions::baseNumOptimizationMethod_ != "Brent") && (ChromEvolOptions::optimizeBaseNumber_)){
+        fillVectorOfBaseNumCandidates(baseNumCandidates, vsc, lowerBoundBaseNumber, chrRange);
+        std::cout << "**** Chromosome ranges are: " << endl;
+        for (size_t ch = 0; ch < baseNumCandidates.size(); ch++){
+            std::cout <<baseNumCandidates[ch] << endl;
+        }
+        std::cout << "****"<< endl;
+
+    }
 
     //Go over each cycle
     for (size_t i = 0; i < ChromEvolOptions::OptIterNum_.size(); i++){
@@ -757,7 +871,7 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
             printLikParameters(lik_vec[j], 0);
             //If the number of optimization iterations is larger than zero, optimize the number of times as specified
             if (ChromEvolOptions::OptIterNum_[i] > 0){
-                numOfEvaluations = optimizeModelParameters(&lik_vec[j], ChromEvolOptions::tolerance_, ChromEvolOptions::OptIterNum_[i]);
+                numOfEvaluations = optimizeModelParameters(&lik_vec[j], ChromEvolOptions::tolerance_, ChromEvolOptions::OptIterNum_[i], baseNumCandidates);
                           
             }
             std:: cout << "Number of evaluations per point is : " << numOfEvaluations << endl;
@@ -784,14 +898,14 @@ void OptimizeMultiStartingPoints(const ChromosomeAlphabet* alpha, VectorSiteCont
 
 }
 /*****************************************************************************/
-unsigned int useMixedOptimizers(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations){
+unsigned int useMixedOptimizers(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates){
     std::vector<size_t> optimization = RandomTools::randMultinomial(maxNumOfIterations, ChromEvolOptions::probsForMixedOptimization_);
     unsigned int numOfEvaluations = 0;
     for (size_t i = 0; i < maxNumOfIterations; i++){
         double prevLikelihood = tl->getValue();
         if (optimization[i] == 0){
             std::cout << "Optimizing with Brent" <<endl;
-            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, 1, true, (unsigned int)i);
+            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, 1, baseNumCandidates, true, (unsigned int)i);
         }else{
             std::cout << "Optimizing with Gradient Descent" <<endl;
             numOfEvaluations += optimizeMultiDimensions(tl, tol, 1, true, (unsigned int)i);
