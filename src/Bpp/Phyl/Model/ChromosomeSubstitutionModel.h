@@ -91,6 +91,7 @@ public:
   int getMin() const {return ChrMinNum_;}
   int getMax() const {return ChrMaxNum_;}
   bool checkIfReachedConvergence(const Matrix<double>& pijt, const Matrix<double>& mt_prev) const;
+  double getInitValue(size_t i, int state) const;
   //size_t getMaxChrNum(const Alphabet* alpha);
   //size_t getMinChrNum(const Alphabet* alpha);    
   //const ChromosomeAlphabet* getChromosomeAlphabet() const { return chromosomeAlpha_; }

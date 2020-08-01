@@ -897,6 +897,35 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t_func4(double d) cons
   return pijt_;
 
 }
+/*********************************************************************************/
+double ChromosomeSubstitutionModel::getInitValue(size_t i, int state) const
+{
+  if (i >= size_)
+    throw IndexOutOfBoundsException("ChromosomeSubstitutionModel::getInitValue", i, 0, size_ - 1);
+  if (state < 0 || !alphabet_->isIntInAlphabet(state))
+    throw BadIntException(state, "ChromosomeSubstitutionModel::getInitValue. Character " + alphabet_->intToChar(state) + " is not allowed in model.");
+  vector<int> states = alphabet_->getAlias(state);
+  for (size_t j = 0; j < states.size(); j++)
+  {
+     if (getAlphabetStateAsInt(i) == states[j]){
+       if (dynamic_cast<const ChromosomeAlphabet*>(alphabet_)){
+         const ChromosomeAlphabet* alpha = dynamic_cast<const ChromosomeAlphabet*>(alphabet_);
+         // it is a composite state
+         if (state > alpha->getMax() + 1){
+           return alpha->getProbabilityForState(state, states[j]);
+
+         }else{
+           return 1.0;
+         }
+
+       }else{
+         return 1.;
+       }
+
+     }
+  }
+  return 0.;
+}
 
 /* size_t ChromosomeSubstitutionModel::getMaxChrNum(const Alphabet* alpha){
   //Alphabet* new_alpha = alpha->clone();

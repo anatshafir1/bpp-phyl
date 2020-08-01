@@ -6,6 +6,7 @@
 #include <Bpp/Numeric/Random/RandomTools.h>
 #include <Bpp/Io/FileTools.h>
 #include <Bpp/Text/TextTools.h>
+#include <Bpp/Text/StringTokenizer.h>
 #include <Bpp/App/BppApplication.h>
 #include <Bpp/Numeric/Function/BrentOneDimension.h>
 #include <Bpp/Numeric/Function/ConjugateGradientMultiDimensions.h>
@@ -21,7 +22,7 @@
 #include <Bpp/Seq/Container/SiteContainerTools.h>
 #include <Bpp/Seq/Io/AbstractISequence.h>
 #include <Bpp/Seq/Io/ISequence.h>
-#include <Bpp/Seq/Io/Fasta.h>
+#include <Bpp/Seq/Io/chrFasta.h>
 #include <Bpp/Seq/SiteTools.h>
 #include <Bpp/Seq/App/SequenceApplicationTools.h>
 
@@ -49,7 +50,8 @@ using namespace std;
 
 
 //Functions for initialization of Data
-VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc);
+void testSplitString();
+VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* initialAlpha);
 VectorSiteContainer* getCharacterData(const std :: string &path, unsigned int* numberOfUniqueStates, unsigned int* chrRange);
 void setMaxChrNum(unsigned int maxNumberOfChr);
 void setMinChrNum(unsigned int minNumberOfChr);
@@ -91,6 +93,20 @@ void testMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik);
 void printTreeWithStates(DRNonHomogeneousTreeLikelihood* lik, TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs = 0);
 string printTree(const TreeTemplate<Node>& tree);
 string nodeToParenthesis(const Node& node);
+
+/******************************************************************************/
+void testSplitString(){
+    std::vector<string> v;
+    std::string str = "12=0.89_24=0.11";
+    StringTokenizer st(str, "=_", false, false);
+    while(st.hasMoreToken()){
+        v.push_back(st.nextToken());
+    }
+    std::cout << "TOKENS ARE:"<<endl;
+    for (size_t i = 0; i < v.size(); i++){
+        std:: cout << v[i] << endl;
+    }
+}
 /******************************************************************************/
 //Delete items from the vector of likelihood until reaching the required size new_size
 void clearVectorOfLikelihoods(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, size_t new_size){
@@ -118,9 +134,8 @@ DRNonHomogeneousTreeLikelihood getLikelihoodFunction(TreeTemplate<Node>* tree, V
 }
 /******************************************************************************/
 VectorSiteContainer* getCharacterData (const string& path, unsigned int* numberOfUniqueCharacterStates, unsigned int* chrRange){
-    Fasta fasta;
     ChromosomeAlphabet* alphaInitial = new ChromosomeAlphabet(ChromEvolOptions::minAlpha_, ChromEvolOptions::maxAlpha_);
-    VectorSequenceContainer* initialSetOfSequences = fasta.readSequences(path, alphaInitial);
+    VectorSequenceContainer* initialSetOfSequences = chrFasta::readSequencesFromFile(path, alphaInitial);
     size_t numOfSequences = initialSetOfSequences->getNumberOfSequences();
     vector <string> sequenceNames = initialSetOfSequences->getSequencesNames();
 
@@ -135,13 +150,26 @@ VectorSiteContainer* getCharacterData (const string& path, unsigned int* numberO
         if (character == -1){
             continue;
         }
+        if (character == static_cast<int>(ChromEvolOptions::maxAlpha_)+1){
+            continue;
+        }
+        // if it is a composite state
+        if (character > static_cast<int>(ChromEvolOptions::maxAlpha_) +1){
+            const std::vector<int> compositeCharacters = alphaInitial->getSetOfStatesForAComposite(character);
+            for (size_t j = 0; j < compositeCharacters.size(); j++){
+                if ((unsigned int) compositeCharacters[j] > maxNumberOfChr){
+                    maxNumberOfChr = compositeCharacters[j];
+                }
+                if ((unsigned int) compositeCharacters[j] < minNumOfChr){
+                    minNumOfChr = compositeCharacters[j];
+                }
+                
+            }
+            continue;
+        }
 
         if (!std::count(UniqueCharacterStates.begin(), UniqueCharacterStates.end(), character)){
             UniqueCharacterStates.push_back(character);
-
-        }
-        if (character == static_cast<int>(ChromEvolOptions::maxAlpha_)+1){
-            continue;
         }
         if ((unsigned int) character > maxNumberOfChr){
             maxNumberOfChr = character;
@@ -151,14 +179,14 @@ VectorSiteContainer* getCharacterData (const string& path, unsigned int* numberO
         }
 
     }
-    *numberOfUniqueCharacterStates = (unsigned int)UniqueCharacterStates.size();
+    *numberOfUniqueCharacterStates = (unsigned int)UniqueCharacterStates.size() + alphaInitial->getNumberOfCompositeStates();
     *chrRange = maxNumberOfChr - minNumOfChr;
     cout <<"Number of unique states is " << *numberOfUniqueCharacterStates <<endl;
 
     setMaxChrNum(maxNumberOfChr);
     setMinChrNum(minNumOfChr);
 
-    VectorSiteContainer* vsc = resizeAlphabetForSequenceContainer(initialSetOfSequences);
+    VectorSiteContainer* vsc = resizeAlphabetForSequenceContainer(initialSetOfSequences, alphaInitial);
     delete initialSetOfSequences;
     delete alphaInitial;
     return vsc;
@@ -296,10 +324,21 @@ void setNewBounds(ParameterList params, Parameter &param, double* lowerBound){
 
 
 /*****************************************************************************/
-VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc){
+VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* alphaInitial){
     size_t numOfSequences = vsc->getNumberOfSequences();
     vector <string> sequenceNames = vsc->getSequencesNames();
     ChromosomeAlphabet* new_alphabet = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
+        // fill with composite values
+    if (alphaInitial->getNumberOfCompositeStates() > 0){
+        const std::map <int, std::map<int, double>> compositeStates = alphaInitial->getCompositeStatesMap();
+        std::map <int, std::map<int, double>>::const_iterator it = compositeStates.begin();
+        while (it != compositeStates.end()){
+            int compositeState = it->first;
+            std::string charComposite = alphaInitial->intToChar(compositeState);
+            new_alphabet->setCompositeState(charComposite);
+            it++;
+        }
+    }
     VectorSiteContainer* resized_alphabet_site_container = new VectorSiteContainer(new_alphabet);
     for (size_t i = 0; i < numOfSequences; i++){
         BasicSequence seq = vsc->getSequence(sequenceNames[i]);
@@ -623,18 +662,20 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
     // Initialize optimizer
     BrentOneDimension* optimizer = new BrentOneDimension(tl);
     optimizer->setVerbose(1);
-    //optimizer->setProfiler(ApplicationTools::message.get());
-    //optimizer->setMessageHandler(ApplicationTools::message.get());
-    optimizer->setProfiler(0);
-    optimizer->setMessageHandler(0);
+    optimizer->setProfiler(ApplicationTools::message.get());
+    optimizer->setMessageHandler(ApplicationTools::message.get());
+    //optimizer->setProfiler(0);
+    //optimizer->setMessageHandler(0);
     optimizer->setConstraintPolicy(AutoParameter::CONSTRAINTS_AUTO);
     optimizer->setMaximumNumberOfEvaluations(100);
     std::cout <<"max chromosome number: " << ChromEvolOptions::maxChrNum_ << endl;
     if (ChromEvolOptions::BrentBracketing_ == 1){
         optimizer->setBracketing(BrentOneDimension::BRACKET_INWARD);
 
-    }else{
+    }else if (ChromEvolOptions::BrentBracketing_ == 2){
         optimizer->setBracketing(BrentOneDimension::BRACKET_SIMPLE);
+    }else{
+        optimizer->setBracketing(BrentOneDimension::BRACKET_OUTWARD);
     }
     
     double currentLikelihood = tl->getValue();
