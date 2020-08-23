@@ -40,6 +40,7 @@ private:
   double lossR_;
   int baseNum_;
   double baseNumR_;
+  double duplR_;
   unsigned int maxChrRange_;
   rootFreqType freqType_;
   rateChangeFunc rateChangeFuncType_;
@@ -66,6 +67,7 @@ public:
     double lossR,
     int baseNum,
     double baseNumR,
+    double duplR,
     unsigned int maxChrRange, 
     rootFreqType freqType,
     rateChangeFunc rateChangeType,
@@ -105,6 +107,7 @@ protected:
   void updateQWithBaseNumParameters(size_t currChrNum, size_t minChrNum, size_t maxChrNum);
   void updateQWithGain(size_t currChrNum, size_t minChrNum);
   void updateQWithLoss(size_t currChrNum, size_t minChrNum);
+  void updateQWithDupl(size_t currChrNum, size_t minChrNum, size_t maxChrNum = 0);
   void updateQWithDemiDupl(size_t currChrNum, size_t minChrNum, size_t maxChrNum);
   void updateEigenMatrices();
   void getParametersValues();

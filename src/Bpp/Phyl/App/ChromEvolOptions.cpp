@@ -18,6 +18,7 @@ double ChromEvolOptions::gainR_;
 double ChromEvolOptions::lossR_;
 int ChromEvolOptions::baseNum_;
 double ChromEvolOptions::baseNumR_;
+double ChromEvolOptions::duplR_;
 double ChromEvolOptions::tolerance_;
 unsigned int ChromEvolOptions::maxIterations_;
 bool ChromEvolOptions::maxParsimonyBound_;
@@ -58,6 +59,7 @@ void ChromEvolOptions::initDefaultParameters(){
     lossR_ = IgnoreParam;
     baseNum_ = IgnoreParam;
     baseNumR_ = IgnoreParam;
+    duplR_ = IgnoreParam;
     maxParsimonyBound_ = false;
     standardOptimization_ = false;
     BrentBracketing_ = 2;
@@ -100,6 +102,9 @@ void ChromEvolOptions::setFixedParams(std::vector<unsigned int> fixedParams){
     if ((constDemiDupl_ != IgnoreParam) && (constDemiDupl_ != DemiEqualDupl)){
         fixedParams_.push_back(fixedParams[7]);
     }
+    if (duplR_ != IgnoreParam){
+        fixedParams_.push_back(fixedParams[8]);
+    }
 }
 /*************************************************************************/
 void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
@@ -123,6 +128,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     lossR_ = ApplicationTools::getDoubleParameter("_lossR", ChromEvol.getParams(), lossR_, "", true, 0);
     baseNum_ = ApplicationTools::getIntParameter("_baseNum", ChromEvol.getParams(), baseNum_, "", true, 0);
     baseNumR_ = ApplicationTools::getDoubleParameter("_baseNumR", ChromEvol.getParams(), baseNumR_, "", true, 0);
+    duplR_ = ApplicationTools::getDoubleParameter("_duplR", ChromEvol.getParams(), duplR_, "", true, 0);
     maxParsimonyBound_ = ApplicationTools::getBooleanParameter("_maxParsimonyBound", ChromEvol.getParams(), maxParsimonyBound_, "", true, 0);
     standardOptimization_ = ApplicationTools::getBooleanParameter("_standardOptimization", ChromEvol.getParams(), standardOptimization_, "", true, 0);
     BrentBracketing_ = ApplicationTools::getIntParameter("_BrentBracketing", ChromEvol.getParams(), BrentBracketing_, "", true, 0);
@@ -143,7 +149,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     }
     optimizeBaseNumber_ = ApplicationTools::getBooleanParameter("_optimizeBaseNumber", ChromEvol.getParams(), optimizeBaseNumber_, "", true, 0);
     baseNumOptimizationMethod_ = ApplicationTools::getStringParameter("_baseNumOptimizationMethod", ChromEvol.getParams(), baseNumOptimizationMethod_, "", true, 0);
-    string defaultValForFixedParams = "0,0,0,0,0,0,0,0";
+    string defaultValForFixedParams = "0,0,0,0,0,0,0,0,0";
     std::vector<unsigned int> fixedParams = ApplicationTools::getVectorParameter<unsigned int>("_fixedParams", ChromEvol.getParams(), ',', defaultValForFixedParams, "", true, 0);
     setFixedParams(fixedParams);
 

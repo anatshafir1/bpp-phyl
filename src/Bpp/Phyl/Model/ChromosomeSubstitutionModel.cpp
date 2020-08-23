@@ -28,6 +28,7 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
   double lossR,
   int baseNum,
   double baseNumR,
+  double duplR,
   unsigned int chrRange, 
   rootFreqType freqType,
   rateChangeFunc rateChangeType,
@@ -42,6 +43,7 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
     lossR_(lossR),
     baseNum_(baseNum),
     baseNumR_(baseNumR),
+    duplR_(duplR),
     maxChrRange_(chrRange),
     freqType_(freqType),
     rateChangeFuncType_(rateChangeType),
@@ -67,7 +69,17 @@ void ChromosomeSubstitutionModel::updateParameters(){
       updateBaseNumParameters(interval); 
     }   
     if (dupl_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.dupl", dupl_, interval));
+      if (duplR_ == IgnoreParam){
+        addParameter_(new Parameter("Chromosome.dupl", dupl_, interval));
+      }else{
+        double lowerBound = lowerBoundOfRateParam;
+        if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
+          lowerBound = std::max(lowerBoundOfRateParam, -duplR_*(getMax()-1));       
+        }
+        std::shared_ptr<IntervalConstraint> intervalDupl = make_shared<IntervalConstraint>(lowerBound, upperBoundOfRateParam, false, true);
+        addParameter_(new Parameter("Chromosome.dupl", dupl_, intervalDupl));
+      }
+      
     }
     if (loss_ != IgnoreParam){
       if (lossR_ == IgnoreParam){
@@ -111,26 +123,77 @@ void ChromosomeSubstitutionModel::updateParameters(){
 void ChromosomeSubstitutionModel::updateExpParameters(){
   std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfExpParam, upperBoundOfRateParam, false, true);
   if (lossR_ != IgnoreParam){
-    addParameter_(new Parameter("Chromosome.lossR", lossR_, interval));
+    if (loss_ != IgnoreParam){
+      addParameter_(new Parameter("Chromosome.lossR", lossR_, interval));
+    }else{
+      std::shared_ptr<IntervalConstraint> intervalNoConstRateLoss = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
+      addParameter_(new Parameter("Chromosome.lossR", lossR_, intervalNoConstRateLoss));
+    }
 
   }
   if (gainR_ != IgnoreParam){
-    addParameter_(new Parameter("Chromosome.gainR", gainR_, interval));
+    if (gain_ != IgnoreParam){
+      addParameter_(new Parameter("Chromosome.gainR", gainR_, interval));
+    }else{
+      std::shared_ptr<IntervalConstraint> intervalNoConstRateGain = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
+      addParameter_(new Parameter("Chromosome.gainR", gainR_, intervalNoConstRateGain));
+    }
+    
+  }
+  if (duplR_ != IgnoreParam){
+    if (dupl_ != IgnoreParam){
+      addParameter_(new Parameter("Chromosome.duplR", duplR_, interval));
+      
+    }else{
+      std::shared_ptr<IntervalConstraint> intervalNoConstRateDupl = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
+      addParameter_(new Parameter("Chromosome.duplR", duplR_, intervalNoConstRateDupl));
+
+    }
+    
   }
 }
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateLinearParameters(){
+  double lowerBound, upperBound;
   if (lossR_ != IgnoreParam){
-    double lowerBound = -(loss_/(getMax()-1));
-    std::shared_ptr<IntervalConstraint> interval_lossR = make_shared<IntervalConstraint>(lowerBound, upperBoundLinearRateParam, false, true);
+    if (loss_ != IgnoreParam){
+      lowerBound = -(loss_/(getMax()-1));
+      upperBound = upperBoundLinearRateParam;
+    }else{
+      lowerBound = lowerBoundOfRateParam;
+      upperBound = upperBoundOfRateParam;
+    }
+    std::shared_ptr<IntervalConstraint> interval_lossR = make_shared<IntervalConstraint>(lowerBound, upperBound, false, true);
     addParameter_(new Parameter("Chromosome.lossR", lossR_, interval_lossR));
 
   }
 
   if (gainR_ != IgnoreParam){
-    double lowerBound = -(gain_/(getMax()-1));
-    std::shared_ptr<IntervalConstraint> interval_gainR = make_shared<IntervalConstraint>(lowerBound, upperBoundLinearRateParam, false, true);
+    if (gain_ != IgnoreParam){
+      lowerBound = -(gain_/(getMax()-1));
+      upperBound = upperBoundLinearRateParam;
+    }else{
+      lowerBound = lowerBoundOfRateParam;
+      upperBound = upperBoundOfRateParam;
+
+    }
+
+    std::shared_ptr<IntervalConstraint> interval_gainR = make_shared<IntervalConstraint>(lowerBound, upperBound, false, true);
     addParameter_(new Parameter("Chromosome.gainR", gainR_, interval_gainR));
+  }
+  if (duplR_ != IgnoreParam){
+    if (dupl_ != IgnoreParam){
+      lowerBound = -(dupl_/(getMax()-1));
+      upperBound = upperBoundLinearRateParam;
+
+    }else{
+      lowerBound = lowerBoundOfRateParam;
+      upperBound = upperBoundOfRateParam;
+    }
+
+    std::shared_ptr<IntervalConstraint> interval_duplR = make_shared<IntervalConstraint>(lowerBound, upperBound, false, true);
+    addParameter_(new Parameter("Chromosome.duplR", duplR_, interval_duplR));
+
   }
 
 
@@ -161,7 +224,7 @@ void ChromosomeSubstitutionModel::getParametersValues(){
     }
     if (gainR_ != IgnoreParam){
       gainR_ = getParameterValue("gainR");
-      if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
+      if ((rateChangeFuncType_ == rateChangeFunc::LINEAR) && (gain_ != IgnoreParam)){
         std::shared_ptr<Constraint> parameterConstraintsGainR = getParameter("gainR").getConstraint();
         std::shared_ptr<IntervalConstraint> parameterIntervalsGainR = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsGainR);
         parameterIntervalsGainR->setLowerBound(-gain_/(getMax()-1), true);
@@ -174,7 +237,7 @@ void ChromosomeSubstitutionModel::getParametersValues(){
     }
     if (lossR_ != IgnoreParam){
       lossR_ = getParameterValue("lossR");
-      if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
+      if ((rateChangeFuncType_ == rateChangeFunc::LINEAR) && (loss_ != IgnoreParam)){
         std::shared_ptr<Constraint> parameterConstraintsLossR = getParameter("lossR").getConstraint();
         std::shared_ptr<IntervalConstraint> parameterIntervalsLossR = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsLossR);
         parameterIntervalsLossR->setLowerBound(-loss_/(getMax()-1), true);
@@ -182,6 +245,19 @@ void ChromosomeSubstitutionModel::getParametersValues(){
         std::shared_ptr<Constraint> parameterConstraintsLoss = getParameter("loss").getConstraint();
         std::shared_ptr<IntervalConstraint> parameterIntervalsLoss = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsLoss);
         parameterIntervalsLoss->setLowerBound(std::max(lowerBoundOfRateParam, -lossR_*(getMax()-1)), true);
+        
+      }
+    }
+    if (duplR_ != IgnoreParam){
+      duplR_ = getParameterValue("duplR");
+      if ((rateChangeFuncType_ == rateChangeFunc::LINEAR) && (dupl_ != IgnoreParam)){
+        std::shared_ptr<Constraint> parameterConstraintsDuplR = getParameter("duplR").getConstraint();
+        std::shared_ptr<IntervalConstraint> parameterIntervalsDuplR = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsDuplR);
+        parameterIntervalsDuplR->setLowerBound(-dupl_/(getMax()-1), true);
+ 
+        std::shared_ptr<Constraint> parameterConstraintsDupl = getParameter("dupl").getConstraint();
+        std::shared_ptr<IntervalConstraint> parameterIntervalsDupl = std::dynamic_pointer_cast<IntervalConstraint>(parameterConstraintsDupl);
+        parameterIntervalsDupl->setLowerBound(std::max(lowerBoundOfRateParam, -duplR_*(getMax()-1)), true);
         
       }
     }
@@ -213,9 +289,9 @@ void ChromosomeSubstitutionModel::updateMatrices(){
             updateQWithLoss(i, minChrNum);
         //duplication         
         }if (2*i <= maxChrNum){
-            generator_(i-minChrNum, (2 * i)-minChrNum) += dupl_;
+            updateQWithDupl(i, minChrNum);
         }else if (i != maxChrNum){
-            generator_(i-minChrNum, maxChrNum-minChrNum) += dupl_;
+            updateQWithDupl(i, minChrNum, maxChrNum);
         }
         //demi-ploidy
         updateQWithDemiDupl(i, minChrNum, maxChrNum);   
@@ -269,17 +345,23 @@ void ChromosomeSubstitutionModel::updateQWithDemiDupl(size_t i, size_t minChrNum
 /*******************************************************************************/
 void ChromosomeSubstitutionModel::updateQWithGain(size_t i, size_t minChrNum){
   //generator_(i-minChrNum, i+1-minChrNum) += gain_ + (gainR_* i);
-  if (gain_ == IgnoreParam){
+  if ((gain_ == IgnoreParam) && (gainR_ == IgnoreParam)){
     return;
   }
+  double gain;
+  if (gain_ == IgnoreParam){
+    gain = gainR_;
+  }else{
+    gain = gain_;
+  }
   if (gainR_ == IgnoreParam){
-    generator_(i-minChrNum, i+1-minChrNum) += gain_;
+    generator_(i-minChrNum, i+1-minChrNum) += gain;
   }else{
     if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-      generator_(i-minChrNum, i+1-minChrNum) += (gain_+ (gainR_* (double)(i-1)));
+      generator_(i-minChrNum, i+1-minChrNum) += (gain + (gainR_* (double)(i-1)));
     }
     else if (rateChangeFuncType_ == rateChangeFunc::EXP){
-      generator_(i-minChrNum, i+1-minChrNum) += (gain_* (exp(gainR_* (double)(i-1))));
+      generator_(i-minChrNum, i+1-minChrNum) += (gain * (exp(gainR_* (double)(i-1))));
     }
 
   }
@@ -288,22 +370,67 @@ void ChromosomeSubstitutionModel::updateQWithGain(size_t i, size_t minChrNum){
 /*******************************************************************************/
 void ChromosomeSubstitutionModel::updateQWithLoss(size_t i, size_t minChrNum){
   //generator_(i-minChrNum, i-1-minChrNum) = loss_ + (lossR_* i);
-  if (loss_ == IgnoreParam){
+  if ((loss_ == IgnoreParam) && (lossR_ == IgnoreParam)){
     return;
   }
+  double loss;
+  if (loss_ == IgnoreParam){
+    loss = lossR_;
+  }else{
+    loss = loss_;
+  }
   if (lossR_ == IgnoreParam){
-    generator_(i-minChrNum, i-1-minChrNum) += loss_;
+    generator_(i-minChrNum, i-1-minChrNum) += loss;
   }else{
     if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-      generator_(i-minChrNum, i-1-minChrNum) += (loss_ + (lossR_* (double)(i-1)));
+      generator_(i-minChrNum, i-1-minChrNum) += (loss + (lossR_* (double)(i-1)));
     }
     else if (rateChangeFuncType_ == rateChangeFunc::EXP){
-      generator_(i-minChrNum, i-1-minChrNum) += (loss_ * (exp(lossR_* (double)(i-1))));
+      generator_(i-minChrNum, i-1-minChrNum) += (loss * (exp(lossR_* (double)(i-1))));
     }
   }
 
 }
 /*******************************************************************************/
+void ChromosomeSubstitutionModel::updateQWithDupl(size_t i, size_t minChrNum, size_t maxChrNum){
+  if ((dupl_ == IgnoreParam) && (duplR_ == IgnoreParam)){
+    return;
+  }
+  double dupl;
+  if (dupl_ == IgnoreParam){
+    dupl = duplR_;
+  }else{
+    dupl = dupl_;
+  }
+  if (maxChrNum == 0){
+    //generator_(i-minChrNum, (2 * i)-minChrNum) = dupl_ + (duplR_*i);
+    if (duplR_ == IgnoreParam){
+      generator_(i-minChrNum, (2 * i)-minChrNum) += dupl;
+    }else{
+      if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
+        generator_(i-minChrNum, (2 * i)-minChrNum) += (dupl + (duplR_* (double)(i-1)));
+      }
+      else if (rateChangeFuncType_ == rateChangeFunc::EXP){
+        generator_(i-minChrNum, (2 * i)-minChrNum) += (dupl * (exp(duplR_* (double)(i-1))));
+      }
+    }
+  }else{
+    //generator_(i-minChrNum, maxChrNum-minChrNum) += dupl_;
+    if (duplR_ == IgnoreParam){
+      generator_(i-minChrNum, maxChrNum-minChrNum) += dupl;
+    }else{
+      if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
+        generator_(i-minChrNum, maxChrNum-minChrNum) += (dupl + (duplR_* (double)(i-1)));
+      }
+      else if (rateChangeFuncType_ == rateChangeFunc::EXP){
+        generator_(i-minChrNum, maxChrNum-minChrNum) += (dupl * (exp(duplR_* (double)(i-1))));
+      }
+    }
+  }
+}
+
+
+/********************************************************************************/
 void ChromosomeSubstitutionModel::updateQWithBaseNumParameters(size_t currChrNum, size_t minChrNum, size_t maxChrNum){
   for (size_t j = currChrNum + 1; j < maxChrNum + 1; j ++){
     if (j == maxChrNum){

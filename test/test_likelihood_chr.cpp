@@ -50,7 +50,6 @@ using namespace std;
 
 
 //Functions for initialization of Data
-void testSplitString();
 VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* initialAlpha);
 VectorSiteContainer* getCharacterData(const std :: string &path, unsigned int* numberOfUniqueStates, unsigned int* chrRange);
 void setMaxChrNum(unsigned int maxNumberOfChr);
@@ -94,19 +93,7 @@ void printTreeWithStates(DRNonHomogeneousTreeLikelihood* lik, TreeTemplate<Node>
 string printTree(const TreeTemplate<Node>& tree);
 string nodeToParenthesis(const Node& node);
 
-/******************************************************************************/
-void testSplitString(){
-    std::vector<string> v;
-    std::string str = "12=0.89_24=0.11";
-    StringTokenizer st(str, "=_", false, false);
-    while(st.hasMoreToken()){
-        v.push_back(st.nextToken());
-    }
-    std::cout << "TOKENS ARE:"<<endl;
-    for (size_t i = 0; i < v.size(); i++){
-        std:: cout << v[i] << endl;
-    }
-}
+
 /******************************************************************************/
 //Delete items from the vector of likelihood until reaching the required size new_size
 void clearVectorOfLikelihoods(std::vector <DRNonHomogeneousTreeLikelihood> &lik_vec, size_t new_size){
@@ -294,13 +281,33 @@ void setNewBounds(ParameterList params, Parameter &param, double* lowerBound){
     }else{
         string paramName = param.getName();
         if (paramName == "Chromosome.gainR_1" ){
-            double gain = params.getParameterValue("Chromosome.gain_1");
-            *lowerBound = -gain/(ChromEvolOptions::maxChrNum_-1);            
+            if (ChromEvolOptions::constGain_ != IgnoreParam){
+                double gain = params.getParameterValue("Chromosome.gain_1");
+                *lowerBound = -gain/(ChromEvolOptions::maxChrNum_-1); 
+            }else{
+                *lowerBound = lowerBoundOfRateParam; 
+            }
+           
         }
         else if (paramName == "Chromosome.lossR_1"){
-            double loss = params.getParameterValue("Chromosome.loss_1");
-            *lowerBound = -loss/(ChromEvolOptions::maxChrNum_-1);
+            if (ChromEvolOptions::constLoss_ != IgnoreParam){
+                double loss = params.getParameterValue("Chromosome.loss_1");
+                *lowerBound = -loss/(ChromEvolOptions::maxChrNum_-1);
+            }else{
+                *lowerBound = lowerBoundOfRateParam;
+            }
 
+
+        }else if (paramName == "Chromosome.duplR_1"){
+            if (ChromEvolOptions::constDupl_ != IgnoreParam){
+                double dupl = params.getParameterValue("Chromosome.dupl_1");
+                *lowerBound = -dupl/(ChromEvolOptions::maxChrNum_-1);
+
+            }else{
+                *lowerBound = lowerBoundOfRateParam;
+            }
+
+       
         }else{
             if (paramName != "Chromosome.baseNumR_1"){
                 if ((paramName == "Chromosome.gain_1") && (ChromEvolOptions::gainR_ != IgnoreParam)){
@@ -311,7 +318,10 @@ void setNewBounds(ParameterList params, Parameter &param, double* lowerBound){
                     double lossR = params.getParameterValue("Chromosome.lossR_1");
                     *lowerBound = std::max(lowerBoundOfRateParam, -lossR * (ChromEvolOptions::maxChrNum_-1));
 
-
+                }else if ((paramName == "Chromosome.dupl_1")&&(ChromEvolOptions::duplR_ != IgnoreParam)){
+                    double duplR = params.getParameterValue("Chromosome.duplR_1");
+                    *lowerBound = std::max(lowerBoundOfRateParam, -duplR * (ChromEvolOptions::maxChrNum_-1));
+                
                 }else{
                     if (*lowerBound == 0){
                         *lowerBound = lowerBoundOfRateParam;
@@ -455,13 +465,14 @@ ChromosomeSubstitutionModel* initModel(const ChromosomeAlphabet* alpha, unsigned
     double lossR = ChromEvolOptions::lossR_;
     int baseNum = ChromEvolOptions::baseNum_;
     double baseNumR = ChromEvolOptions::baseNumR_;
-    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl, demiDupl, gainR, lossR, baseNum, baseNumR, chrRange, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, ChromEvolOptions::optimizeBaseNumber_);
+    double duplR = ChromEvolOptions::duplR_;
+    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl, demiDupl, gainR, lossR, baseNum, baseNumR, duplR, chrRange, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, ChromEvolOptions::optimizeBaseNumber_);
     return chrModel;
 
 }
 /******************************************************************************/
 ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, VectorSiteContainer* vsc, TreeTemplate<Node>* tree, unsigned int pointNum, unsigned int chrRange){
-    double gain, loss, dupl, demiDupl, gainR, lossR, baseNumR;
+    double gain, loss, dupl, demiDupl, gainR, lossR, baseNumR, duplR;
     int baseNum;
     double upperBound = upperBoundOfRateParam;
     double upperBoundLinear = upperBoundLinearRateParam;
@@ -495,29 +506,56 @@ ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, Ve
     }else{
         demiDupl = ChromEvolOptions::constDemiDupl_;
     }
+    //gainR
     if ((ChromEvolOptions::gainR_ != IgnoreParam)){
-        if (ChromEvolOptions::rateChangeType_ == ChromosomeSubstitutionModel::LINEAR){
-            double lowerBoundForGainR = -gain/(ChromEvolOptions::maxChrNum_-1);
-            gainR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForGainR, upperBoundLinear);
-        }else{
-            gainR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);
+        if (ChromEvolOptions::constGain_ != IgnoreParam){
+            if (ChromEvolOptions::rateChangeType_ == ChromosomeSubstitutionModel::LINEAR){
+                double lowerBoundForGainR = -gain/(ChromEvolOptions::maxChrNum_-1);
+                gainR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForGainR, upperBoundLinear);
+            }else{
+                gainR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);
 
+            }
+        }else{
+            gainR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
         }
 
     }else{
         gainR = ChromEvolOptions::gainR_;
     }
+    //lossR
     if ((ChromEvolOptions::lossR_ != IgnoreParam)){
-        if (ChromEvolOptions::rateChangeType_ == ChromosomeSubstitutionModel::LINEAR){
-            double lowerBoundForlossR = -loss/(ChromEvolOptions::maxChrNum_-1);
-            lossR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForlossR, upperBoundLinear);
+        if (ChromEvolOptions::constLoss_ != IgnoreParam){
+            if (ChromEvolOptions::rateChangeType_ == ChromosomeSubstitutionModel::LINEAR){
+                double lowerBoundForlossR = -loss/(ChromEvolOptions::maxChrNum_-1);
+                lossR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForlossR, upperBoundLinear);
+            }else{
+                lossR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);
+            }
         }else{
-            lossR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);
+            lossR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
         }
-
     }else{
         lossR = ChromEvolOptions::lossR_;
     }
+    //////
+    //duplR
+    if ((ChromEvolOptions::duplR_ != IgnoreParam)){
+        if (ChromEvolOptions::constDupl_ != IgnoreParam){
+            if (ChromEvolOptions::rateChangeType_ == ChromosomeSubstitutionModel::LINEAR){
+                double lowerBoundForDuplR = -dupl/(ChromEvolOptions::maxChrNum_-1);
+                duplR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForDuplR, upperBoundLinear);
+            }else{
+                duplR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);
+            }
+        }else{
+            duplR = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
+        }
+
+    }else{
+        duplR = ChromEvolOptions::duplR_;
+    }
+    //////
     if ((ChromEvolOptions::baseNum_ != IgnoreParam) && (ChromEvolOptions::optimizeBaseNumber_)){
         int lowerBoundBaseNum = lowerBoundBaseNumber;
         int upperBoundBaseNum = std::max((int)chrRange, lowerBoundBaseNumber+1);
@@ -530,7 +568,7 @@ ChromosomeSubstitutionModel* initRandomModel(const ChromosomeAlphabet* alpha, Ve
     }else{
         baseNumR = ChromEvolOptions::baseNumR_;
     }
-    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl, demiDupl, gainR, lossR, baseNum, baseNumR, chrRange, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, ChromEvolOptions::optimizeBaseNumber_);
+    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alpha, gain, loss, dupl, demiDupl, gainR, lossR, baseNum, baseNumR, duplR, chrRange, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, ChromEvolOptions::optimizeBaseNumber_);
     return chrModel;
 
 }

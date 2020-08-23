@@ -49,6 +49,7 @@ public:
     static double lossR_;
     static int baseNum_;
     static double baseNumR_;
+    static double duplR_;
     static double tolerance_;
     static unsigned int maxIterations_;
     static bool maxParsimonyBound_;
