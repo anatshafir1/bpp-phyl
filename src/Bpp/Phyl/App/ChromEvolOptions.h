@@ -66,6 +66,8 @@ public:
     static bool optimizeBaseNumber_;
     static string baseNumOptimizationMethod_;
     static std::vector<unsigned int> fixedParams_; //1 if parameter should be fixed. The order corresponds to the one in the model definition.
+    static int NumOfSimulations_;
+    static int jumpTypeMethod_;
 
 private:
     static void initDefaultParameters();

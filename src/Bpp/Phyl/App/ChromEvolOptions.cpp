@@ -35,6 +35,8 @@ ChromosomeSubstitutionModel::rateChangeFunc ChromEvolOptions::rateChangeType_;
 bool ChromEvolOptions::optimizeBaseNumber_;
 string ChromEvolOptions::baseNumOptimizationMethod_;
 std::vector<unsigned int> ChromEvolOptions::fixedParams_;
+int ChromEvolOptions::NumOfSimulations_;
+int ChromEvolOptions::jumpTypeMethod_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -69,6 +71,8 @@ void ChromEvolOptions::initDefaultParameters(){
     rateChangeType_ = ChromosomeSubstitutionModel::LINEAR;
     optimizeBaseNumber_ = false;
     baseNumOptimizationMethod_ = "Brent";
+    NumOfSimulations_ = 10000;
+    jumpTypeMethod_ = 0;
 
 }
 /*************************************************************************/
@@ -152,6 +156,8 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     string defaultValForFixedParams = "0,0,0,0,0,0,0,0,0";
     std::vector<unsigned int> fixedParams = ApplicationTools::getVectorParameter<unsigned int>("_fixedParams", ChromEvol.getParams(), ',', defaultValForFixedParams, "", true, 0);
     setFixedParams(fixedParams);
+    NumOfSimulations_ = ApplicationTools::getIntParameter("_NumOfSimulations", ChromEvol.getParams(), NumOfSimulations_, "", true, 0);
+    jumpTypeMethod_ = ApplicationTools::getIntParameter("_jumpTypeMethod", ChromEvol.getParams(), jumpTypeMethod_, "", true, 0);
 
 }
 /*************************************************************************/

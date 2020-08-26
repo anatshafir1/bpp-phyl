@@ -76,6 +76,7 @@ class MarginalNonRevAncestralStateReconstruction
         std::vector<double> r_;
         std::vector<double> l_;
         std::map<int, map<size_t, std::vector<double>>>* postProbNode_;
+        std::map<int, std::map<size_t, VVdouble>>* jointProbabilities_; //node->site:(nodeState,fatherState)
 		
 	public:
 		MarginalNonRevAncestralStateReconstruction(DRNonHomogeneousTreeLikelihood* drl) :
@@ -89,7 +90,8 @@ class MarginalNonRevAncestralStateReconstruction
 		    rootPatternLinks_(drl->getLikelihoodData()->getRootArrayPositions()),
             r_               (drl->getRateDistribution()->getProbabilities()),
             l_               (drl->getLikelihoodData()->getRootRateSiteLikelihoodArray()),
-            postProbNode_    (0)
+            postProbNode_    (0),
+            jointProbabilities_(0)
         {}
 
         MarginalNonRevAncestralStateReconstruction(const MarginalNonRevAncestralStateReconstruction& masr) :
@@ -103,7 +105,8 @@ class MarginalNonRevAncestralStateReconstruction
             rootPatternLinks_(masr.rootPatternLinks_),
             r_               (masr.r_),
             l_               (masr.l_),
-            postProbNode_    (masr.postProbNode_)
+            postProbNode_    (masr.postProbNode_),
+            jointProbabilities_(masr.jointProbabilities_)
         {}
 
         MarginalNonRevAncestralStateReconstruction& operator=(const MarginalNonRevAncestralStateReconstruction& masr)
@@ -119,12 +122,16 @@ class MarginalNonRevAncestralStateReconstruction
             r_                = masr.r_;
             l_                = masr.l_;
             postProbNode_     = masr.postProbNode_;
+            jointProbabilities_ = masr.jointProbabilities_;
             return *this;
         }
 
         MarginalNonRevAncestralStateReconstruction* clone() const { return new MarginalNonRevAncestralStateReconstruction(*this); }
 
-	    virtual ~MarginalNonRevAncestralStateReconstruction() {delete postProbNode_;}
+	    virtual ~MarginalNonRevAncestralStateReconstruction() {
+            delete postProbNode_;
+            delete jointProbabilities_;
+        }
 
     private:
 
@@ -172,7 +179,12 @@ class MarginalNonRevAncestralStateReconstruction
         * @return For each node, for each site- the posterior probability of the node x being assigned to a partcular state
         */
 
+
         void computePosteriorProbabilitiesOfNodesForEachStatePerSite();
+        
+        std::map<int, std::map<size_t, VVdouble>> getAllJointFatherNodeProbabilities(){
+            return *jointProbabilities_;
+        }
 
 
         std::map<int, map<size_t, std::vector<double>>>* getPosteriorProbForAllNodesAndStatesPerSite(){
@@ -184,6 +196,8 @@ class MarginalNonRevAncestralStateReconstruction
 
 
         const std::map<int, std::vector<size_t> > getAllAncestralStates() const;
+
+        
         
 
 	

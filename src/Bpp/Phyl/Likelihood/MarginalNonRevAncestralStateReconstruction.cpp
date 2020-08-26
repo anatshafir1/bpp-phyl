@@ -9,13 +9,25 @@ using namespace std;
 
 void MarginalNonRevAncestralStateReconstruction::computePosteriorProbabilitiesOfNodesForEachStatePerSite(){
   postProbNode_ = new map<int, map<size_t, std::vector<double>>>;
+  jointProbabilities_ = new std::map<int, std::map<size_t, VVdouble>>;
+
   std::vector <int> nodesIds = tree_.getNodesId();
   //initializing the nodePostProb map
   for (size_t n = 0; n < nodesIds.size(); n++){
     for (size_t i = 0; i < nbDistinctSites_; i++){
       (*postProbNode_)[nodesIds[n]][i].reserve(nbStates_);
+      (*jointProbabilities_)[nodesIds[n]][i].reserve(nbStates_);
       for (size_t s = 0; s < nbStates_; s++){
         (*postProbNode_)[nodesIds[n]][i].push_back(0);
+        Vdouble fatherJointProb;
+        fatherJointProb.reserve(nbStates_);
+        for (size_t fatherState = 0; fatherState < nbStates_; fatherState++){
+          Vdouble fatherStateProb;
+          fatherJointProb.push_back(0);
+
+        }
+        (*jointProbabilities_)[nodesIds[n]][i].push_back(fatherJointProb);
+
       }
     }   
   }
@@ -111,7 +123,9 @@ map<int, map<size_t, std::vector<double>>>* MarginalNonRevAncestralStateReconstr
         }
         //if it is not the root
         for (size_t fatherState = 0; fatherState < nbStates_; fatherState ++){
-          nodePostProb += getJointLikelihoodFatherNode(NHdrl, nodeId, nodeState, fatherState, rootState, i, nbClasses_);
+          double jointNodeFatherRootProb = getJointLikelihoodFatherNode(NHdrl, nodeId, nodeState, fatherState, rootState, i, nbClasses_);
+          (*jointProbabilities_)[nodeId][i][nodeState][fatherState] += jointNodeFatherRootProb;
+          nodePostProb += jointNodeFatherRootProb;
         }
         (*postProbs)[nodeId][i].push_back(nodePostProb);
       }

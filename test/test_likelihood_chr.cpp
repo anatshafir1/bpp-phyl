@@ -34,6 +34,8 @@
 #include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/Likelihood/MLAncestralStateReconstruction.h>
 #include <Bpp/Phyl/Likelihood/MarginalNonRevAncestralStateReconstruction.h>
+#include <Bpp/Phyl/Mapping/ComputeChangesExpectations.h>
+#include <Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.h>
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
 #include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
 #include <Bpp/Phyl/Model/SubstitutionModelSet.h>
@@ -92,6 +94,7 @@ void testMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik);
 void printTreeWithStates(DRNonHomogeneousTreeLikelihood* lik, TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs = 0);
 string printTree(const TreeTemplate<Node>& tree);
 string nodeToParenthesis(const Node& node);
+void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, MarginalNonRevAncestralStateReconstruction* ancr, int numOfSimulations);
 
 
 /******************************************************************************/
@@ -700,10 +703,10 @@ unsigned int optimizeModelParametersOneDimension(DRNonHomogeneousTreeLikelihood*
     // Initialize optimizer
     BrentOneDimension* optimizer = new BrentOneDimension(tl);
     optimizer->setVerbose(1);
-    optimizer->setProfiler(ApplicationTools::message.get());
-    optimizer->setMessageHandler(ApplicationTools::message.get());
-    //optimizer->setProfiler(0);
-    //optimizer->setMessageHandler(0);
+    //optimizer->setProfiler(ApplicationTools::message.get());
+    //optimizer->setMessageHandler(ApplicationTools::message.get());
+    optimizer->setProfiler(0);
+    optimizer->setMessageHandler(0);
     optimizer->setConstraintPolicy(AutoParameter::CONSTRAINTS_AUTO);
     optimizer->setMaximumNumberOfEvaluations(100);
     std::cout <<"max chromosome number: " << ChromEvolOptions::maxChrNum_ << endl;
@@ -1006,9 +1009,22 @@ void testMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik){
     std::map<int, std::vector<size_t> > ancestors = ancr->getAllAncestralStates();
     std::map<int, map<size_t, std::vector<double>>>* probs = ancr->getPosteriorProbForAllNodesAndStatesPerSite();
     printTreeWithStates(lik, lik->getTree(), ancestors, probs);
+    computeExpectations(lik, ancr, ChromEvolOptions::NumOfSimulations_);
     delete ancr;
 
 
+}/*****************************************************************************/
+void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, MarginalNonRevAncestralStateReconstruction* ancr, int numOfSimulations){
+
+    ComputeChangesExpectations* sim = new ComputeChangesExpectations(lik->getAlphabet(), dynamic_cast<const TreeTemplate<Node>*>(&(lik->getTree())), dynamic_cast<const SubstitutionModel*> (lik->getSubstitutionModelSet()->getModel(0)));
+    sim->runSimulations(numOfSimulations);
+    ComputeChromosomeTransitionsExp* expCalculator = new ComputeChromosomeTransitionsExp(lik, ancr, sim, ChromEvolOptions::jumpTypeMethod_);
+    expCalculator->computeExpectationPerType();
+    expCalculator->printResults();
+
+    //delete
+    delete expCalculator;
+    delete sim;
 }
 /******************************************************************************/
 void testJointMLAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik){

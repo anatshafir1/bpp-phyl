@@ -30,6 +30,8 @@ class ChromosomeSubstitutionModel :
 public:
   enum rootFreqType {UNIFORM, ROOT_LL, STATIONARY, FIXED};
   enum rateChangeFunc {LINEAR = 0, EXP = 1};
+  enum typeOfTransition {GAIN_T = 0, LOSS_T = 1, DUPL_T = 2, DEMIDUPL_T = 3, BASENUM_T = 4, MAXCHR_T = 5, NUMTYPES = 6, ILLEGAL = 7};
+  enum compositeRateParam {GAIN = 0, LOSS = 1, DUPL = 2};
 
 private:
   double gain_;
@@ -94,6 +96,21 @@ public:
   int getMax() const {return ChrMaxNum_;}
   bool checkIfReachedConvergence(const Matrix<double>& pijt, const Matrix<double>& mt_prev) const;
   double getInitValue(size_t i, int state) const;
+  int getBaseNumber() const {return baseNum_;}
+  double getDemiDupl() const {return demiploidy_;}
+  double getConstDupl () const{return dupl_;}
+  double getChangeRateDupl() const {return duplR_;}
+  double getConstGain() const {return gain_;}
+  double getChangeRateGain() const {return gainR_;}
+  double getConstLoss() const {return loss_;}
+  double getChangeRateLoss() const {return lossR_;}
+  double getBaseNumR() const {return baseNumR_;}
+  double getRate (size_t state, double constRate, double changeRate) const;
+  
+  //Public or protected? Need to check if it has some use from other files
+  void updateConstRateParameter(int paramId, std::shared_ptr<IntervalConstraint> interval);
+  void updateLinearChangeParameter(int paramId);
+  void setNewBoundsForLinearParameters(int paramId);
   //size_t getMaxChrNum(const Alphabet* alpha);
   //size_t getMinChrNum(const Alphabet* alpha);    
   //const ChromosomeAlphabet* getChromosomeAlphabet() const { return chromosomeAlpha_; }
