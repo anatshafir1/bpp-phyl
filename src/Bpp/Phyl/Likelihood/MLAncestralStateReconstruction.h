@@ -80,9 +80,9 @@ class MLAncestralStateReconstruction
 		size_t nbDistinctSites_;
 		size_t nbClasses_;
 		size_t nbStates_;
-    std::vector<size_t> rootPatternLinks_;
-    std::vector<double> r_;
-    std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors_;
+    std::vector<size_t> rootPatternLinks_;  //didn't have any use of it
+    std::vector<double> r_; // distribution for rate probabilities for classes per site
+    std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors_; // the Cx(i) from Pupko 2000-> the best ancestrak reconstruction of x given that i is the father state
     //std::vector<double> l_;
 		
 	public:
@@ -104,7 +104,7 @@ class MLAncestralStateReconstruction
     {}
 
     MLAncestralStateReconstruction(const MLAncestralStateReconstruction& masr) :
-      likelihoodData_  (masr.likelihoodData_),
+      likelihoodData_  (masr.likelihoodData_->clone()),
       tree_            (masr.tree_),
       alphabet_        (masr.alphabet_),
       data_            (masr.data_),
@@ -117,12 +117,12 @@ class MLAncestralStateReconstruction
       nbStates_        (masr.nbStates_),
       rootPatternLinks_(masr.rootPatternLinks_),
       r_               (masr.r_), 
-      ancestors_       (masr.ancestors_)
+      ancestors_       (new std::map<int, std::map<size_t, std::vector<size_t>>>(*masr.ancestors_))
     {}
 
     MLAncestralStateReconstruction& operator=(const MLAncestralStateReconstruction& masr)
     {
-      likelihoodData_   = masr.likelihoodData_;
+      likelihoodData_   = masr.likelihoodData_->clone();
       tree_             = masr.tree_;
       alphabet_         = masr.alphabet_;
       data_             = masr.data_;
@@ -135,7 +135,7 @@ class MLAncestralStateReconstruction
       nbStates_         = masr.nbStates_;
       rootPatternLinks_ = masr.rootPatternLinks_;
       r_                = masr.r_;
-      ancestors_        = masr.ancestors_;
+      ancestors_        = new std::map<int, std::map<size_t, std::vector<size_t>>>(*masr.ancestors_);
       return *this;
     }
 

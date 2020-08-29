@@ -107,11 +107,11 @@ void MLAncestralStateReconstruction::fillLikelihoodsArrays(const Node* node, VVV
       //For each rate classe,
       Vdouble* _likelihoods_node_i_c = &(*_likelihoods_node_i)[c];
       for (size_t x = 0; x < nbStates; x++){
-        //For each father state
+        //For each father state x
         double maxLikelihood_y = 0;
         //int maxState = 0;
         for (size_t y = 0; y < nbStates; y++){
-          //for each current node state
+          //for each current node state y
           double likelihood_y = 1.;
           for (size_t n = 0; n < nbNodes; n++){
             //iterating over the sons           

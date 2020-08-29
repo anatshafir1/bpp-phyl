@@ -61,13 +61,15 @@ using namespace std;
 namespace bpp
 {
     class ComputeChangesExpectations{
+      // A general class to compute the expected number of transitions per each possible transition
+      // along the tree and per branch
+      typedef std::pair<std::pair<int,int>,std::pair<int, int>> pairOfpairs; // first= ancestral states termainals. Second = jumps between each pair of states
       private:
         const Alphabet* alphabet_;
         const TreeTemplate<Node>* tree_;
         const SubstitutionModel* model_;
         std::vector<double> waitingTimes_;// waiting time parameter in the exponential distribution
-        std::map <int, std::map<std::pair<int, int>, int>> ancestralTerminalsCounts_; // for each node Id, map <<firstState, LastState>, occurence>
-        typedef std::pair<std::pair<int,int>,std::pair<int, int>> pairOfpairs; // first= ancestral states termainals. Second = jumps between each pair of states
+        std::map <int, std::map<std::pair<int, int>, int>> ancestralTerminalsCounts_; // for each node Id, map <<firstState, LastState>, occurence>       
         std::map <int, map <pairOfpairs, double>> branchTransitionsExp_; //for each node, for each possible combination of ancestral terminals and jump states- the expected number of transitions per jumps
         VVdouble jumpProbs_;  // probability to transit from state i to state j Qij/sum{Qij}
         std::vector<Node> branchOrder_;
@@ -75,6 +77,7 @@ namespace bpp
         ComputeChangesExpectations(const Alphabet* alpha, const TreeTemplate<Node>* tree, const SubstitutionModel* model)
         :alphabet_(alpha), tree_(tree), model_(model), waitingTimes_(), ancestralTerminalsCounts_(),
         branchTransitionsExp_(), jumpProbs_(), branchOrder_(){}
+
         ComputeChangesExpectations(const ComputeChangesExpectations& exp):
           alphabet_ (exp.alphabet_),
           tree_ (exp.tree_),
@@ -96,13 +99,15 @@ namespace bpp
           branchOrder_ = exp.branchOrder_;
           return *this;
         }
+        ComputeChangesExpectations* clone() const { return new ComputeChangesExpectations(*this); }
+
         virtual ~ComputeChangesExpectations(){};
 
         void init();
         void runIteration(int state);
         void computeExpectationAndPosterior();
         void runSimulations(int numOfSimulations);
-        static bool compareBranches(Node& node1, Node& node2);
+        static bool compareBranches(Node& node1, Node& node2);//sorting function to sort the branches in ascending order of length
         int getRandomState(int currentState);
         double getExpectation(int nodeId, int startAncestral, int endAncestral, int jumpStart, int jumpEnd);
      

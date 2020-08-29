@@ -72,11 +72,11 @@ class MarginalNonRevAncestralStateReconstruction
 		size_t nbDistinctSites_;
 		size_t nbClasses_;
 		size_t nbStates_;
-        std::vector<size_t> rootPatternLinks_;
-        std::vector<double> r_;
-        std::vector<double> l_;
-        std::map<int, map<size_t, std::vector<double>>>* postProbNode_;
-        std::map<int, std::map<size_t, VVdouble>>* jointProbabilities_; //node->site:(nodeState,fatherState)
+        std::vector<size_t> rootPatternLinks_; //not used (maybe will be needed for some other purposes)
+        std::vector<double> r_;//probability for a specific rate class
+        std::vector<double> l_;//likelihood for site
+        std::map<int, map<size_t, std::vector<double>>>* postProbNode_; // node->site-> vector of posterior probabilities where the indices are states
+        std::map<int, std::map<size_t, VVdouble>>* jointProbabilities_; //node->site:(nodeState,fatherState)-> joint probability of father state and a given node state
 		
 	public:
 		MarginalNonRevAncestralStateReconstruction(DRNonHomogeneousTreeLikelihood* drl) :
@@ -105,8 +105,8 @@ class MarginalNonRevAncestralStateReconstruction
             rootPatternLinks_(masr.rootPatternLinks_),
             r_               (masr.r_),
             l_               (masr.l_),
-            postProbNode_    (masr.postProbNode_),
-            jointProbabilities_(masr.jointProbabilities_)
+            postProbNode_    (new std::map<int, map<size_t, std::vector<double>>>(*masr.postProbNode_)),
+            jointProbabilities_(new std::map<int, std::map<size_t, VVdouble>>(*masr.jointProbabilities_))
         {}
 
         MarginalNonRevAncestralStateReconstruction& operator=(const MarginalNonRevAncestralStateReconstruction& masr)
@@ -121,8 +121,8 @@ class MarginalNonRevAncestralStateReconstruction
             rootPatternLinks_ = masr.rootPatternLinks_;
             r_                = masr.r_;
             l_                = masr.l_;
-            postProbNode_     = masr.postProbNode_;
-            jointProbabilities_ = masr.jointProbabilities_;
+            postProbNode_     = new std::map<int, map<size_t, std::vector<double>>>(*masr.postProbNode_);
+            jointProbabilities_ = new std::map<int, std::map<size_t, VVdouble>>(*masr.jointProbabilities_);
             return *this;
         }
 
