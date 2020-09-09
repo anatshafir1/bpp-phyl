@@ -161,4 +161,15 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
 
 }
 /*************************************************************************/
+void ChromEvolOptions::initVectorOfChrNumParameters(vector<double>& paramVector){
+    paramVector.push_back(baseNum_);
+    paramVector.push_back(baseNumR_);
+    paramVector.push_back(constDupl_);
+    paramVector.push_back(constLoss_);
+    paramVector.push_back(constGain_);
+    paramVector.push_back(constDemiDupl_);
+    paramVector.push_back(lossR_);
+    paramVector.push_back(gainR_);
+    paramVector.push_back(duplR_);
 
+}

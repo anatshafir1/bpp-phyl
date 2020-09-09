@@ -10,6 +10,7 @@
 
 #include "AbstractSubstitutionModel.h"
 #include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
+#include <Bpp/Exceptions.h>
 
 #define lowerBoundOfRateParam 0.0
 #define lowerBoundOfExpParam -100.0
@@ -31,7 +32,7 @@ public:
   enum rootFreqType {UNIFORM, ROOT_LL, STATIONARY, FIXED};
   enum rateChangeFunc {LINEAR = 0, EXP = 1};
   enum typeOfTransition {GAIN_T = 0, LOSS_T = 1, DUPL_T = 2, DEMIDUPL_T = 3, BASENUM_T = 4, MAXCHR_T = 5, NUMTYPES = 6, ILLEGAL = 7};
-  enum compositeRateParam {GAIN = 0, LOSS = 1, DUPL = 2};
+  enum paramType {BASENUM = 0, BASENUMR = 1, DUPL = 2, LOSS = 3, GAIN = 4, DEMIDUPL = 5, LOSSR = 6, GAINR = 7, DUPLR = 8, NUM_OF_CHR_PARAMS = 9};
 
 private:
   double gain_;
@@ -75,12 +76,31 @@ public:
     rateChangeFunc rateChangeType,
     bool optimizeBaseNumber);
 
+  //constructor with vector of parameters
+  ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
+    vector<double> modelParams,
+    unsigned int maxChrRange,
+    rootFreqType freqType,
+    rateChangeFunc rateChangeType,
+    bool optimizeBaseNumber);
+
   virtual ~ChromosomeSubstitutionModel() {}
 
   ChromosomeSubstitutionModel* clone() const { return new ChromosomeSubstitutionModel(*this); }
 
   
 public:
+  static ChromosomeSubstitutionModel* initRandomModel(
+    const ChromosomeAlphabet* alpha,
+    vector<double> initParams,
+    unsigned int chrRange,
+    rootFreqType rootFrequenciesType,
+    rateChangeFunc rateChangeType,
+    bool optimizeBaseNumber,
+    double parsimonyBound = 0);
+
+  static void getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, rateChangeFunc rateFunc, int maxChrNum, bool optimizeBaseNumber, unsigned int chrRange);
+  
   const Matrix<double>& getPij_t    (double d) const;
   const Matrix<double>& getPij_t_func2(double d) const;
   const Matrix<double>& getPij_t_func3(double d) const;
@@ -107,13 +127,10 @@ public:
   double getBaseNumR() const {return baseNumR_;}
   double getRate (size_t state, double constRate, double changeRate) const;
   
-  //Public or protected? Need to check if it has some use from other files
-  void updateConstRateParameter(int paramId, std::shared_ptr<IntervalConstraint> interval);
-  void updateLinearChangeParameter(int paramId);
-  void setNewBoundsForLinearParameters(int paramId);
-  //size_t getMaxChrNum(const Alphabet* alpha);
-  //size_t getMinChrNum(const Alphabet* alpha);    
-  //const ChromosomeAlphabet* getChromosomeAlphabet() const { return chromosomeAlpha_; }
+  //These functions should be used from chromsome number optimizer
+  void setBoundsForEquivalentParameter(Parameter &param, string parameterName) const;
+  void checkParametersBounds() const;
+
 
 protected:
   void updateParameters();
@@ -132,6 +149,9 @@ protected:
   void calculateExp_Qt(size_t pow, double* s, double v) const;
   double getFirstNorm() const;
   double get_epsilon() const{ return 0.0001;};
+  void updateConstRateParameter(double paramValueConst, double paramValueChange, string parameterName, std::shared_ptr<IntervalConstraint> interval);
+  void updateLinearChangeParameter(double paramValueConst, double paramValueChange, string parameterName);
+  void setNewBoundsForLinearParameters(double &constRate, double &changeRate, string paramNameConst, string paramNameLinear);
 };
 } // end of namespace bpp.
 

@@ -400,7 +400,7 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
             if ((model_->getConstDupl() != IgnoreParam) || (model_->getChangeRateDupl() != IgnoreParam)){
                 legalMove = true;
                 double duplRate = model_->getRate(chrStart, model_->getConstDupl(), model_->getChangeRateDupl());
-                stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DUPL] = duplRate;
+                stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DUPL_T] = duplRate;
                 sumOfRates += duplRate;
             }
 

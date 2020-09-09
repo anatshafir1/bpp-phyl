@@ -31,6 +31,7 @@ class ChromEvolOptions
 
 public:
     static void initAllParameters(BppApplication& ChromEvol);
+    static void initVectorOfChrNumParameters(vector<double>& paramVector);
     virtual ~ChromEvolOptions(){};
     
 public:
