@@ -1,8 +1,12 @@
 #include "ChromosomeNumberOptimizer.h"
 using namespace bpp;
 
-void ChromosomeNumberOptimizer::initModels(vector<double> modelParams, double parsimonyBound, bool optimizeBaseNumber, ChromosomeSubstitutionModel::rateChangeFunc rateChange, int seed, unsigned int numberOfModels, bool calculateDerivatives, const string& fixedRootFreqPath){
-    optimizeBaseNumber_ = optimizeBaseNumber;
+void ChromosomeNumberOptimizer::initModels(vector<double> modelParams, double parsimonyBound, ChromosomeSubstitutionModel::rateChangeFunc rateChange, int seed, unsigned int numberOfModels, bool calculateDerivatives, const string& fixedRootFreqPath, vector<unsigned int>& fixedParams){
+    //optimizeBaseNumber_ = optimizeBaseNumber;
+    fixedParams_ = fixedParams;
+    map <int, double> setOfFixedParams;
+    ChromosomeSubstitutionModel::getSetOfFixedParameters(modelParams, fixedParams_, setOfFixedParams);
+    optimizeBaseNumber_ = setOfFixedParams.count(ChromosomeSubstitutionModel::BASENUM) == 0;
     vectorOfLikelohoods_.reserve(numberOfModels);
     vector <int> nodeIds = tree_->getNodesId();
     nodeIds.pop_back();
@@ -14,10 +18,10 @@ void ChromosomeNumberOptimizer::initModels(vector<double> modelParams, double pa
         SubstitutionModelSet* modelSet = new SubstitutionModelSet(alphabet_);
         ChromosomeSubstitutionModel* chrModel;
         if (n == 0){
-            chrModel = new ChromosomeSubstitutionModel(alphabet_, modelParams, baseNumberUpperBound_, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateChange, optimizeBaseNumber_);//initModel(alpha, chrRange);
+            chrModel = new ChromosomeSubstitutionModel(alphabet_, modelParams, baseNumberUpperBound_, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateChange);//initModel(alpha, chrRange);
         }else{
             //chrModel = initRandomModel(alpha, chrRange, parsimonyBound * (double)n);
-            chrModel = ChromosomeSubstitutionModel::initRandomModel(alphabet_, modelParams, baseNumberUpperBound_, ChromosomeSubstitutionModel::ROOT_LL, rateChange, optimizeBaseNumber_, parsimonyBound * (double)n);
+            chrModel = ChromosomeSubstitutionModel::initRandomModel(alphabet_, modelParams, baseNumberUpperBound_, ChromosomeSubstitutionModel::ROOT_LL, rateChange, fixedParams_, parsimonyBound * (double)n);
     
         }       
         modelSet->addModel(chrModel, nodeIds);
@@ -33,7 +37,7 @@ void ChromosomeNumberOptimizer::initModels(vector<double> modelParams, double pa
             deleteTreeLikAssociatedAttributes(lik);
             rdist = new GammaDiscreteRateDistribution(1, 1.0);
             modelSet = new SubstitutionModelSet(alphabet_);
-            chrModel = ChromosomeSubstitutionModel::initRandomModel(alphabet_, modelParams, baseNumberUpperBound_, ChromosomeSubstitutionModel::ROOT_LL, rateChange, optimizeBaseNumber_, parsimonyBound * (double)n);
+            chrModel = ChromosomeSubstitutionModel::initRandomModel(alphabet_, modelParams, baseNumberUpperBound_, ChromosomeSubstitutionModel::ROOT_LL, rateChange, fixedParams_, parsimonyBound * (double)n);
             //chrModel = initRandomModel(alpha, chrRange, parsimonyBound * (double)n);
             modelSet->addModel(chrModel, nodeIds);
             lik = getLikelihoodFunction(tree_, vsc_, modelSet, rdist, calculateDerivatives, fixedRootFreqPath);

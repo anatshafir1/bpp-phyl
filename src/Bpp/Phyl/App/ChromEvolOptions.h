@@ -64,7 +64,7 @@ public:
     static string rootFreqs_;
     static string fixedFrequenciesFilePath_;
     static ChromosomeSubstitutionModel::rateChangeFunc rateChangeType_;
-    static bool optimizeBaseNumber_;
+    //static bool optimizeBaseNumber_;
     static string baseNumOptimizationMethod_;
     static std::vector<unsigned int> fixedParams_; //1 if parameter should be fixed. The order corresponds to the one in the model definition.
     static int NumOfSimulations_;

@@ -253,12 +253,12 @@ ChromosomeNumberOptimizer* optimizeLikelihoodMultiStartPoints(const ChromosomeAl
     }
 
     ChromosomeNumberOptimizer* opt = new ChromosomeNumberOptimizer(tree, alpha, vsc, chrRange);
-    opt->initModels(modelParams, parsimonyBound, ChromEvolOptions::optimizeBaseNumber_, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], calculateDerivatives, ChromEvolOptions::fixedFrequenciesFilePath_);
+    opt->initModels(modelParams, parsimonyBound, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], calculateDerivatives, ChromEvolOptions::fixedFrequenciesFilePath_, ChromEvolOptions::fixedParams_);
 
     //initialize all the optimization specific parameters
     opt->initOptimizer(ChromEvolOptions::OptPointsNum_, ChromEvolOptions::OptIterNum_, ChromEvolOptions::optimizationMethod_, ChromEvolOptions::baseNumOptimizationMethod_,
         ChromEvolOptions::tolerance_, ChromEvolOptions::standardOptimization_, ChromEvolOptions::BrentBracketing_, 
-        ChromEvolOptions::probsForMixedOptimization_, ChromEvolOptions::fixedParams_);
+        ChromEvolOptions::probsForMixedOptimization_);
     //optimize models
     opt->optimize();
     // it is safe to delete the chrOptimizer, because the destructor doesn't delete nothing associated with the vector of likelihoods

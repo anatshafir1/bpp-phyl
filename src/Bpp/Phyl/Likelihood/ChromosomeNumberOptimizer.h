@@ -165,7 +165,7 @@ namespace bpp
             ChromosomeNumberOptimizer* clone() const { return new ChromosomeNumberOptimizer(*this); }
             virtual ~ChromosomeNumberOptimizer(){clearVectorOfLikelihoods(0);};
             //init models
-            void initModels(vector<double> modelParams, double parsimonyBound, bool optimizeBaseNumber, ChromosomeSubstitutionModel::rateChangeFunc rateChange, int seed, unsigned int numberOfModels, bool calculateDerivatives, const string& fixedRootFreqPath);
+            void initModels(vector<double> modelParams, double parsimonyBound, ChromosomeSubstitutionModel::rateChangeFunc rateChange, int seed, unsigned int numberOfModels, bool calculateDerivatives, const string& fixedRootFreqPath, vector<unsigned int>& fixedParams);
             //initialize all the optimization specific members
             void initOptimizer(
                 vector<unsigned int> numOfPoints,
@@ -175,8 +175,7 @@ namespace bpp
                 double tolerance,
                 bool standardOptimization,
                 int BrentBracketing,
-                vector <double>& probsForMixedOptimization,
-                vector<unsigned int>& fixedParams)
+                vector <double>& probsForMixedOptimization)
             {
                 numOfPoints_ = numOfPoints;
                 numOfIterations_ = numOfIterations;
@@ -186,7 +185,7 @@ namespace bpp
                 standardOptimization_ = standardOptimization;
                 BrentBracketing_ =BrentBracketing;
                 probsForMixedOptimization_ = probsForMixedOptimization;
-                fixedParams_ = fixedParams;
+                
 
             }
             void optimize();

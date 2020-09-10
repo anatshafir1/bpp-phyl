@@ -31,8 +31,7 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
   double duplR,
   unsigned int chrRange, 
   rootFreqType freqType,
-  rateChangeFunc rateChangeType,
-  bool optimizeBaseNumber):
+  rateChangeFunc rateChangeType):
     AbstractParameterAliasable("Chromosome."),
     AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
     gain_(gain),
@@ -47,7 +46,6 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
     maxChrRange_(chrRange),
     freqType_(freqType),
     rateChangeFuncType_(rateChangeType),
-    optimizeBaseNum_(optimizeBaseNumber),
     ChrMinNum_(alpha->getMin()),
     ChrMaxNum_(alpha->getMax()),
     firstNormQ_(0),
@@ -66,8 +64,7 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
   vector<double> modelParams,
   unsigned int chrRange,
   rootFreqType freqType,
-  rateChangeFunc rateChangeType,
-  bool optimizeBaseNumber):
+  rateChangeFunc rateChangeType):
     AbstractParameterAliasable("Chromosome."),
     AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
     gain_(0),
@@ -82,7 +79,6 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
     maxChrRange_(chrRange),
     freqType_(freqType),
     rateChangeFuncType_(rateChangeType),
-    optimizeBaseNum_(optimizeBaseNumber),
     ChrMinNum_(alpha->getMin()),
     ChrMaxNum_(alpha->getMax()),
     firstNormQ_(0),
@@ -139,13 +135,16 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
   unsigned int chrRange,
   rootFreqType rootFrequenciesType,
   rateChangeFunc rateChangeType,
-  bool optimizeBaseNumber,
+  vector<unsigned int>& fixedParams,
   double parsimonyBound)
 {
   //double gain, loss, dupl, demiDupl, gainR, lossR, baseNumR, duplR;
   //int baseNum;
+
   vector<double> randomParams;
   randomParams.reserve(NUM_OF_CHR_PARAMS);
+  map<int, double> setOfFixedParameters;
+  getSetOfFixedParameters(initParams, fixedParams, setOfFixedParameters);
   double upperBound = upperBoundOfRateParam;
   double upperBoundLinear = upperBoundLinearRateParam;
   if (parsimonyBound > 0){
@@ -153,66 +152,108 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
     upperBoundLinear = std::min(upperBoundLinearRateParam, parsimonyBound);
   }
   for (size_t i = 0; i < initParams.size(); i ++){
-    getRandomParameter(static_cast<paramType>(i), initParams[i], randomParams, upperBound, upperBoundLinear, rateChangeType, alpha->getMax(), optimizeBaseNumber, chrRange);
+    getRandomParameter(static_cast<paramType>(i), initParams[i], randomParams, upperBound, upperBoundLinear, rateChangeType, alpha->getMax(), chrRange, setOfFixedParameters);
   }
-  ChromosomeSubstitutionModel* model = new ChromosomeSubstitutionModel(alpha, randomParams, chrRange, rootFrequenciesType, rateChangeType, optimizeBaseNumber);
+  ChromosomeSubstitutionModel* model = new ChromosomeSubstitutionModel(alpha, randomParams, chrRange, rootFrequenciesType, rateChangeType);
   return model;
 
 }
 /******************************************************************************/
-void ChromosomeSubstitutionModel::getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, rateChangeFunc rateFunc, int maxChrNum, bool optimizeBaseNumber, unsigned int chrRange){
+void ChromosomeSubstitutionModel::getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, rateChangeFunc rateFunc, int maxChrNum, unsigned int chrRange, map<int, double>& setOfFixedParameters){
   // there is an assumption that the rate change parameters are sampled after the const ones, since they are dependent on them
   double randomValue = initParamValue;
   if (type == BASENUM){
     int lowerBoundBaseNum = lowerBoundBaseNumber;
     int upperBoundBaseNum = std::max((int)chrRange, lowerBoundBaseNumber+1);
-    if ((initParamValue != IgnoreParam) && (optimizeBaseNumber)){
+    if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(BASENUM) == 0)){
       randomValue = lowerBoundBaseNum + RandomTools::giveIntRandomNumberBetweenZeroAndEntry(upperBoundBaseNum-lowerBoundBaseNum);
     }
 
   }
-  else if (type < DEMIDUPL){
-    if (initParamValue != IgnoreParam){
+  else if (type == BASENUMR){ //|| (type == DUPL)) || ((type == GAIN) || (type == LOSS))){
+    if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(BASENUMR) == 0)){
       randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
     }
   }
   else if (type == DEMIDUPL){
     if ((initParamValue != IgnoreParam) && (initParamValue != DemiEqualDupl)){
-      randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
+      if (setOfFixedParameters.count(type) == 0){
+        randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
+      }      
     }
   }else{
-    paramType typeOfConstRate;
+    paramType typeOfPairedRate;
     switch (type)
     {
+      case GAIN:
+        typeOfPairedRate = GAINR;
+        break;
+      case LOSS:
+        typeOfPairedRate = LOSSR;
+        break;
+      case DUPL:
+        typeOfPairedRate = DUPLR;
+        break;
       case GAINR:
-        typeOfConstRate = GAIN;
+        typeOfPairedRate = GAIN;
         break;
       case LOSSR:
-        typeOfConstRate = LOSS;
+        typeOfPairedRate = LOSS;
         break;
       case DUPLR:
-        typeOfConstRate = DUPL;
+        typeOfPairedRate = DUPL;
         break;
 
       default:
         throw Exception("ChromosomeSubstitutionModel::getRandomParameter(): Invalid rate type!");
         break;
     }
-    if (initParamValue != IgnoreParam){
-      if (randomParams[typeOfConstRate] != IgnoreParam){
-        if (rateFunc == LINEAR){
-          double lowerBoundForRate = -randomParams[typeOfConstRate]/(maxChrNum-1);
-          randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForRate, upperBoundLinear);
-        }else{
-          randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);      
+    if (((type == GAIN) || (type == LOSS)) || (type == DUPL)){
+      double lowerBound = lowerBoundOfRateParam;
+      if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(type) == 0)){
+        if ((setOfFixedParameters.count(typeOfPairedRate) > 0) && (setOfFixedParameters[typeOfPairedRate] != IgnoreParam)){
+          if ( rateFunc == LINEAR){
+            lowerBound = std::max(lowerBoundOfRateParam, -setOfFixedParameters[typeOfPairedRate]*(maxChrNum-1));
+          }        
         }
-      }else{
-        randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
+        randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBound, upperBound);
       }
+    }else{
+      if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(type) == 0)){
+        if (randomParams[typeOfPairedRate] != IgnoreParam){
+          if (rateFunc == LINEAR){
+            double lowerBoundForRate = -randomParams[typeOfPairedRate]/(maxChrNum-1);
+            randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForRate, upperBoundLinear);
+          }else{
+            randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);      
+          }
+        }else{
+          randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
+        }
+      }
+
     }
+
 
   }
   randomParams.push_back(randomValue);
+
+}
+/******************************************************************************/
+void ChromosomeSubstitutionModel::getSetOfFixedParameters(vector<double>& initParams, vector<unsigned int>& fixedParams, map<int, double>& setOfFixedParams){
+  //map<paramType, double> setOfFixedParams;
+  size_t index = 0;
+  for (size_t i = 0; i < NUM_OF_CHR_PARAMS; i++){
+    if (initParams[i] == IgnoreParam){
+      continue;
+    }
+    if (fixedParams[index]){
+      setOfFixedParams[(int)i] = initParams[i];
+    }
+    index++;
+        
+  }
+  return;
 
 }
 
@@ -315,11 +356,8 @@ void ChromosomeSubstitutionModel::updateLinearParameters(){
 }
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateBaseNumParameters(std::shared_ptr<IntervalConstraint> interval){
-  if (optimizeBaseNum_){
-    std::shared_ptr<IntervalConstraint> interval_baseNum = make_shared<IntervalConstraint>(lowerBoundBaseNumber, std::max((int)maxChrRange_, lowerBoundBaseNumber+1), true, true);
-    addParameter_(new Parameter("Chromosome.baseNum", baseNum_, interval_baseNum));
-  }
-
+  std::shared_ptr<IntervalConstraint> interval_baseNum = make_shared<IntervalConstraint>(lowerBoundBaseNumber, std::max((int)maxChrRange_, lowerBoundBaseNumber+1), true, true);
+  addParameter_(new Parameter("Chromosome.baseNum", baseNum_, interval_baseNum));
   addParameter_(new Parameter("Chromosome.baseNumR", baseNumR_, interval));
 
 }
@@ -342,7 +380,7 @@ void ChromosomeSubstitutionModel::getParametersValues(){
     setNewBoundsForLinearParameters(loss_, lossR_, "loss", "lossR");
     setNewBoundsForLinearParameters(dupl_, duplR_, "dupl", "duplR");
 
-    if((baseNum_ != IgnoreParam) && (optimizeBaseNum_)){
+    if(baseNum_ != IgnoreParam){
       baseNum_ = (int)getParameterValue("baseNum");
     }
     if (baseNumR_ != IgnoreParam){

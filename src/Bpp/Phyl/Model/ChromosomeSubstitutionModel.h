@@ -32,7 +32,7 @@ public:
   enum rootFreqType {UNIFORM, ROOT_LL, STATIONARY, FIXED};
   enum rateChangeFunc {LINEAR = 0, EXP = 1};
   enum typeOfTransition {GAIN_T = 0, LOSS_T = 1, DUPL_T = 2, DEMIDUPL_T = 3, BASENUM_T = 4, MAXCHR_T = 5, NUMTYPES = 6, ILLEGAL = 7};
-  enum paramType {BASENUM = 0, BASENUMR = 1, DUPL = 2, LOSS = 3, GAIN = 4, DEMIDUPL = 5, LOSSR = 6, GAINR = 7, DUPLR = 8, NUM_OF_CHR_PARAMS = 9};
+  enum paramType {BASENUM = 0, BASENUMR = 1, DUPL = 2, LOSS = 3, GAIN = 4, LOSSR = 5, GAINR = 6, DUPLR = 7, DEMIDUPL = 8, NUM_OF_CHR_PARAMS = 9};
 
 private:
   double gain_;
@@ -47,7 +47,6 @@ private:
   unsigned int maxChrRange_;
   rootFreqType freqType_;
   rateChangeFunc rateChangeFuncType_;
-  bool optimizeBaseNum_;
   int ChrMinNum_;
   int ChrMaxNum_;
   double firstNormQ_;
@@ -73,16 +72,14 @@ public:
     double duplR,
     unsigned int maxChrRange, 
     rootFreqType freqType,
-    rateChangeFunc rateChangeType,
-    bool optimizeBaseNumber);
+    rateChangeFunc rateChangeType);
 
   //constructor with vector of parameters
   ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
     vector<double> modelParams,
     unsigned int maxChrRange,
     rootFreqType freqType,
-    rateChangeFunc rateChangeType,
-    bool optimizeBaseNumber);
+    rateChangeFunc rateChangeType);
 
   virtual ~ChromosomeSubstitutionModel() {}
 
@@ -96,11 +93,11 @@ public:
     unsigned int chrRange,
     rootFreqType rootFrequenciesType,
     rateChangeFunc rateChangeType,
-    bool optimizeBaseNumber,
+    vector<unsigned int>& fixedParams,
     double parsimonyBound = 0);
 
-  static void getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, rateChangeFunc rateFunc, int maxChrNum, bool optimizeBaseNumber, unsigned int chrRange);
-  
+
+
   const Matrix<double>& getPij_t    (double d) const;
   const Matrix<double>& getPij_t_func2(double d) const;
   const Matrix<double>& getPij_t_func3(double d) const;
@@ -126,6 +123,8 @@ public:
   double getChangeRateLoss() const {return lossR_;}
   double getBaseNumR() const {return baseNumR_;}
   double getRate (size_t state, double constRate, double changeRate) const;
+  static void getSetOfFixedParameters(vector<double>& initParams, vector<unsigned int>& fixedParams, map<int, double>& setOfFixedParams);
+
   
   //These functions should be used from chromsome number optimizer
   void setBoundsForEquivalentParameter(Parameter &param, string parameterName) const;
@@ -133,6 +132,7 @@ public:
 
 
 protected:
+  static void getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, rateChangeFunc rateFunc, int maxChrNum, unsigned int chrRange, map<int, double>& setOfFixedParameters);
   void updateParameters();
   void updateLinearParameters();
   void updateExpParameters();
