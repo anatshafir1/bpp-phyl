@@ -9,6 +9,7 @@
 set (CPP_FILES
   Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
   Bpp/Phyl/App/ChromEvolOptions.cpp
+  Bpp/Phyl/App/ChromosomeNumberMng.cpp
   Bpp/Phyl/BipartitionList.cpp
   Bpp/Phyl/BipartitionTools.cpp
   Bpp/Phyl/Distance/AbstractAgglomerativeDistanceMethod.cpp
