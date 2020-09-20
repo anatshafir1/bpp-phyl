@@ -72,7 +72,7 @@ DRNonHomogeneousTreeLikelihood ChromosomeNumberOptimizer::getLikelihoodFunction(
     }
 }
 /****************************************************************************/
-void ChromosomeNumberOptimizer::setFixedRootFrequencies(const std::string &path, SubstitutionModelSet* modelSet) const{
+void ChromosomeNumberOptimizer::setFixedRootFrequencies(const std::string &path, SubstitutionModelSet* modelSet){
     ifstream stream;
     stream.open(path.c_str());
     vector <double> freqs;
@@ -391,7 +391,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(DRNo
     optimizer->setMaximumNumberOfEvaluations(100);
     std::cout <<"max chromosome number: " << alphabet_->getMax() << endl;
     if (BrentBracketing_ == 1){
-        optimizer->setBracketing(BrentOneDimension::BRACKET_INWARD);
+        optimizer->setBracketing(BrentOneDimension::BRACKET_INWARD, 100);
 
     }else if (BrentBracketing_ == 2){
         optimizer->setBracketing(BrentOneDimension::BRACKET_SIMPLE);

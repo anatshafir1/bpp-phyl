@@ -42,7 +42,7 @@
 //from bpp-core
 //#include <Bpp/Version.h>
 //#include <Bpp/Numeric/AutoParameter.h>
-//#include <Bpp/Numeric/Prob/GammaDiscreteDistribution.h>
+#include <Bpp/Numeric/Prob/GammaDiscreteDistribution.h>
 //#include <Bpp/Numeric/Matrix/MatrixTools.h>
 #include <Bpp/Numeric/Random/RandomTools.h>
 #include <Bpp/Io/FileTools.h>
@@ -75,6 +75,7 @@
 #include <Bpp/Phyl/Likelihood/ChromosomeNumberOptimizer.h>
 #include <Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.h>
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
+#include <Bpp/Phyl/Simulation/NonHomogeneousSequenceSimulator.h>
 
 
 //standard libraries
@@ -126,13 +127,16 @@ namespace bpp{
             void getJointMLAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int numOfSimulations) const;
+            void simulateData() const;
+            void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter) const;
 
         protected:
             VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* initialAlpha);
             void rescale_tree(TreeTemplate<Node>* tree, unsigned int chrRange);
             void getMaxParsimonyUpperBound(double* parsimonyScore) const;
             // functions to print the tree with ancestral reconstruction
-            static void printTreeWithStates(DRNonHomogeneousTreeLikelihood* lik, TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs = 0);
+            void printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs = 0) const;
+            void printSimulatedDataAndAncestors(RASiteSimulationResult* simResult) const;
             static string printTree(const TreeTemplate<Node>& tree, map <string, double>* mapNameProb = 0);
             static string nodeToParenthesis(const Node& node, map<string, double>* mapNameProb);
 

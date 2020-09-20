@@ -190,12 +190,13 @@ namespace bpp
             }
             void optimize();
             vector<DRNonHomogeneousTreeLikelihood>& getVectorOfLikelihoods(){return vectorOfLikelohoods_;}
+            static void setFixedRootFrequencies(const std::string &path, SubstitutionModelSet* modelSet);
 
 
         protected:
             // for model initiation
             DRNonHomogeneousTreeLikelihood getLikelihoodFunction(const TreeTemplate<Node>* tree, const VectorSiteContainer* vsc, SubstitutionModelSet* modelSet, DiscreteDistribution* rdist, bool calculateDerivatives, const string& fixedRootFreqPath) const;
-            void setFixedRootFrequencies(const std::string &path, SubstitutionModelSet* modelSet) const;
+            
             
             //functions of optimization
             unsigned int optimizeModelParameters(DRNonHomogeneousTreeLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector<unsigned int> &baseNumCandidates);//, unsigned int inwardBracketing, bool standardOptimization);

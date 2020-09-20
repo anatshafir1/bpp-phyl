@@ -37,6 +37,8 @@ string ChromEvolOptions::baseNumOptimizationMethod_;
 std::vector<unsigned int> ChromEvolOptions::fixedParams_;
 int ChromEvolOptions::NumOfSimulations_;
 int ChromEvolOptions::jumpTypeMethod_;
+bool ChromEvolOptions::simulateData_;
+int ChromEvolOptions::numOfDataToSimulate_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -73,6 +75,10 @@ void ChromEvolOptions::initDefaultParameters(){
     baseNumOptimizationMethod_ = "Brent";
     NumOfSimulations_ = 10000;
     jumpTypeMethod_ = 0;
+    simulateData_ = false;
+    numOfDataToSimulate_ = 1;
+
+
 
 }
 /*************************************************************************/
@@ -140,13 +146,14 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     maxChrNum_ = ApplicationTools::getIntParameter("_maxChrNum", ChromEvol.getParams(), maxChrNum_, "", true, 0);
     minChrNum_ = ApplicationTools::getIntParameter("_minChrNum", ChromEvol.getParams(), minChrNum_, "", true, 0);
     seed_ = ApplicationTools::getIntParameter("_seed", ChromEvol.getParams(), seed_, "", true, 0);
-    characterFilePath_ = ApplicationTools::getAFilePath("_dataFile", ChromEvol.getParams(), true, true, "", true, "none", 1);
+    simulateData_ = ApplicationTools::getBooleanParameter("_simulateData", ChromEvol.getParams(), simulateData_, "", true, 0);
+    if (simulateData_){
+        characterFilePath_ = ApplicationTools::getAFilePath("_dataFile", ChromEvol.getParams(), false, true, "", true, "none", 1);
+    }else{
+        characterFilePath_ = ApplicationTools::getAFilePath("_dataFile", ChromEvol.getParams(), true, true, "", true, "none", 1);
+    }
     treeFilePath_ = ApplicationTools::getAFilePath("_treeFile", ChromEvol.getParams(), true, true, "", true, "none", 1);
-    //unsigned int numberOfUniqueCharacterStates = 0;
-    //vsc_ = getCharacterData(pathForCharacterData, &numberOfUniqueCharacterStates);
-    //alpha_ = dynamic_cast<const ChromosomeAlphabet*>(vsc_->getAlphabet());
     branchMul_ = ApplicationTools::getDoubleParameter("_branchMul", ChromEvol.getParams(), branchMul_, "", true, 0);
-    //tree_ = getTree(pathForTree, numberOfUniqueCharacterStates);
     maxIterations_ = (unsigned int)ApplicationTools::getIntParameter("_maxOptimizationItarations", ChromEvol.getParams(), maxIterations_, "", true, 0);
     tolerance_ = ApplicationTools::getDoubleParameter("_tolParamOptimization", ChromEvol.getParams(), tolerance_, "", true, 0);
     constGain_ = ApplicationTools::getDoubleParameter("_gainConstR", ChromEvol.getParams(), constGain_, "", true, 0);
@@ -183,6 +190,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     setFixedParams(fixedParams);
     NumOfSimulations_ = ApplicationTools::getIntParameter("_NumOfSimulations", ChromEvol.getParams(), NumOfSimulations_, "", true, 0);
     jumpTypeMethod_ = ApplicationTools::getIntParameter("_jumpTypeMethod", ChromEvol.getParams(), jumpTypeMethod_, "", true, 0);
+    numOfDataToSimulate_ = ApplicationTools::getIntParameter("_numOfDataToSimulate", ChromEvol.getParams(), numOfDataToSimulate_, "", true, 0);
 
 }
 /*************************************************************************/

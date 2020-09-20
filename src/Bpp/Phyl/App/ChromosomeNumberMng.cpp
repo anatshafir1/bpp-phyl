@@ -51,6 +51,11 @@ void ChromosomeNumberMng::getCharacterData (const string& path){
     }
     numberOfUniqueStates_ = (unsigned int)UniqueCharacterStates.size() + alphaInitial->getNumberOfCompositeStates();
     chrRange_ = maxNumberOfChr - minNumOfChr;
+    if (ChromEvolOptions::baseNum_ != IgnoreParam){
+        if (ChromEvolOptions::baseNum_ > (int)chrRange_){
+            chrRange_ = ChromEvolOptions::baseNum_ + 1;
+        }
+    }
     cout <<"Number of unique states is " << numberOfUniqueStates_ <<endl;
 
     setMaxChrNum(maxNumberOfChr);
@@ -191,7 +196,7 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(DRNonHomogeneousTree
     MLAncestralStateReconstruction* ancr = new MLAncestralStateReconstruction(lik, model, rootFreqs, &Pijt);
     ancr->computeJointLikelihood();
     std::map<int, std::vector<size_t> > ancestors = ancr->getAllAncestralStates();
-    printTreeWithStates(lik, lik->getTree(), ancestors);
+    printTreeWithStates(lik->getTree(), ancestors);
 
     delete ancr;
 
@@ -203,7 +208,7 @@ std::map<int, std::map<size_t, VVdouble>> ChromosomeNumberMng::getMarginalAncest
     ancr->computePosteriorProbabilitiesOfNodesForEachStatePerSite();
     std::map<int, std::vector<size_t> > ancestors = ancr->getAllAncestralStates();
     std::map<int, map<size_t, std::vector<double>>>* probs = ancr->getPosteriorProbForAllNodesAndStatesPerSite();
-    printTreeWithStates(lik, lik->getTree(), ancestors, probs);
+    printTreeWithStates(lik->getTree(), ancestors, probs);
     std::map<int, std::map<size_t, VVdouble>> jointProbabilitiesFatherSon = ancr->getAllJointFatherNodeProbabilities();
     delete ancr;
     return jointProbabilitiesFatherSon;
@@ -222,6 +227,12 @@ void ChromosomeNumberMng::computeExpectations(DRNonHomogeneousTreeLikelihood* li
 }
 /***********************************************************************************/
 void ChromosomeNumberMng::runChromEvol() const{
+    if (ChromEvolOptions::simulateData_){
+        //simulate data using a tree and a set of model parameters
+        RandomTools::setSeed(static_cast<long>(ChromEvolOptions::seed_));
+        simulateData();
+        return;   
+    }
     // optimize likelihood
     ChromosomeNumberOptimizer* chrOptimizer = optimizeLikelihoodMultiStartPoints();
     std::vector <DRNonHomogeneousTreeLikelihood> lik_vec = chrOptimizer->getVectorOfLikelihoods();
@@ -237,12 +248,12 @@ void ChromosomeNumberMng::runChromEvol() const{
 
 }
 /**************************************************************************************/
-void ChromosomeNumberMng::printTreeWithStates(DRNonHomogeneousTreeLikelihood* lik, TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs){
+void ChromosomeNumberMng::printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs) const{
     map <string, double> mapOfNodeNameProb;
     vector<int> nodesIds = tree.getNodesId();
     for (size_t n= 0; n < nodesIds.size(); n++){
         for (size_t i = 0; i < ancestors[nodesIds[0]].size(); i++){
-            size_t state = ancestors[nodesIds[n]][i] + (dynamic_cast<const ChromosomeAlphabet*>(lik->getAlphabet()))->getMin();
+            size_t state = ancestors[nodesIds[n]][i] + alphabet_->getMin();
             string prevName;
             
             if (tree.isLeaf(nodesIds[n])){
@@ -356,4 +367,55 @@ string ChromosomeNumberMng::nodeToParenthesis(const Node& node, map<string, doub
   }
 
   return s.str();
+}
+/*********************************************************************************/
+void ChromosomeNumberMng::simulateData() const{
+    vector<double> modelParams;
+    modelParams.reserve(ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS);
+    ChromEvolOptions::initVectorOfChrNumParameters(modelParams);
+    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    SubstitutionModelSet* modelSet = new SubstitutionModelSet(alphabet_);
+    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alphabet_, modelParams, chrRange_, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL,  ChromEvolOptions::rateChangeType_);
+    vector <int> nodeIds = tree_->getNodesId();
+    nodeIds.pop_back();
+    modelSet->addModel(chrModel, nodeIds);
+    ChromosomeNumberOptimizer::setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, modelSet);
+
+    for (size_t i = 0; i < (size_t)ChromEvolOptions::numOfDataToSimulate_; i++){
+        NonHomogeneousSequenceSimulator* sim = new NonHomogeneousSequenceSimulator(modelSet, rdist, tree_);
+        RASiteSimulationResult* simResult = sim->dSimulateSite();
+        vector <size_t> leavesStates = simResult->getFinalStates();
+        vector<string> leavesNames = simResult->getLeaveNames();
+        printSimulatedData(leavesStates, leavesNames, i);
+        printSimulatedDataAndAncestors(simResult);
+        delete simResult;
+        delete sim;
+
+    }
+    delete modelSet;
+    delete rdist;
+
+}
+/*******************************************************************************/
+void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter) const{
+    cout << "Simulated data #" << iter << endl;
+    for (size_t i = 0; i < leavesNames.size(); i++){
+        cout << leavesNames[i] << " "<< leavesStates[i] + alphabet_->getMin() <<endl;
+    }
+    cout << "******************************"<<endl;
+
+
+    
+}
+/****************************************************************************/
+void ChromosomeNumberMng::printSimulatedDataAndAncestors(RASiteSimulationResult* simResult) const{
+    std::map<int, std::vector<size_t> > ancestors;
+    vector<int> nodesIds = tree_->getNodesId();
+    for (size_t i = 0; i < nodesIds.size(); i++){
+        vector<size_t> nodesStates;
+        nodesStates.push_back(simResult->getAncestralState(nodesIds[i]));
+        ancestors[nodesIds[i]] = nodesStates;
+    }
+    printTreeWithStates(*tree_, ancestors);
+
 }

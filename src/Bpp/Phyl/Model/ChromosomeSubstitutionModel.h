@@ -111,6 +111,7 @@ public:
   size_t getNumberOfStates() const { return size_; }
   int getMin() const {return ChrMinNum_;}
   int getMax() const {return ChrMaxNum_;}
+  unsigned int getMaxChrRange() const {return maxChrRange_;}
   bool checkIfReachedConvergence(const Matrix<double>& pijt, const Matrix<double>& mt_prev) const;
   double getInitValue(size_t i, int state) const;
   int getBaseNumber() const {return baseNum_;}

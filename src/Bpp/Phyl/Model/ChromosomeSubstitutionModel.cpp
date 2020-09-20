@@ -356,7 +356,7 @@ void ChromosomeSubstitutionModel::updateLinearParameters(){
 }
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateBaseNumParameters(std::shared_ptr<IntervalConstraint> interval){
-  std::shared_ptr<IntervalConstraint> interval_baseNum = make_shared<IntervalConstraint>(lowerBoundBaseNumber, std::max((int)maxChrRange_, lowerBoundBaseNumber+1), true, true);
+  std::shared_ptr<IntervalConstraint> interval_baseNum = make_shared<IntervalConstraint>(lowerBoundBaseNumber, (int)maxChrRange_, true, true);
   addParameter_(new Parameter("Chromosome.baseNum", baseNum_, interval_baseNum));
   addParameter_(new Parameter("Chromosome.baseNumR", baseNumR_, interval));
 

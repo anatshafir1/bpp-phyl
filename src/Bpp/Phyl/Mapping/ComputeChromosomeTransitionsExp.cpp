@@ -388,7 +388,7 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
         int baseNumber = model_->getBaseNumber();
         if (baseNumber != IgnoreParam){
             if (chrEnd > chrStart){
-                if ((chrEnd - chrStart) % baseNumber == 0){
+                if (((chrEnd - chrStart) % baseNumber == 0) && ((chrEnd - chrStart) <= (int)(model_->getMaxChrRange()))){
                     legalMove = true;
                     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::BASENUM_T] = model_->getBaseNumR();
                     sumOfRates += model_->getBaseNumR();                                 
@@ -416,24 +416,44 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
             }else{
                 if ((chrEnd == (int)ceil(chrStart * 1.5)) || (chrEnd == (int)floor(chrStart * 1.5))){
                     legalMove = true;
-                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = model_->getDemiDupl();
-                    sumOfRates += model_->getDemiDupl();
+                    double demiDupRate;
+                    if (chrStart == 1){
+                        demiDupRate =  model_->getDemiDupl();
+                    }else{
+                        demiDupRate = model_->getDemiDupl()/2;
+                    }
+                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = demiDupRate;
+                    sumOfRates += demiDupRate;
                 }
             }
 
         }
         //maxChr not assigned to any of the possible transitions
-        if ((chrEnd  == alphabet_->getMax()) && (!legalMove)){
-            legalMove = true;
-            stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::MAXCHR_T] = 1;
-            return;
+        // if ((chrEnd  == alphabet_->getMax()) && (!legalMove)){
+        //     legalMove = true;
+        //     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::MAXCHR_T] = 1;
+        //     return;
         
+        // }
+        if (chrEnd  == alphabet_->getMax()){
+            legalMove = true;
+            //stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::MAXCHR_T] = 1;
+            double toMaxRate = model_->Qij(startState, endState)-sumOfRates;
+            stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::MAXCHR_T] = toMaxRate;
+            sumOfRates += toMaxRate;
+            return;
         }
-        // if nothing fits
+        //if nothing fits
         if(!legalMove){
             throw Exception ("ERROR: ComputeChromosomeTransitionsExp::updateMapOfJumps(): Illegal transition!");
             return;
         }
+        //DEBUG!!!
+        // if (sumOfRates != model_->Qij(startState, endState)){
+        //     cout <<"sum of rates is: "<< sumOfRates <<endl;
+        //     cout << "entry in matrix is: " << model_->Qij(startState, endState)<< endl;
+        //     throw Exception ("ERROR: ComputeChromosomeTransitionsExp::updateMapOfJumps(): sumOfRates does not equal its supposed value!");
+        // }
         // normalize according to weights
         map <int, double>::iterator it = stateJumpTypeProb_[jumpStates].begin();
         while (it != stateJumpTypeProb_[jumpStates].end()){
