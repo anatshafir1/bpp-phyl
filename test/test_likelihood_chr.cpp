@@ -423,22 +423,21 @@ int main(int args, char **argv) {
         BppApplication ChromEvol(args, argv, "ChromEvol");
         ChromEvolOptions::initAllParameters(ChromEvol);
         ChromosomeNumberMng* mng = new ChromosomeNumberMng();
-        mng->getCharacterData(ChromEvolOptions::characterFilePath_);
-        mng->getTree(ChromEvolOptions::treeFilePath_);
+        if (!ChromEvolOptions::simulateData_){
+            mng->getCharacterData(ChromEvolOptions::characterFilePath_);
+        }
+        if (ChromEvolOptions::simulateData_){
+            mng->getTree(ChromEvolOptions::treeFilePath_, ChromEvolOptions::treeLength_);
+
+        }else{
+            mng->getTree(ChromEvolOptions::treeFilePath_);
+        }       
+        
         mng->runChromEvol();
 
-        //unsigned int numberOfUniqueStates = 0;
-        //unsigned int chrRange = 0;
-        //VectorSiteContainer* vsc = getCharacterData(ChromEvolOptions::characterFilePath_, &numberOfUniqueStates, &chrRange);
-        //const ChromosomeAlphabet* alpha = dynamic_cast<const ChromosomeAlphabet*>(vsc->getAlphabet());
-        //TreeTemplate<Node>* tree = getTree(ChromEvolOptions::treeFilePath_, numberOfUniqueStates);
         std::cout << "****** Max allowed chromosome number: "<< ChromEvolOptions::maxChrNum_ <<endl;
         delete mng;
-        //std::cout << "****** Max observed chromosome range: " << chrRange <<endl;
-        //runChromEvol(alpha, vsc, tree, chrRange);
-        //delete vsc;
-        //delete tree;
-        //delete alpha;
+
 
     }
     catch (exception& e)

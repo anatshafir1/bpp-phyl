@@ -61,6 +61,7 @@
 #include <Bpp/Seq/Io/AbstractISequence.h>
 #include <Bpp/Seq/Io/ISequence.h>
 #include <Bpp/Seq/Io/chrFasta.h>
+#include <Bpp/Seq/Io/Fasta.h>
 #include <Bpp/Seq/SiteTools.h>
 #include <Bpp/Seq/App/SequenceApplicationTools.h>
 
@@ -110,7 +111,9 @@ namespace bpp{
                 return *this;
             }
             virtual ~ChromosomeNumberMng(){
-                delete vsc_;
+                if (vsc_){
+                    delete vsc_;
+                }
                 delete tree_;
                 delete alphabet_;
             };
@@ -119,24 +122,25 @@ namespace bpp{
             void getCharacterData(const string &path);
             static void setMaxChrNum(unsigned int maxNumberOfChr);
             static void setMinChrNum(unsigned int minNumberOfChr);
-            void getTree(const string &path);
+            void getTree(const string &path, double treeLength = 0);
 
             //core functions of ChromEvol
-            void runChromEvol() const;
+            void runChromEvol();
             ChromosomeNumberOptimizer* optimizeLikelihoodMultiStartPoints() const;
             void getJointMLAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int numOfSimulations) const;
-            void simulateData() const;
-            void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter) const;
+            void simulateData();
+            void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
 
         protected:
             VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* initialAlpha);
-            void rescale_tree(TreeTemplate<Node>* tree, unsigned int chrRange);
+            void rescale_tree(TreeTemplate<Node>* tree, double chrRange);
             void getMaxParsimonyUpperBound(double* parsimonyScore) const;
             // functions to print the tree with ancestral reconstruction
-            void printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs = 0) const;
+            void printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, const string &filePath, std::map<int, map<size_t, std::vector<double>>>* probs = 0) const;
             void printSimulatedDataAndAncestors(RASiteSimulationResult* simResult) const;
+            void printSimulatedEvoPath(TreeTemplate<Node> tree, const string outPath, RASiteSimulationResult* simResult) const;
             static string printTree(const TreeTemplate<Node>& tree, map <string, double>* mapNameProb = 0);
             static string nodeToParenthesis(const Node& node, map<string, double>* mapNameProb);
 

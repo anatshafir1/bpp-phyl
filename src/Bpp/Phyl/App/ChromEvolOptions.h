@@ -71,6 +71,9 @@ public:
     static int jumpTypeMethod_;
     static bool simulateData_;
     static int numOfDataToSimulate_;
+    static string resultsPathDir_;
+    static int maxBaseNumTransition_; // needed for the simulator, since there is no data to infer it!
+    static double treeLength_;
 
 private:
     static void initDefaultParameters();

@@ -195,8 +195,13 @@ void ComputeChromosomeTransitionsExp::computeExpectationPerType(){
 }
 
 /*********************************************************************************/
-void ComputeChromosomeTransitionsExp::printResults() {
-    std::cout << "**********************\n" << endl;
+void ComputeChromosomeTransitionsExp::printResults(const string path) {
+    ofstream outFile;
+    if (path != "none"){
+        outFile.open(path);
+
+    }
+    (path == "none") ? (std::cout << "**********************\n"):(outFile << "**********************\n") ;
     std::map <int, string> jumpTypeToString;
     std::vector<int> nodesIds = tree_->getNodesId();
     for (size_t n = 0; n < nodesIds.size(); n++){  
@@ -211,7 +216,7 @@ void ComputeChromosomeTransitionsExp::printResults() {
             nodeName = "N" + std::to_string(nodesIds[n]);
             
         }
-        std::cout << nodeName <<":" << endl;
+        (path == "none")? (std::cout << nodeName <<":\n"): (outFile << nodeName <<":\n");
         for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i++){
             string jumpType;
             if (i == ChromosomeSubstitutionModel::GAIN_T){
@@ -227,19 +232,31 @@ void ComputeChromosomeTransitionsExp::printResults() {
             }else{
                 jumpType = "\tMaxChr Expectation: ";
             }
-            std::cout << jumpType << expNumOfChangesPerBranch_[nodesIds[n]][i] <<endl;
-            std::cout << "+++++" <<endl;
+            if (path == "none"){
+                std::cout << jumpType << expNumOfChangesPerBranch_[nodesIds[n]][i] <<endl;
+                std::cout << "+++++" <<endl;
+
+            }else{
+                outFile << jumpType << expNumOfChangesPerBranch_[nodesIds[n]][i] <<endl;
+                outFile << "+++++"<<endl;
+            }
+
             jumpTypeToString[i] = jumpType;
         }
         
     }
-    std::cout << "********************************************"<<endl;
-    std::cout <<"Total Expectations:" << endl;
+    (path == "none") ? (std::cout << "********************************************"<<endl) : (outFile << "********************************************"<<endl);
+    (path == "none")? (std::cout <<"Total Expectations:" << endl) : (outFile <<"Total Expectations:" << endl);
     // print total expectations
     for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i++){
-        std::cout <<jumpTypeToString[i] << expNumOfChanges_[i] <<endl;
+        (path == "none")? (std::cout <<jumpTypeToString[i] << expNumOfChanges_[i] <<endl) : (outFile << jumpTypeToString[i] << expNumOfChanges_[i] <<endl);
         if ((i == ChromosomeSubstitutionModel::MAXCHR_T) && (expNumOfChanges_[i] > 0)){
-            std::cout <<"Note: Max chr transitions exist-> consider to increase the maximum possible chromosome mumber!"<<endl;
+            if (path == "none"){
+                std::cout <<"Note: Max chr transitions exist-> consider to increase the maximum possible chromosome mumber!"<<endl;
+            }else{
+                outFile << "Note: Max chr transitions exist-> consider to increase the maximum possible chromosome mumber!"<<endl;
+            }
+            
         }
     }
 

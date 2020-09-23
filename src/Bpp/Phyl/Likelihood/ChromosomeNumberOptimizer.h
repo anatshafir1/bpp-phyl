@@ -70,6 +70,7 @@
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
 #include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
 #include <Bpp/Phyl/Model/SubstitutionModelSet.h>
+#include <Bpp/Phyl/App/ChromEvolOptions.h>
 #include <Bpp/Phyl/OptimizationTools.h>
 // From Seqlib:
 #include <vector>

@@ -125,7 +125,7 @@ namespace bpp
             //void computeDemiDuplExpectation(int nodeId, int jumpStateStart, VVdouble jointProbFatherNode);
 
             void computeExpectationPerType();
-            void printResults();
+            void printResults(const string path = "none");
             // from previous used class
             void runIteration(int state);
             void computeExpectationAndPosterior();

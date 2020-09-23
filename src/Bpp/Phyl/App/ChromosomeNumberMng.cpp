@@ -115,15 +115,16 @@ void ChromosomeNumberMng::setMinChrNum(unsigned int minNumberOfChr){
 }
 /********************************************************************************************/
 
-void ChromosomeNumberMng::getTree(const string& path){
+void ChromosomeNumberMng::getTree(const string& path, double treeLength){
     Newick newick;
     tree_ = newick.readTree(path);
-    rescale_tree(tree_, numberOfUniqueStates_);
+    double treeLengthToScale = (treeLength > 0) ? treeLength : (double) numberOfUniqueStates_;
+    rescale_tree(tree_, treeLengthToScale);
     return;
 
 }
 /****************************************************************************/
-void ChromosomeNumberMng::rescale_tree(TreeTemplate<Node>* tree, unsigned int chrRange){
+void ChromosomeNumberMng::rescale_tree(TreeTemplate<Node>* tree, double chrRange){
     double scale_tree_factor = 1.0;
     //string tree_str = TreeTemplateTools::treeToParenthesis(*tree);
     //std :: cout << tree_str << endl;
@@ -137,7 +138,7 @@ void ChromosomeNumberMng::rescale_tree(TreeTemplate<Node>* tree, unsigned int ch
         //tree must be rescaled
         double treeLength = tree->getTotalLength();
         if (ChromEvolOptions::branchMul_ == 999){
-            scale_tree_factor = (double)chrRange/treeLength;
+            scale_tree_factor = chrRange/treeLength;
         }
         tree->scaleTree(scale_tree_factor);
 
@@ -168,8 +169,8 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
     if (ChromEvolOptions::optimizationMethod_ == "Brent"){
         calculateDerivatives  = false;
     }
-
-    ChromosomeNumberOptimizer* opt = new ChromosomeNumberOptimizer(tree_, alphabet_, vsc_, chrRange_);
+    unsigned int maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
+    ChromosomeNumberOptimizer* opt = new ChromosomeNumberOptimizer(tree_, alphabet_, vsc_, maxBaseNumTransition);
     opt->initModels(modelParams, parsimonyBound, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], calculateDerivatives, ChromEvolOptions::fixedFrequenciesFilePath_, ChromEvolOptions::fixedParams_);
 
     //initialize all the optimization specific parameters
@@ -196,7 +197,14 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(DRNonHomogeneousTree
     MLAncestralStateReconstruction* ancr = new MLAncestralStateReconstruction(lik, model, rootFreqs, &Pijt);
     ancr->computeJointLikelihood();
     std::map<int, std::vector<size_t> > ancestors = ancr->getAllAncestralStates();
-    printTreeWithStates(lik->getTree(), ancestors);
+    if (ChromEvolOptions::resultsPathDir_ == "none"){
+        printTreeWithStates(lik->getTree(), ancestors, ChromEvolOptions::resultsPathDir_);
+    }else{
+        const string outFilePath = ChromEvolOptions::resultsPathDir_ + "//" + "MLAncestralReconstruction.tree";
+        printTreeWithStates(lik->getTree(), ancestors, outFilePath);
+
+    }
+    
 
     delete ancr;
 
@@ -208,7 +216,14 @@ std::map<int, std::map<size_t, VVdouble>> ChromosomeNumberMng::getMarginalAncest
     ancr->computePosteriorProbabilitiesOfNodesForEachStatePerSite();
     std::map<int, std::vector<size_t> > ancestors = ancr->getAllAncestralStates();
     std::map<int, map<size_t, std::vector<double>>>* probs = ancr->getPosteriorProbForAllNodesAndStatesPerSite();
-    printTreeWithStates(lik->getTree(), ancestors, probs);
+    if (ChromEvolOptions::resultsPathDir_ == "none"){
+        printTreeWithStates(lik->getTree(), ancestors, ChromEvolOptions::resultsPathDir_, probs);
+    }else{
+        const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+"MarginalAncestralReconstruction.tree";
+        printTreeWithStates(lik->getTree(), ancestors, outFilePath, probs);
+
+    }
+    
     std::map<int, std::map<size_t, VVdouble>> jointProbabilitiesFatherSon = ancr->getAllJointFatherNodeProbabilities();
     delete ancr;
     return jointProbabilitiesFatherSon;
@@ -220,18 +235,27 @@ void ChromosomeNumberMng::computeExpectations(DRNonHomogeneousTreeLikelihood* li
     ComputeChromosomeTransitionsExp* expCalculator = new ComputeChromosomeTransitionsExp(lik, jointProbabilitiesFatherSon, ChromEvolOptions::jumpTypeMethod_);
     expCalculator->runSimulations(numOfSimulations);
     expCalculator->computeExpectationPerType();
-    expCalculator->printResults();
+    if (ChromEvolOptions::resultsPathDir_ == "none"){
+        expCalculator->printResults();
+    }else{
+        const string outFilePath = ChromEvolOptions::resultsPathDir_+"//"+ "expectations.txt";
+        expCalculator->printResults(outFilePath);
+    }
+    
 
     //delete
     delete expCalculator;
 }
 /***********************************************************************************/
-void ChromosomeNumberMng::runChromEvol() const{
+void ChromosomeNumberMng::runChromEvol(){
     if (ChromEvolOptions::simulateData_){
         //simulate data using a tree and a set of model parameters
         RandomTools::setSeed(static_cast<long>(ChromEvolOptions::seed_));
         simulateData();
-        return;   
+        if (ChromEvolOptions::numOfDataToSimulate_ > 1){
+            return;
+        }
+
     }
     // optimize likelihood
     ChromosomeNumberOptimizer* chrOptimizer = optimizeLikelihoodMultiStartPoints();
@@ -248,7 +272,43 @@ void ChromosomeNumberMng::runChromEvol() const{
 
 }
 /**************************************************************************************/
-void ChromosomeNumberMng::printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, std::map<int, map<size_t, std::vector<double>>>* probs) const{
+void ChromosomeNumberMng::printSimulatedEvoPath(TreeTemplate<Node> tree, const string outPath, RASiteSimulationResult* simResult) const{
+    ofstream outFile;
+    outFile.open(outPath);
+    size_t totalNumTransitions = 0;
+    vector<int> nodesIds = tree.getNodesId();
+    for (size_t n = 0; n < nodesIds.size(); n++){
+        if (tree.isRoot(nodesIds[n])){
+            outFile << "N-" + to_string(nodesIds[n]) << endl;
+            outFile <<"\tThe root state is: "<< ((int)(simResult->getRootAncestralState())+ alphabet_->getMin()) <<endl;
+        }else{
+            if (tree.isLeaf(nodesIds[n])){
+                outFile << tree.getNodeName(nodesIds[n]) << endl;
+            }else{
+                outFile << "N-" + to_string(nodesIds[n]) <<endl;
+
+            }
+            MutationPath mutPath = simResult->getMutationPath(nodesIds[n]);
+            vector<size_t> states = mutPath.getStates();
+            vector<double> times = mutPath.getTimes();
+            totalNumTransitions += static_cast<int>(times.size());
+            for (size_t i = 0; i < states.size(); i++){
+                outFile <<"\tt = "<<times[i] << " to state = "<< ((int)(states[i]) + alphabet_->getMin()) << endl;
+
+            }
+            outFile <<"# Number of transitions per branch: "<< times.size() <<endl;   
+            
+        }
+        
+        outFile <<"*************************************"<<endl;
+        
+    }
+    outFile <<"Total number of transitions is: "<< totalNumTransitions << endl;
+    outFile.close();
+
+}
+/**************************************************************************************/
+void ChromosomeNumberMng::printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, const string &filePath, std::map<int, map<size_t, std::vector<double>>>* probs) const{
     map <string, double> mapOfNodeNameProb;
     vector<int> nodesIds = tree.getNodesId();
     for (size_t n= 0; n < nodesIds.size(); n++){
@@ -294,6 +354,12 @@ void ChromosomeNumberMng::printTreeWithStates(TreeTemplate<Node> tree, std::map<
         tree_str = printTree(tree);
     }
     cout << tree_str << endl;
+    if (filePath != "none"){
+       ofstream outFile;
+       outFile.open(filePath);
+       outFile << tree_str << endl;
+       outFile.close();
+    }
 
 }
 /****************************************************************************************/
@@ -369,16 +435,26 @@ string ChromosomeNumberMng::nodeToParenthesis(const Node& node, map<string, doub
   return s.str();
 }
 /*********************************************************************************/
-void ChromosomeNumberMng::simulateData() const{
+void ChromosomeNumberMng::simulateData(){
+    if ((ChromEvolOptions::minChrNum_ <= 0) || (ChromEvolOptions::maxChrNum_ < 0)){
+        throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): minimum and maximum chromsome number should be positive!");
+    }
+    if (ChromEvolOptions::maxChrNum_ <= ChromEvolOptions::minChrNum_){
+        throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): maximum chromsome number should be larger than minimum chromosome number!");
+    }
+    alphabet_ = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
     vector<double> modelParams;
     modelParams.reserve(ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS);
     ChromEvolOptions::initVectorOfChrNumParameters(modelParams);
     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
     SubstitutionModelSet* modelSet = new SubstitutionModelSet(alphabet_);
-    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alphabet_, modelParams, chrRange_, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL,  ChromEvolOptions::rateChangeType_);
+    ChromosomeSubstitutionModel* chrModel = new ChromosomeSubstitutionModel(alphabet_, modelParams, (unsigned int)ChromEvolOptions::maxBaseNumTransition_, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL,  ChromEvolOptions::rateChangeType_);
     vector <int> nodeIds = tree_->getNodesId();
     nodeIds.pop_back();
     modelSet->addModel(chrModel, nodeIds);
+    if (ChromEvolOptions::fixedFrequenciesFilePath_ == "none"){
+        throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): You need to path the file of fixed root frequencies!!");
+    }
     ChromosomeNumberOptimizer::setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, modelSet);
 
     for (size_t i = 0; i < (size_t)ChromEvolOptions::numOfDataToSimulate_; i++){
@@ -388,6 +464,9 @@ void ChromosomeNumberMng::simulateData() const{
         vector<string> leavesNames = simResult->getLeaveNames();
         printSimulatedData(leavesStates, leavesNames, i);
         printSimulatedDataAndAncestors(simResult);
+        if (ChromEvolOptions::resultsPathDir_ != "none"){
+            printSimulatedEvoPath(*tree_, ChromEvolOptions::resultsPathDir_ +"//"+ "simulatedEvolutionPaths.txt", simResult);
+        }
         delete simResult;
         delete sim;
 
@@ -397,12 +476,27 @@ void ChromosomeNumberMng::simulateData() const{
 
 }
 /*******************************************************************************/
-void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter) const{
+void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter){
     cout << "Simulated data #" << iter << endl;
     for (size_t i = 0; i < leavesNames.size(); i++){
         cout << leavesNames[i] << " "<< leavesStates[i] + alphabet_->getMin() <<endl;
     }
     cout << "******************************"<<endl;
+    
+    if (ChromEvolOptions::resultsPathDir_ != "none"){
+        //create vector site container object and save fasta file.
+        VectorSiteContainer* simulatedData = new VectorSiteContainer(alphabet_);
+        for (size_t i = 0; i < leavesNames.size(); i++){
+            int state = (int)leavesStates[i] + alphabet_->getMin();
+            BasicSequence seq = BasicSequence(leavesNames[i], alphabet_->intToChar(state), static_cast <const Alphabet*>(alphabet_));
+            simulatedData->addSequence(seq);
+        }
+        vsc_ = simulatedData;
+        string pathForSimulatedData = ChromEvolOptions::resultsPathDir_ + "//"+ "chr_counts"+ to_string(static_cast<int>(iter)) +".fasta";
+        Fasta fasta;
+        fasta.writeSequences(pathForSimulatedData, *simulatedData);
+
+    }
 
 
     
@@ -413,9 +507,18 @@ void ChromosomeNumberMng::printSimulatedDataAndAncestors(RASiteSimulationResult*
     vector<int> nodesIds = tree_->getNodesId();
     for (size_t i = 0; i < nodesIds.size(); i++){
         vector<size_t> nodesStates;
-        nodesStates.push_back(simResult->getAncestralState(nodesIds[i]));
+        if (tree_->isRoot(nodesIds[i])){
+            nodesStates.push_back(simResult->getRootAncestralState());
+        }else{
+            nodesStates.push_back(simResult->getAncestralState(nodesIds[i]));
+        }
         ancestors[nodesIds[i]] = nodesStates;
     }
-    printTreeWithStates(*tree_, ancestors);
-
+    if (ChromEvolOptions::resultsPathDir_ == "none"){
+        printTreeWithStates(*tree_, ancestors, ChromEvolOptions::resultsPathDir_);
+    }else{
+        const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "simulatedDataAncestors.tree";
+        printTreeWithStates(*tree_, ancestors, outFilePath);
+    }
+  
 }

@@ -138,8 +138,10 @@ void ChromosomeNumberOptimizer::optimize()
         printLikelihoodVectorValues(vectorOfLikelohoods_);
         
     }
+    const string outPath = (ChromEvolOptions::resultsPathDir_ == "none") ? (ChromEvolOptions::resultsPathDir_) : (ChromEvolOptions::resultsPathDir_ + "//" + "likelihood.txt");
+   
     printRootFrequencies(vectorOfLikelohoods_[0]);
-    std::cout <<"*****  Final Optimized -logL *********"  <<endl;
+    cout <<"*****  Final Optimized -logL *********"  <<endl;
     printLikParameters(vectorOfLikelohoods_[0], 1);
     std:: cout << "final number of evaluations is : " << totalNumOfEvaluations << endl;
 
@@ -198,7 +200,7 @@ void ChromosomeNumberOptimizer::printLikelihoodVectorValues(std::vector <DRNonHo
 void ChromosomeNumberOptimizer::printRootFrequencies(DRNonHomogeneousTreeLikelihood &lik) const{
     std :: vector <double> rootFreq = lik.getRootFrequencies(0);
     for (int i = 0; i < (int)(rootFreq.size()); i++){
-        std :: cout << "root freq "<< i << " "<< rootFreq[i] <<endl;
+        std :: cout << "F["<< ((int)i + alphabet_->getMin()) << "] = "<< rootFreq[i] <<endl;
     }
 
 }
@@ -315,6 +317,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(DRNonHomogeneous
     optimizer->setConstraintPolicy(AutoParameter::CONSTRAINTS_AUTO);
     optimizer->getStopCondition()->setTolerance(tol* 0.1);
     optimizer->setMaximumNumberOfEvaluations(1000);
+    optimizer->setBrentOptimizer(static_cast<BrentOneDimension::Bracketing>(BrentBracketing_));
 
     unsigned int numOfEvaluations = 0;
     double currentLikelihood = tl->getValue();
@@ -391,7 +394,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(DRNo
     optimizer->setMaximumNumberOfEvaluations(100);
     std::cout <<"max chromosome number: " << alphabet_->getMax() << endl;
     if (BrentBracketing_ == 1){
-        optimizer->setBracketing(BrentOneDimension::BRACKET_INWARD, 100);
+        optimizer->setBracketing(BrentOneDimension::BRACKET_INWARD);
 
     }else if (BrentBracketing_ == 2){
         optimizer->setBracketing(BrentOneDimension::BRACKET_SIMPLE);
