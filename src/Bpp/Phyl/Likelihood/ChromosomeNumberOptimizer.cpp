@@ -84,11 +84,25 @@ void ChromosomeNumberOptimizer::setFixedRootFrequencies(const std::string &path,
             continue;
         }
         double freq_i = TextTools::toDouble(freq_i_str);
-        freqs.push_back(freq_i);
+        if (static_cast<unsigned int>(freqs.size()) >= modelSet->getNumberOfStates()){
+            if (freq_i > 0){
+                throw Exception("Invalid fixed frequencies file!");
+            }
+
+        }else{
+            freqs.push_back(freq_i);
+        }
+        
     }
     size_t nbStates = modelSet->getNumberOfStates();
+    if (freqs.size() < nbStates){
+        for (size_t s = freqs.size(); s < nbStates; s++){
+            freqs.push_back(0);
+        }
+        
+    }
     if (nbStates != freqs.size()){
-        throw "Invalid fixed frequencies file!";
+        throw Exception("Invalid fixed frequencies file!");
     }
     FixedFrequencySet* rootFreqs = new FixedFrequencySet(std::shared_ptr<const StateMap>(new CanonicalStateMap(modelSet->getStateMap(), false)), freqs);
     modelSet->setRootFrequencies(static_cast<FrequencySet*>(rootFreqs));

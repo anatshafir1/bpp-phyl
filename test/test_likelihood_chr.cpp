@@ -426,13 +426,7 @@ int main(int args, char **argv) {
         if (!ChromEvolOptions::simulateData_){
             mng->getCharacterData(ChromEvolOptions::characterFilePath_);
         }
-        if (ChromEvolOptions::simulateData_){
-            mng->getTree(ChromEvolOptions::treeFilePath_, ChromEvolOptions::treeLength_);
-
-        }else{
-            mng->getTree(ChromEvolOptions::treeFilePath_);
-        }       
-        
+        mng->getTree(ChromEvolOptions::treeFilePath_, ChromEvolOptions::treeLength_);       
         mng->runChromEvol();
 
         std::cout << "****** Max allowed chromosome number: "<< ChromEvolOptions::maxChrNum_ <<endl;
