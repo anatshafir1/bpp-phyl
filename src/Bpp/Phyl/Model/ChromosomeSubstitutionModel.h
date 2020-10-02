@@ -13,10 +13,11 @@
 #include <Bpp/Exceptions.h>
 
 #define lowerBoundOfRateParam 0.0
-#define lowerBoundOfExpParam -100.0
+#define lowerBoundOfExpParam -3.0
 #define lowerBoundBaseNumber 3
 #define upperBoundOfRateParam 100.0
 #define upperBoundLinearRateParam 5.0
+#define upperBoundExpParam 2.0
 #define IgnoreParam -999
 #define DemiEqualDupl -2
 #define EPSILON 2.22045e-016

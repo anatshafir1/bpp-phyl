@@ -47,6 +47,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <time.h>
 
 using namespace bpp;
 using namespace std;
@@ -420,6 +421,9 @@ int main(int args, char **argv) {
         return 0;
     }
     try{
+        time_t t1;
+        time(&t1);
+        time_t t2;
         BppApplication ChromEvol(args, argv, "ChromEvol");
         ChromEvolOptions::initAllParameters(ChromEvol);
         ChromosomeNumberMng* mng = new ChromosomeNumberMng();
@@ -428,10 +432,10 @@ int main(int args, char **argv) {
         }
         mng->getTree(ChromEvolOptions::treeFilePath_, ChromEvolOptions::treeLength_);       
         mng->runChromEvol();
-
+        time(&t2);
         std::cout << "****** Max allowed chromosome number: "<< ChromEvolOptions::maxChrNum_ <<endl;
+        std::cout <<"Total running time is: "<< static_cast<int>(t2-t1) <<endl;
         delete mng;
-
 
     }
     catch (exception& e)

@@ -31,9 +31,13 @@ void ChromosomeNumberOptimizer::initModels(vector<double> modelParams, double pa
         if (std::isnan(lik.getValue())){
             std::cout << "value is nan"<<endl;
         }
+        int countNumOfTrials = 0;
         
-        while (std::isinf(lik.getValue()))
+        while (((std::isinf(lik.getValue())) || (std::isnan(lik.getValue())))||(lik.getValue() < 0))
         {
+            if (countNumOfTrials > ChromEvolOptions::maxNumOfTrials_){
+                break;
+            }
             deleteTreeLikAssociatedAttributes(lik);
             rdist = new GammaDiscreteRateDistribution(1, 1.0);
             modelSet = new SubstitutionModelSet(alphabet_);
@@ -43,6 +47,7 @@ void ChromosomeNumberOptimizer::initModels(vector<double> modelParams, double pa
             lik = getLikelihoodFunction(tree_, vsc_, modelSet, rdist, calculateDerivatives, fixedRootFreqPath);
             
             lik.initialize();
+            countNumOfTrials ++;
 
         }
             
@@ -153,10 +158,11 @@ void ChromosomeNumberOptimizer::optimize()
         
     }
     const string outPath = (ChromEvolOptions::resultsPathDir_ == "none") ? (ChromEvolOptions::resultsPathDir_) : (ChromEvolOptions::resultsPathDir_ + "//" + "likelihood.txt");
+    const string outPathFreq = (ChromEvolOptions::resultsPathDir_ == "none") ? (ChromEvolOptions::resultsPathDir_) : (ChromEvolOptions::resultsPathDir_ + "//" + "inferred_rootFreq.txt");
    
-    printRootFrequencies(vectorOfLikelohoods_[0]);
+    printRootFrequencies(vectorOfLikelohoods_[0], outPathFreq);
     cout <<"*****  Final Optimized -logL *********"  <<endl;
-    printLikParameters(vectorOfLikelohoods_[0], 1);
+    printLikParameters(vectorOfLikelohoods_[0], 1, outPath);
     std:: cout << "final number of evaluations is : " << totalNumOfEvaluations << endl;
 
 }
@@ -180,24 +186,43 @@ bool ChromosomeNumberOptimizer::compareLikValues(DRNonHomogeneousTreeLikelihood 
     return (lik1.getValue() < lik2.getValue());
 }
 /***********************************************************************************/
-void ChromosomeNumberOptimizer::printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimized) const{
+void ChromosomeNumberOptimizer::printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimized, const string filePath) const{
     //double res = lik.getLikelihood();
+    ofstream outFile;
+    if (filePath != "none"){
+        outFile.open(filePath);
+    }
     if (optimized == 0){
         std:: cout << "Initial likelihood is : "<< lik.getValue() << endl;
     }else{
         std:: cout << "Optimized likelihood is : "<< lik.getValue() << endl;
+        if (filePath != "none"){
+            outFile << "Final optimized likelihood is: "<< lik.getValue() << endl;
+        }
     }
     
     std:: cout << "Parameters are:" << endl;
+    if (filePath != "none"){
+        outFile << "Optimized parameters are:"<<endl;
+    }
     ParameterList params = lik.getSubstitutionModelParameters();
     std::vector<std::string> paramsNames = params.getParameterNames();
     for (int i = 0; i < (int)(paramsNames.size()); i++){
         if (paramsNames[i] == "Chromosome.baseNum_1"){
             std::cout << paramsNames[i] << "value is "<< (int)(params.getParameterValue(paramsNames[i]))<<endl;
+            if (filePath != "none"){
+                outFile <<  paramsNames[i] << "value is "<< (int)(params.getParameterValue(paramsNames[i]))<<endl;
+            }
         }else{
             std::cout << paramsNames[i] << "value is "<< params.getParameterValue(paramsNames[i])<<endl;
+            if (filePath != "none"){
+                outFile << paramsNames[i] << "value is "<< params.getParameterValue(paramsNames[i])<<endl;
+            }
         }
         
+    }
+    if (filePath != "none"){
+        outFile.close();
     }
     std::cout <<"***"<<endl;
 
@@ -211,10 +236,20 @@ void ChromosomeNumberOptimizer::printLikelihoodVectorValues(std::vector <DRNonHo
 }
 
 /******************************************************************************/
-void ChromosomeNumberOptimizer::printRootFrequencies(DRNonHomogeneousTreeLikelihood &lik) const{
+void ChromosomeNumberOptimizer::printRootFrequencies(DRNonHomogeneousTreeLikelihood &lik, const string filePath) const{
+    ofstream outFile;
+    if (filePath != "none"){
+        outFile.open(filePath);
+    }
     std :: vector <double> rootFreq = lik.getRootFrequencies(0);
     for (int i = 0; i < (int)(rootFreq.size()); i++){
         std :: cout << "F["<< ((int)i + alphabet_->getMin()) << "] = "<< rootFreq[i] <<endl;
+        if (filePath != "none"){
+            outFile << "F["<< ((int)i + alphabet_->getMin()) << "] = "<< rootFreq[i] <<endl;
+        }
+    }
+    if (filePath != "none"){
+        outFile.close();
     }
 
 }

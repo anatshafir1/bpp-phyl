@@ -218,8 +218,8 @@ namespace bpp
             string findParameterNameInModel(string fullParameterName) const;
 
             //print functions
-            void printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimized) const;
-            void printRootFrequencies(DRNonHomogeneousTreeLikelihood &lik) const;
+            void printLikParameters(DRNonHomogeneousTreeLikelihood &lik, unsigned int optimized, const string path = "none") const;
+            void printRootFrequencies(DRNonHomogeneousTreeLikelihood &lik, const string path = "none") const;
             void printLikelihoodVectorValues(vector <DRNonHomogeneousTreeLikelihood> lik_vec) const;
 
     };

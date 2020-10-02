@@ -225,7 +225,7 @@ void ChromosomeSubstitutionModel::getRandomParameter(paramType type, double init
             double lowerBoundForRate = -randomParams[typeOfPairedRate]/(maxChrNum-1);
             randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForRate, upperBoundLinear);
           }else{
-            randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBound);      
+            randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBoundExpParam);      
           }
         }else{
           randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
@@ -298,12 +298,12 @@ void ChromosomeSubstitutionModel::updateConstRateParameter(double paramValueCons
 }
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateExpParameters(){
-  std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfExpParam, upperBoundOfRateParam, false, true);
+  std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfExpParam, upperBoundExpParam, false, true);
   if (lossR_ != IgnoreParam){
     if (loss_ != IgnoreParam){
       addParameter_(new Parameter("Chromosome.lossR", lossR_, interval));
     }else{
-      std::shared_ptr<IntervalConstraint> intervalNoConstRateLoss = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
+      std::shared_ptr<IntervalConstraint> intervalNoConstRateLoss = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundExpParam, false, true);
       addParameter_(new Parameter("Chromosome.lossR", lossR_, intervalNoConstRateLoss));
     }
 
@@ -312,7 +312,7 @@ void ChromosomeSubstitutionModel::updateExpParameters(){
     if (gain_ != IgnoreParam){
       addParameter_(new Parameter("Chromosome.gainR", gainR_, interval));
     }else{
-      std::shared_ptr<IntervalConstraint> intervalNoConstRateGain = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
+      std::shared_ptr<IntervalConstraint> intervalNoConstRateGain = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundExpParam, false, true);
       addParameter_(new Parameter("Chromosome.gainR", gainR_, intervalNoConstRateGain));
     }
     
@@ -322,7 +322,7 @@ void ChromosomeSubstitutionModel::updateExpParameters(){
       addParameter_(new Parameter("Chromosome.duplR", duplR_, interval));
       
     }else{
-      std::shared_ptr<IntervalConstraint> intervalNoConstRateDupl = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
+      std::shared_ptr<IntervalConstraint> intervalNoConstRateDupl = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundExpParam, false, true);
       addParameter_(new Parameter("Chromosome.duplR", duplR_, intervalNoConstRateDupl));
 
     }
