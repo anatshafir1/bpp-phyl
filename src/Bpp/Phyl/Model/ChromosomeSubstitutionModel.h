@@ -17,7 +17,7 @@
 #define lowerBoundBaseNumber 3
 #define upperBoundOfRateParam 100.0
 #define upperBoundLinearRateParam 5.0
-#define upperBoundExpParam 2.0
+#define upperBoundExpParam 4.6
 #define IgnoreParam -999
 #define DemiEqualDupl -2
 #define EPSILON 2.22045e-016
@@ -134,7 +134,7 @@ public:
 
 
 protected:
-  static void getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, rateChangeFunc rateFunc, int maxChrNum, unsigned int chrRange, map<int, double>& setOfFixedParameters);
+  static void getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, double upperBoundExp, rateChangeFunc rateFunc, int maxChrNum, unsigned int chrRange, map<int, double>& setOfFixedParameters);
   void updateParameters();
   void updateLinearParameters();
   void updateExpParameters();

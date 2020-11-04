@@ -239,7 +239,15 @@ void ChromosomeNumberMng::computeExpectations(DRNonHomogeneousTreeLikelihood* li
         expCalculator->printResults();
     }else{
         const string outFilePath = ChromEvolOptions::resultsPathDir_+"//"+ "expectations.txt";
+        const string outTreePath = ChromEvolOptions::resultsPathDir_+"//"+ "exp.tree";
         expCalculator->printResults(outFilePath);
+        TreeTemplate<Node>* expTree = expCalculator->getResultTree();
+        string tree_str = printTree(*expTree);
+        delete expTree;
+        ofstream treeFile;
+        treeFile.open(outTreePath);
+        treeFile << tree_str;
+        treeFile.close();
     }
     
 

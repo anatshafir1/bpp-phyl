@@ -56,6 +56,8 @@
 #include <utility>
 #include <string>
 
+#define THRESHOLD_EXP 0.5
+
 using namespace std;
 
 namespace bpp
@@ -77,6 +79,7 @@ namespace bpp
             map <int, double> expNumOfChanges_;    //node->expectation per branch induced by the node
             int jumpTypeMethod_;    // which function to use for type classification- 0 if deterministic, 1 if probabilistic
             map <pair<int, int>, map<int, double>> stateJumpTypeProb_; // key = jump states i->j. value = map of change type and probability
+            //string getNodeName(const TreeTemplate<Node>* tree, int nodeId);
         public:
             ComputeChromosomeTransitionsExp(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
             :jointProbabilitiesFatherSon_(jointProbabilitiesFatherSon), tree_(dynamic_cast<const TreeTemplate<Node>*>(&(lik->getTree()))), model_(dynamic_cast <const ChromosomeSubstitutionModel*>(lik->getSubstitutionModelSet()->getModel(0))), alphabet_(dynamic_cast <const ChromosomeAlphabet*>(lik->getAlphabet())),
@@ -126,6 +129,7 @@ namespace bpp
 
             void computeExpectationPerType();
             void printResults(const string path = "none");
+            TreeTemplate<Node>* getResultTree();
             // from previous used class
             void runIteration(int state);
             void computeExpectationAndPosterior();

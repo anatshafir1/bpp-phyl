@@ -197,68 +197,157 @@ void ComputeChromosomeTransitionsExp::computeExpectationPerType(){
 /*********************************************************************************/
 void ComputeChromosomeTransitionsExp::printResults(const string path) {
     ofstream outFile;
-    if (path != "none"){
-        outFile.open(path);
-
+    if (path == "none"){
+        throw Exception("ERROR!!! ComputeChromosomeTransitionsExp::printResults(): not provided file path!\n");
     }
-    (path == "none") ? (std::cout << "**********************\n"):(outFile << "**********************\n") ;
-    std::map <int, string> jumpTypeToString;
+    outFile.open(path);
+    vector<string> typeNames;
     std::vector<int> nodesIds = tree_->getNodesId();
-    for (size_t n = 0; n < nodesIds.size(); n++){  
-        string nodeName;   
+    for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i++){
+        string typeOfRate;
+        if (i == ChromosomeSubstitutionModel::GAIN_T){
+            typeOfRate = "GAIN";
+            typeNames.push_back(typeOfRate);
+        }else if (i == ChromosomeSubstitutionModel::LOSS_T){
+            typeOfRate = "LOSS";
+            typeNames.push_back(typeOfRate);
+        }else if (i == ChromosomeSubstitutionModel::DUPL_T){
+            typeOfRate = "DUPLICATION";
+            typeNames.push_back(typeOfRate);
+        }else if (i == ChromosomeSubstitutionModel::DEMIDUPL_T){
+            typeOfRate = "DEMI-DUPLICATION";
+            typeNames.push_back(typeOfRate);
+        }else if (i == ChromosomeSubstitutionModel::BASENUM_T){
+            typeOfRate = "BASENUMBER";
+            typeNames.push_back(typeOfRate);
+        }else{
+            typeOfRate = "TOMAX";
+            typeNames.push_back(typeOfRate);
+            continue;
+        }
+        outFile << "# Nodes with "<< typeOfRate << " events with expectation above "<<THRESHOLD_EXP<<":"<<endl;
+        
+        for (size_t n = 0; n < nodesIds.size(); n++){
+            if (expNumOfChangesPerBranch_[nodesIds[n]][i] > THRESHOLD_EXP){
+                string nodeName;
+                if (tree_->getRootId() == nodesIds[n]){
+                    continue;
+                }
+                if (tree_->isLeaf(nodesIds[n])){
+                    nodeName = tree_->getNodeName(nodesIds[n]);
+
+                }else{
+                    nodeName = "N" + std::to_string(nodesIds[n]);
+                }
+                outFile << nodeName <<": "<<expNumOfChangesPerBranch_[nodesIds[n]][i]<<endl; 
+            }
+        }
+        outFile <<"*************************\n";
+    }
+    outFile << "ALL EVENTS EXPECTATIONS PER NODE"<<endl;
+    outFile <<"NODE\t";
+    for (size_t i = 0; i < typeNames.size(); i++){
+        if (i == typeNames.size()-1){
+           outFile <<typeNames[i] << endl;
+           continue; 
+        }
+        outFile <<typeNames[i] <<"\t";
+    }
+    for (size_t n = 0; n < nodesIds.size(); n++){
+        string nodeName;
         if (tree_->getRootId() == nodesIds[n]){
             continue;
         }
         if (tree_->isLeaf(nodesIds[n])){
             nodeName = tree_->getNodeName(nodesIds[n]);
-
         }else{
             nodeName = "N" + std::to_string(nodesIds[n]);
-            
         }
-        (path == "none")? (std::cout << nodeName <<":\n"): (outFile << nodeName <<":\n");
+        outFile << nodeName <<"\t";
         for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i++){
-            string jumpType;
-            if (i == ChromosomeSubstitutionModel::GAIN_T){
-                jumpType = "\tGain Expectation: ";
-            }else if (i == ChromosomeSubstitutionModel::LOSS_T){
-                jumpType = "\tLoss Expectation: ";
-            }else if (i == ChromosomeSubstitutionModel::DUPL_T){
-                jumpType = "\tDupl Expectation: ";
-            }else if (i == ChromosomeSubstitutionModel::DEMIDUPL_T){
-                jumpType = "\tDemi-Dupl Expectation: ";
-            }else if (i == ChromosomeSubstitutionModel::BASENUM_T){
-                jumpType = "\tBaseNumber Expectation: ";
-            }else{
-                jumpType = "\tMaxChr Expectation: ";
-            }
-            if (path == "none"){
-                std::cout << jumpType << expNumOfChangesPerBranch_[nodesIds[n]][i] <<endl;
-                std::cout << "+++++" <<endl;
-
-            }else{
-                outFile << jumpType << expNumOfChangesPerBranch_[nodesIds[n]][i] <<endl;
-                outFile << "+++++"<<endl;
-            }
-
-            jumpTypeToString[i] = jumpType;
+            (i == ChromosomeSubstitutionModel::NUMTYPES-1) ? (outFile << expNumOfChangesPerBranch_[nodesIds[n]][i] <<endl) : (outFile <<expNumOfChangesPerBranch_[nodesIds[n]][i] <<"\t");
         }
-        
     }
-    (path == "none") ? (std::cout << "********************************************"<<endl) : (outFile << "********************************************"<<endl);
-    (path == "none")? (std::cout <<"Total Expectations:" << endl) : (outFile <<"Total Expectations:" << endl);
+    outFile << "*************************************"<<endl;
+    //get expected number of changes from root to tip
+    outFile << "EXPECTED NUMBER OF EVENTS FROM ROOT TO LEAF"<<endl;
+    outFile <<"NODE\t";
+    for (size_t i = 0; i < typeNames.size(); i++){
+        if (i == typeNames.size()-1){
+           outFile <<typeNames[i] << endl;
+           continue; 
+        }
+        outFile <<typeNames[i] <<"\t";
+    }
+    vector<int> leavesIds = tree_->getLeavesId();
+    for (size_t j = 0; j < leavesIds.size(); j++){
+        string leafName = tree_->getNodeName(leavesIds[j]);
+        outFile << leafName <<"\t";
+        for (int k = 0; k < ChromosomeSubstitutionModel::NUMTYPES; k++){
+            double expectedRootToTip = 0;
+            int currNodeId = leavesIds[j];
+            while (tree_->getRootId() != currNodeId){
+                expectedRootToTip += expNumOfChangesPerBranch_[currNodeId][k];
+                currNodeId = tree_->getFatherId(currNodeId);
+            }
+            if (k == ChromosomeSubstitutionModel::NUMTYPES-1){
+                outFile << expectedRootToTip <<endl;
+
+            }else{
+                outFile << expectedRootToTip <<"\t";
+            }
+                
+        }
+
+    }
+
+    outFile <<"*************************\n";
+    outFile <<"TOTAL EXPECTATIONS:\n";
     // print total expectations
     for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i++){
-        (path == "none")? (std::cout <<jumpTypeToString[i] << expNumOfChanges_[i] <<endl) : (outFile << jumpTypeToString[i] << expNumOfChanges_[i] <<endl);
-        if ((i == ChromosomeSubstitutionModel::MAXCHR_T) && (expNumOfChanges_[i] > 0)){
-            if (path == "none"){
-                std::cout <<"Note: Max chr transitions exist-> consider to increase the maximum possible chromosome mumber!"<<endl;
-            }else{
-                outFile << "Note: Max chr transitions exist-> consider to increase the maximum possible chromosome mumber!"<<endl;
-            }
-            
-        }
+        outFile << typeNames[i] <<": "<< expNumOfChanges_[i] <<endl;
+
     }
+    outFile.close();
+    
+
+}
+/*****************************************************************************************/
+TreeTemplate<Node>* ComputeChromosomeTransitionsExp::getResultTree(){
+
+    TreeTemplate<Node>* printTree = tree_->clone();
+    //string branchProp = "expectation";
+    vector <int> nodeIds = printTree->getNodesId();
+    for (size_t n = 0; n < nodeIds.size(); n++){
+        string nodeName;
+        if (printTree->getRootId() == nodeIds[n]){
+            nodeName = "N" + std::to_string(nodeIds[n]);
+            printTree->setNodeName(nodeIds[n], nodeName);
+            continue;
+        }else if (printTree->isLeaf(nodeIds[n])){
+            nodeName = printTree->getNodeName(nodeIds[n]);
+            
+        }else{
+            nodeName = "N" + std::to_string(nodeIds[n]);
+
+        }
+        string expected = "[";
+        for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i++){
+            if (i == ChromosomeSubstitutionModel::NUMTYPES - 1){
+                expected = expected + to_string(expNumOfChangesPerBranch_[nodeIds[n]][i]) + "]";
+            }else{
+                expected = expected + to_string(expNumOfChangesPerBranch_[nodeIds[n]][i])+ "\\";
+            }            
+
+        }
+        nodeName = nodeName + expected;
+        printTree->setNodeName(nodeIds[n], nodeName);
+
+        
+        
+    }
+
+    return printTree;
 
 }
 //****************************************************************************************/
