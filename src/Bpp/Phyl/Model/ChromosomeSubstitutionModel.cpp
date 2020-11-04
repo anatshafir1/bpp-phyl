@@ -443,7 +443,7 @@ void ChromosomeSubstitutionModel::updateMatrices(){
         if (i + 1 < maxChrNum+1){
             updateQWithGain(i, minChrNum);
         //loss
-        }if (i-1 >= 1){
+        }if (i-1 >= minChrNum){
             updateQWithLoss(i, minChrNum);
         //duplication         
         }if (2*i <= maxChrNum){
