@@ -225,6 +225,8 @@ std::map<int, std::map<size_t, VVdouble>> ChromosomeNumberMng::getMarginalAncest
     }
     
     std::map<int, std::map<size_t, VVdouble>> jointProbabilitiesFatherSon = ancr->getAllJointFatherNodeProbabilities();
+    vector<double> rootPosterior = ancr->getRootPosteriorProb();
+    printPosteriorProbNodes(jointProbabilitiesFatherSon, rootPosterior);
     delete ancr;
     return jointProbabilitiesFatherSon;
 
@@ -239,8 +241,12 @@ void ChromosomeNumberMng::computeExpectations(DRNonHomogeneousTreeLikelihood* li
         expCalculator->printResults();
     }else{
         const string outFilePath = ChromEvolOptions::resultsPathDir_+"//"+ "expectations.txt";
+        //const string outFilePathForNonAccounted = ChromEvolOptions::resultsPathDir_+"//"+ "exp_nonAccounted_branches.txt";
+        const string outFilePathHeuristics = ChromEvolOptions::resultsPathDir_+"//"+ "expectations_second_round.txt";
         const string outTreePath = ChromEvolOptions::resultsPathDir_+"//"+ "exp.tree";
         expCalculator->printResults(outFilePath);
+        expCalculator->runHeuristics();
+        expCalculator->printResults(outFilePathHeuristics);
         TreeTemplate<Node>* expTree = expCalculator->getResultTree();
         string tree_str = printTree(*expTree);
         delete expTree;
@@ -272,11 +278,55 @@ void ChromosomeNumberMng::runChromEvol(){
     getJointMLAncestralReconstruction(&lik_vec[0]);
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
     std::map<int, std::map<size_t, VVdouble>>  jointProbabilitiesFatherSon = getMarginalAncestralReconstruction(&lik_vec[0]);
+    
     //compute expectations
     computeExpectations(&lik_vec[0], jointProbabilitiesFatherSon, ChromEvolOptions::NumOfSimulations_);
     //Clear the vector of likelihoods entirely
     delete chrOptimizer;
 
+
+}
+/**************************************************************************************/
+void ChromosomeNumberMng::printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const{
+    if (ChromEvolOptions::resultsPathDir_ == "none"){
+        throw Exception("Error in ChromosomeNumberMng::printPosteriorProbNodes(): No results file path!\n");
+    }
+    const string outPath = ChromEvolOptions::resultsPathDir_+"//"+ "ancestorsProbs.txt";
+    ofstream outFile;
+    outFile.open(outPath);
+    vector<int> nodesIds = tree_->getNodesId();
+    outFile <<"NODE\t";
+    for (size_t i = 0; i < alphabet_->getSize(); i++){
+        (i < alphabet_->getSize()-1) ? (outFile << (int)i + alphabet_->getMin() << "\t") : (outFile << (int)i + alphabet_->getMin() <<"\n");
+    }
+    for (size_t n = 0; n < nodesIds.size(); n++){
+        int nodeId = nodesIds[n];
+        string nodeName;
+        if (tree_->isLeaf(nodeId)){
+            nodeName = tree_->getNodeName(nodeId);
+
+        }else{
+            nodeName = "N" + std::to_string(nodeId);
+        }
+        outFile << nodeName <<"\t";
+        if (tree_->getRootId() == nodeId){
+            for (size_t state = 0; state < alphabet_->getSize(); state++){
+                (state < alphabet_->getSize()-1) ? (outFile << rootPosterior[state] << "\t") : (outFile << rootPosterior[state] <<"\n");
+            }
+            continue;
+        }
+        
+        for (size_t son = 0; son < alphabet_->getSize(); son++){
+            double posteriorProb = 0;
+            for (size_t father = 0; father < alphabet_->getSize(); father++){
+                posteriorProb += jointProbabilitiesFatherSon[nodeId][0][son][father];
+
+            }
+            (son == alphabet_->getSize()-1) ? (outFile << posteriorProb <<"\n") : (outFile << posteriorProb <<"\t");          
+        }
+        
+    }
+    outFile.close();
 
 }
 /**************************************************************************************/

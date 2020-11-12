@@ -134,6 +134,23 @@ map<int, map<size_t, std::vector<double>>>* MarginalNonRevAncestralStateReconstr
   return postProbs;
 }
 //*****************************************************************************************************************************/
+vector <double> MarginalNonRevAncestralStateReconstruction::getRootPosteriorProb() const{
+  vector<double> nodePostProb;
+  for (size_t s = 0; s < nbStates_; s++){
+    double nodePostProbPerState = 0;
+    VVVdouble rootLikelihoods  = likelihood_->getLikelihoodData()->getRootLikelihoodArray();
+    double rootFreq = likelihood_->getRootFrequencies(0)[s];
+    for (size_t c = 0; c < nbClasses_; c++){
+      nodePostProbPerState += (rootFreq * rootLikelihoods[0][c][s] * r_[c]);
+    }
+    nodePostProbPerState /= l_[0];
+    nodePostProb.push_back(nodePostProbPerState);
+
+  }
+  //calculate for the root 
+  return nodePostProb;
+}
+//*****************************************************************************************************************************/
 
 const std::map<int, std::vector<size_t> > MarginalNonRevAncestralStateReconstruction::getAllAncestralStates() const{
   std::map<int, std::vector<size_t> > ancestors;

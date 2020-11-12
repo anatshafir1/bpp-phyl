@@ -143,6 +143,7 @@ namespace bpp{
             void printSimulatedEvoPath(TreeTemplate<Node> tree, const string outPath, RASiteSimulationResult* simResult) const;
             static string printTree(const TreeTemplate<Node>& tree, map <string, double>* mapNameProb = 0);
             static string nodeToParenthesis(const Node& node, map<string, double>* mapNameProb);
+            void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 
 

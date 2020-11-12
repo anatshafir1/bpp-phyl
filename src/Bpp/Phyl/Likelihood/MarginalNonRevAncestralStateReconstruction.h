@@ -196,6 +196,7 @@ class MarginalNonRevAncestralStateReconstruction
 
 
         const std::map<int, std::vector<size_t> > getAllAncestralStates() const;
+        vector <double> getRootPosteriorProb() const;
 
         
         
