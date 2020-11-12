@@ -469,9 +469,9 @@ void ComputeChromosomeTransitionsExp::runSimulations(int numOfSimulations){
     computeExpectationAndPosterior();
 }
 /*************************************************************************************/
-void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <int, double>* factorMultiply, map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals){
+void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals){
     double totalTimeTillJump = 0;
-    double maxBranch = (factorMultiply == 0)? (branchOrder_[branchOrder_.size()-1].getDistanceToFather()) : (branchOrder_[branchOrder_.size()-1].getDistanceToFather() * (*factorMultiply)[branchOrder_[branchOrder_.size()-1].getId()]);
+    double maxBranch = branchOrder_[branchOrder_.size()-1].getDistanceToFather();
     int currentState = beginState;
     vector <std::pair<int,int>> jumpsUntilNow;
     int indexOfSmallestNotUpdatedBranch = 0;
@@ -479,7 +479,7 @@ void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <int, dou
         double averageWaitingTime = 1 / waitingTimes_[currentState];
         totalTimeTillJump +=  RandomTools::randExponential(averageWaitingTime);
         for (size_t i = indexOfSmallestNotUpdatedBranch; i < branchOrder_.size(); i++){
-            double branchLength = (factorMultiply == 0) ? branchOrder_[i].getDistanceToFather() : branchOrder_[i].getDistanceToFather() * (*factorMultiply)[branchOrder_[i].getId()];
+            double branchLength = branchOrder_[i].getDistanceToFather();
             if (branchLength > totalTimeTillJump){
                 indexOfSmallestNotUpdatedBranch = (int)i;
                 break;
@@ -746,7 +746,7 @@ double ComputeChromosomeTransitionsExp::isNeededHeuristics(int nodeId, map <int,
 
 }
 /*************************************************************************************/
-void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals, map <int, double>* branchMultiplier, int iteration, const string filePath){
+void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, const string filePath){
     vector <double> cumulativeProbs;
     vector<Node> branches;
     for (size_t n = 0; n < branchOrder_.size(); n++){
@@ -759,9 +759,9 @@ void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <int, ve
         if (thresholdHeuristics >= THRESHOLD_HEURISTIC){
             Node node = branches[i];
             branchOrder_.erase(remove(branchOrder_.begin(), branchOrder_.end(), node), branchOrder_.end());
-            if (iteration > 0){
-                branchMultiplier->erase(nodeId);
-            }
+            //if (iteration > 0){
+                //branchMultiplier->erase(nodeId);
+            //}
 
         }else{
             if (iteration == 0){
@@ -802,21 +802,23 @@ void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <int, ve
 /*************************************************************************************/
 void ComputeChromosomeTransitionsExp::runHeuristics(const string FilePath){
     map <int, vector<pair<int, int>>> nonAccountedForBranchesFromFirstRun;
-    map <int, double> branchMultiplier;
+    //map <int, double> branchMultiplier;
     map <int, vector<pair<int,int>>> unAccountedNodesAndTerminals;
+    map <int, double> ratesPerState;
     for (int i = 0; i < MAX_ITER_HEURISTICS; i++){
-        updateNumNonAccountedBranches(&unAccountedNodesAndTerminals, &branchMultiplier, i, FilePath);
+        updateNumNonAccountedBranches(&unAccountedNodesAndTerminals, i, FilePath);
         if (i == 0){
             nonAccountedForBranchesFromFirstRun = unAccountedNodesAndTerminals;
         }
         if (branchOrder_.size() == 0){
             break;
         }
-        vector<int> initStates = setVectorOfInitStatesForHeuristics(unAccountedNodesAndTerminals);        
+        vector<int> initStates = setVectorOfInitStatesForHeuristics(unAccountedNodesAndTerminals);
+      
         for (int k = 0; k < (int)initStates.size(); k++){
-            updateBranchMultiplier(&branchMultiplier, initStates[k], i);
+            updateBranchLengths(initStates[k], i, &ratesPerState);
             for (int j = 0; j < MAX_SIM_HEURISTICS; j++){
-                runIteration(k, &branchMultiplier, &unAccountedNodesAndTerminals);
+                runIteration(k, &unAccountedNodesAndTerminals);
             }
         }
 
@@ -825,49 +827,63 @@ void ComputeChromosomeTransitionsExp::runHeuristics(const string FilePath){
     computeExpPerTypeHeuristics(nonAccountedForBranchesFromFirstRun);
 }
 /*************************************************************************************/
-void ComputeChromosomeTransitionsExp::updateBranchMultiplier(map <int, double>* factorMultipliers, int initState, int iteration){
+void ComputeChromosomeTransitionsExp::updateBranchLengths(int initState, int iteration, map <int, double>* ratesPerState){
     double sumOfRates = 0;
-    vector<double> rates;
-    rates.push_back(model_->getRate(initState, model_->getConstDupl(), model_->getChangeRateDupl()));
-    rates.push_back(model_->getDemiDupl());
-    //base number
-    double baseNumRate = 0;
-    int baseNumber = model_->getBaseNumber();
-    // we would like to take into consideration the overall rate for a base number transition from the current state
-    if (baseNumber != IgnoreParam){
-        for (int i = initState + baseNumber; i < model_->getMax()-model_->getMin(); i+=baseNumber){
-            if ((i - initState) > (int)(model_->getMaxChrRange())){
-                break;
+    if (iteration == 0){
+        vector<double> rates;
+        //dupl
+        rates.push_back(model_->getRate(initState, model_->getConstDupl(), model_->getChangeRateDupl()));
+        //demi-dupl
+        rates.push_back(model_->getDemiDupl());
+        //base number
+        double baseNumRate = 0;
+        int baseNumber = model_->getBaseNumber();
+        // we would like to take into consideration the overall rate for a base number transition from the current state
+        if (baseNumber != IgnoreParam){
+            for (int i = initState + baseNumber; i < model_->getMax()-model_->getMin(); i+=baseNumber){
+                if ((i - initState) > (int)(model_->getMaxChrRange())){
+                    break;
+                }
+                baseNumRate += model_->getBaseNumR();
+
             }
-            baseNumRate += model_->getBaseNumR();
+        }
+        (baseNumber == IgnoreParam) ? (rates.push_back(model_->getBaseNumR())) : (rates.push_back(baseNumRate));
+        //gain
+        rates.push_back(model_->getRate(initState, model_->getConstGain(), model_->getChangeRateGain()));
+        //loss
+        rates.push_back(model_->getRate(initState, model_->getConstLoss(), model_->getChangeRateLoss()));
+        for (size_t i = 0; i < rates.size(); i++){
+            if (rates[i] == IgnoreParam){
+                continue;
+            }
+            sumOfRates += rates[i];
 
         }
-    }
-    (baseNumber == IgnoreParam) ? (rates.push_back(model_->getBaseNumR())) : (rates.push_back(baseNumRate));
-    rates.push_back(model_->getRate(initState, model_->getConstGain(), model_->getChangeRateGain()));
-    rates.push_back(model_->getRate(initState, model_->getConstLoss(), model_->getChangeRateLoss()));
-    for (size_t i = 0; i < rates.size(); i++){
-        if (rates[i] == IgnoreParam){
-            continue;
-        }
-        sumOfRates += rates[i];
+        (*ratesPerState)[initState] = sumOfRates;
 
     }
+
 
     //multiplying by factor
     for (size_t k = 0; k < branchOrder_.size(); k++){
-        int nodeId = branchOrder_[k].getId();
-        (*factorMultipliers)[nodeId] = (sumOfRates * branchOrder_[k].getDistanceToFather() >= 1) ? 1.0 : (sumOfRates/(sumOfRates * branchOrder_[k].getDistanceToFather()));
-        if (iteration != 0){
-            (*factorMultipliers)[nodeId] *= (iteration * BRANCH_MULTIPLIER_FACTOR);
+        if (iteration == 0){
+            if ((*ratesPerState)[initState] * branchOrder_[k].getDistanceToFather() < 1){
+                branchOrder_[k].setDistanceToFather(1/(*ratesPerState)[initState]);
+            }
+        }else{
+            if (tree_->getDistanceToFather(branchOrder_[k].getId()) * (*ratesPerState)[initState] >= 1){
+                branchOrder_[k].setDistanceToFather(tree_->getDistanceToFather(branchOrder_[k].getId()) * BRANCH_MULTIPLIER_FACTOR * iteration);
 
+            }else{
+                branchOrder_[k].setDistanceToFather((1/(*ratesPerState)[initState]) * (BRANCH_MULTIPLIER_FACTOR * iteration));
+            }
+            
         }
-
-        
-             
+         
 
     }
-    
+    sort(branchOrder_.begin(), branchOrder_.end(), compareBranches);
 
 }
 /*************************************************************************************/

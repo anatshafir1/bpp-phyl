@@ -87,8 +87,8 @@ namespace bpp
             double getCumulativeProbability(int nodeId, vector <pair<int, int>>* terminalsToAccount = 0);
             vector <int> setVectorOfInitStatesForHeuristics(map <int, vector<pair<int,int>>>& unAccountedNodesAndTerminals) const; // get the init states for which we have to rerun the simulation
             //string getNodeName(const TreeTemplate<Node>* tree, int nodeId);
-            void updateNumNonAccountedBranches(map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals, map <int, double>* branchMultiplier, int iteration, const string FilePath);
-            void updateBranchMultiplier(map <int, double>* factorMultipliers, int initState, int iteration);
+            void updateNumNonAccountedBranches(map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, const string FilePath);
+            void updateBranchLengths(int initState, int iteration, map <int, double>* ratesPerState);
             void getPosteriorAndExpForNonAccountedFor(map <int, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
             void computeExpPerTypeHeuristics(map <int, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
             bool isMaxStateValid(int prevState) const;
@@ -144,7 +144,7 @@ namespace bpp
             void printResults(const string path = "none");
             TreeTemplate<Node>* getResultTree();
             // from previous used class
-            void runIteration(int state, map <int, double>* factorMultiply = 0, map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals = 0);
+            void runIteration(int state, map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals = 0);
             void computeExpectationAndPosterior();
             void runSimulations(int numOfSimulations);
             static bool compareBranches(Node& node1, Node& node2);//sorting function to sort the branches in ascending order of length
