@@ -35,7 +35,7 @@ void ChromosomeNumberOptimizer::initModels(vector<double> modelParams, double pa
         
         while (((std::isinf(lik.getValue())) || (std::isnan(lik.getValue())))||(lik.getValue() < 0))
         {
-            if (countNumOfTrials > ChromEvolOptions::maxNumOfTrials_){
+            if (countNumOfTrials >= ChromEvolOptions::maxNumOfTrials_){
                 break;
             }
             deleteTreeLikAssociatedAttributes(lik);
