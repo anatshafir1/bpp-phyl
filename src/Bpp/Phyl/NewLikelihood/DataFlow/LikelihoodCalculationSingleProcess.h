@@ -86,6 +86,7 @@ namespace bpp {
   class ProcessTree;
   class ForwardLikelihoodTree;
   class BackwardLikelihoodTree;
+  class FwLikMLAncestralReconstruction;
 
   //using RowLik = Eigen::Matrix<double, 1, Eigen::Dynamic>;
   //using MatrixLik = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
@@ -186,6 +187,8 @@ namespace bpp {
        */
 
       std::shared_ptr<SiteLikelihoodsTree> speciesLt;
+
+      std::shared_ptr <FwLikMLAncestralReconstruction> acr;
 
     };
 
@@ -346,7 +349,9 @@ namespace bpp {
      */
     void setWeightedRootFrequencies(std::vector<double> freqs);
 
-    double makeJointMLAncestralReconstruction();
+    void makeJointMLAncestralReconstruction();
+    void makeJointMLAncrTree();
+    double makeJointMLAncestralReconstructionTest();
 
     
 
@@ -705,6 +710,25 @@ namespace bpp {
 
     std::shared_ptr<ForwardLikelihoodTree> getForwardLikelihoodTree(size_t nCat);
 
+    ConditionalLikelihoodRef getLikelihoodsAtNodeMLAncestral(uint nodeId, bool shrunk = false)
+    {
+      if (!(condLikelihoodTree_ && condLikelihoodTree_->hasNode(nodeId)))
+        makeLikelihoodAncestralReconstructionAtNode_(nodeId);
+
+      auto vv = condLikelihoodTree_->getNode(nodeId);
+
+      return shrunk?vv:expandMatrix(vv);
+    }
+
+    ValueRef<RowLik> getLikelihoodAtNodeFromRoot(uint nodeId, bool shrunk = false){
+      auto rootVal = getLikelihoodsAtNodeMLAncestral(nodeId, shrunk);
+      size_t nbDistSite = getNumberOfDistinctSites();
+      auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(getContext_(), {rFreqs_}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
+      auto cond = MatrixArgMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
+                           getContext_(), {rootFreqs, rootVal}, RowVectorDimension (nbDistSite));
+      return shrunk?cond:expandVector(cond);
+    }
+
   private:
     void setPatterns_();
       
@@ -754,6 +778,8 @@ namespace bpp {
     void makeLikelihoodsAtDAGNode_(uint nodeId);
 
     std::shared_ptr<SiteLikelihoodsTree> getSiteLikelihoodsTree_(size_t nCat);
+
+    void makeLikelihoodAncestralReconstructionAtNode_(uint nodeId);
 
   };
 

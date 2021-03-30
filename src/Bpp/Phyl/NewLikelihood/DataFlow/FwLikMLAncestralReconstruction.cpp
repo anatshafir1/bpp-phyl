@@ -4,7 +4,7 @@ using namespace bpp;
 using namespace std;
 
 
-ValueRef<double> FwLikMLAncestralReconstruction::initialize(const AlignedValuesContainer& sites){
+void FwLikMLAncestralReconstruction::initialize(const AlignedValuesContainer& sites){
   nbSites_ = Eigen::Index(sites.getNumberOfSites ()); 
   likelihoodMatrixDim_ = conditionalLikelihoodDimension (nbState_, nbSites_);
   ConditionalLikelihoodForwardRef bidonRoot=ConstantZero<MatrixLik>::create(context_, MatrixDimension(1,1));
@@ -13,24 +13,34 @@ ValueRef<double> FwLikMLAncestralReconstruction::initialize(const AlignedValuesC
   rootAt(bidonRoot); // for construction, temporary top node for new edges
   auto n = makeForwardComputationAtRoot (processTree_->getRoot(), sites);
   auto sonsMulNode = n;
-  std::cerr << "   -> N : " <<  getNodeIndex(sonsMulNode) << "; " << sonsMulNode->getTargetValue() << std::endl;
+  //std::cerr << "   -> N : " <<  getNodeIndex(sonsMulNode) << "; " << sonsMulNode->getTargetValue() << std::endl;
   rootAt(sonsMulNode);
   deleteNode(bidonRoot);
 
-  RootConditionalLikelihoodsRef rootNode;
-  auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(context_, {rFreqs_}, likelihoodMatrixDim_);
-  std::cerr << "   -> Root frequencies : "<< " " << rootFreqs->getTargetValue() << std::endl;
-  rootNode = MatrixMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
-                           context_, {rootFreqs, sonsMulNode}, RowVectorDimension (nbSites_));
-  std::cerr << "   rootNode->likelihood: " << "; " << rootNode->getTargetValue() << std::endl;
-  ValueRef<double> val;
-  val = SumOfLogarithms<RowLik>::create (context_, {rootNode}, RowVectorDimension (Eigen::Index (nbSites_)));
-  std::cerr << "   final loglikelihood: " << "; " << val->getTargetValue() << std::endl;
-  return val;
+  //RootConditionalLikelihoodsRef rootNode;
+  //auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(context_, {rFreqs_}, likelihoodMatrixDim_);
+  //std::cerr << "   -> Root frequencies : "<< " " << rootFreqs->getTargetValue() << std::endl;
+  //rootNode = MatrixMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
+                           //context_, {rootFreqs, sonsMulNode}, RowVectorDimension (nbSites_));
+
+  // just for debug:
+  //auto vec = rootFreqs->getTargetValue().array() * sonsMulNode->getTargetValue().array();
+  //cout << "****" << endl;
+  //cout << "The multiplication at the root: " << endl;
+  //cout << vec << endl;
+  //cout <<"*****" << endl;
+  
+  //////////////////////////////////////////
+  //std::cerr << "   rootNode->likelihood: " << "; " << rootNode->getTargetValue() << std::endl;
+  //std::cerr << "   rootNode->likelihood: " << "; " << rootNode->getTargetValue() << std::endl;
+  //ValueRef<double> val;
+  //val = SumOfLogarithms<RowLik>::create (context_, {rootNode}, RowVectorDimension (Eigen::Index (nbSites_)));
+  //std::cerr << "   final loglikelihood: " << "; " << val->getTargetValue() << std::endl;
+  //return val;
 }
 
 
-ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikelihoodAtNode (shared_ptr<ProcessNode> processNode, const AlignedValuesContainer & sites)
+ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikelihoodAtNode (shared_ptr<ProcessNode> processNode, const AlignedValuesContainer & sites, ConditionalLikelihoodForwardRef* forwardEdge)
 {
   // if (processTree_->getRootIndex() == processTree_->getNodeIndex(processNode)){
   //   return setRootFrequencies(processNode, sites);
@@ -58,6 +68,11 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
       edge->setTransitionMatrix(transitionMatrix);
       forwardNode = ForwardTransition::create (
         context_, {transitionMatrix, leafNode}, likelihoodMatrixDim_);
+      if (forwardEdge){
+        *forwardEdge = MatrixArgMaxProduct<MatrixLik, MatrixLik, MatrixLik>::create (
+          context_, {transitionMatrix, leafNode}, likelihoodMatrixDim_);
+      }
+      
     }
     if (!hasNodeIndex(forwardNode)) 
     {
@@ -69,10 +84,13 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
     // node
     std::vector<ConditionalLikelihoodForwardRef> depE(childBranches.size());
     NodeRefVec depsForSonsMul(childBranches.size());
+    std::vector<ConditionalLikelihoodForwardRef> sonsEdges(childBranches.size());
     
     for (size_t i = 0; i < childBranches.size (); ++i) {
-        depE[i] =  makeForwardLikelihoodAtNode(processTree_->getSon(childBranches[i]), sites);
+        ConditionalLikelihoodForwardRef sonEdge;
+        depE[i] =  makeForwardLikelihoodAtNode(processTree_->getSon(childBranches[i]), sites, &sonEdge);
         depsForSonsMul[i] = depE[i];
+        sonsEdges[i] = sonEdge;
         
     }
     // L_son1(j) * L_son2(j) --> j is the state of the father
@@ -87,17 +105,41 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
     // The only difference is that instead of summation, MaxJointLik uses the operator max().
     forwardNode = MaxJointLik::create (
         context_, {transitionMatrix, sonsMulNode}, likelihoodMatrixDim_);
+    if (forwardEdge){
+      *forwardEdge = MatrixArgMaxProduct<MatrixLik, MatrixLik, MatrixLik>::create (
+        context_, {transitionMatrix, sonsMulNode}, likelihoodMatrixDim_);
+    }
+
 
     if (!hasNodeIndex(forwardNode)) 
     {
       setNodeIndices(forwardNode, processNode, spIndex);
-      linkNodes(forwardNode, childBranches, depE);
-      
     }
-    std::cerr << "   -> son1 of N "<< getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[0]) << "; " << depE[0]->getTargetValue() << std::endl; 
-    std::cerr << "   -> son2 of N " << getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[1]) << "; " << depE[1]->getTargetValue() << std::endl;  
+    for (size_t n = 0; n < sonsEdges.size(); n++){
+      if (!hasEdgeIndex(sonsEdges[n])){
+        link (forwardNode, depE[n], sonsEdges[n]);
+        setEdgeIndex(sonsEdges[n], processTree_->getEdgeIndex(childBranches[n]));
+        auto spIndexEdge = childBranches[n]->getSpeciesIndex();
+    
+        if (brlen)
+        {
+          if (mapEdgesIndexes_.find(spIndexEdge)==mapEdgesIndexes_.end())
+            mapEdgesIndexes_[spIndexEdge]=DAGindexes();
+          mapEdgesIndexes_[spIndexEdge].push_back(getEdgeIndex(sonsEdges[n]));
+        }
+      }
+        
+
+    }
+      //linkNodes(forwardNode, childBranches, depE);
+      
+    
+    //std::cerr << "   -> son1 of N "<< getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[0]) << "; " << depE[0]->getTargetValue() << std::endl; 
+    //std::cerr << "   -> son2 of N " << getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[1]) << "; " << depE[1]->getTargetValue() << std::endl;  
   }
-  std::cerr << "   -> N " << getNodeIndex(forwardNode) << "; " << forwardNode->getTargetValue() << std::endl;
+  std::cerr <<  " -> N " << getNodeIndex(forwardNode) << " same as  -> N " << processTree_->getNodeIndex(processNode) << std::endl;
+
+  //std::cerr << "   -> N " << getNodeIndex(forwardNode) << "; " << forwardNode->getTargetValue() << std::endl;
   
   return(forwardNode);
 }
@@ -123,17 +165,35 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardCompu
   const auto childBranches = processTree_->getBranches (processNode);
   auto spIndex=processNode->getSpeciesIndex();
   std::vector<ConditionalLikelihoodForwardRef> depE(childBranches.size());
+  std::vector<ConditionalLikelihoodForwardRef> sonsEdges(childBranches.size());
   NodeRefVec depsForSonsMul(childBranches.size());
     
   for (size_t i = 0; i < childBranches.size (); ++i) {
-    depE[i] =  makeForwardLikelihoodAtNode(processTree_->getSon(childBranches[i]), sites);
-    depsForSonsMul[i] = depE[i];       
+    ConditionalLikelihoodForwardRef sonEdge;
+    depE[i] =  makeForwardLikelihoodAtNode(processTree_->getSon(childBranches[i]), sites, &sonEdge);
+    depsForSonsMul[i] = depE[i];
+    sonsEdges[i] = sonEdge;      
   }
   auto sonsMulNode = SpeciationForward::create(context_, std::move(depsForSonsMul),
                                                           likelihoodMatrixDim_);
 
   setNodeIndices(sonsMulNode, processNode, spIndex);
-  linkNodes(sonsMulNode, childBranches, depE);
+  for (size_t n = 0; n < sonsEdges.size(); n++){
+    if (!hasEdgeIndex(sonsEdges[n])){
+      link (sonsMulNode, depE[n], sonsEdges[n]);
+      setEdgeIndex(sonsEdges[n], processTree_->getEdgeIndex(childBranches[n]));
+      auto spIndexEdge = childBranches[n]->getSpeciesIndex();
+    
+      //if (brlen)
+      //{
+      if (mapEdgesIndexes_.find(spIndexEdge)==mapEdgesIndexes_.end())
+        mapEdgesIndexes_[spIndexEdge]=DAGindexes();
+      mapEdgesIndexes_[spIndexEdge].push_back(getEdgeIndex(sonsEdges[n]));
+      //}
+    }       
+
+  }
+  //linkNodes(sonsMulNode, childBranches, depE);
   return sonsMulNode;
   // RootConditionalLikelihoodsRef rootNode;
   // auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(context_, {rFreqs_}, likelihoodMatrixDim_);

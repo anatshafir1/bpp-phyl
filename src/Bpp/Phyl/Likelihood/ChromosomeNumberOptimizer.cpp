@@ -193,11 +193,37 @@ void ChromosomeNumberOptimizer::optimize()
     SubstitutionProcess* subProcess = subProSim->clone();
     Context context;
     auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *subProcess, rootFreqs);
-    double likVal = likAncestralRec->makeJointMLAncestralReconstruction();
+    likAncestralRec->makeJointMLAncestralReconstruction();
+    JointMLAncestralReconstruction* ancr = new JointMLAncestralReconstruction(likAncestralRec);
+    ancr->init();
+    std::map<uint, std::vector<size_t>> ancestors = ancr->getAllAncestralStates();
+    std::map<uint, std::vector<size_t>>::iterator it = ancestors.begin();
+    std::cout <<"******* ******* ANCESTRAL RECONSTRUCTION ******* ********" << endl;
+    while(it != ancestors.end()){
+        uint nodeId = it->first;
+        if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
+            cout << "   ----> N-" << nodeId <<" states are: " << endl;
+            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
+                cout << "           state: "<< ancestors[nodeId][s] << endl;
+            }
+        }else{
+            cout << "   ----> " << (tree_->getNode(nodeId))->getName() << " states are: " << endl;
+            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
+                cout << "           state: "<< ancestors[nodeId][s] << endl;
+            }
+        }
+        it++;
+    }
+
+    delete ancr;
+
+   
+
+    //double likVal = likAncestralRec->makeJointMLAncestralReconstructionTest();
     std::cout << "********************************************\n";
     std::cout << " * * * * * * * * * * * * * * * * * * * * *\n";
     std::cout << "********************************************\n";
-    std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
+    //std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
     delete subProSim;
 
 }

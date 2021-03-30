@@ -153,6 +153,10 @@ namespace bpp {
   template class MatrixMaxProduct<RowLik, RowLik, MatrixLik>;
   template class MatrixMaxProduct<MatrixLik, Transposed<MatrixLik>, MatrixLik>;
 
+  template class MatrixArgMaxProduct<MatrixLik, MatrixLik, MatrixLik>;
+  template class MatrixArgMaxProduct<RowLik, RowLik, MatrixLik>;
+  template class MatrixArgMaxProduct<MatrixLik, Transposed<MatrixLik>, MatrixLik>;
+
   template class ShiftDelta<double>;
   template class ShiftDelta<VectorLik>;
   template class ShiftDelta<RowLik>;
