@@ -259,6 +259,8 @@ namespace bpp {
     std::shared_ptr<NumericMutable<uint>> factorNode_;
     /* indicates whether the root likelihoods should be determined according to likelihood */
     bool weightedRootFrequencies_;
+    /* indicates whether ancestral reconstruction should be performed instead of standard likelihood calculation */
+    bool ancestralReconstruction_;
     
   public:
     LikelihoodCalculationSingleProcess(Context & context,
@@ -350,8 +352,7 @@ namespace bpp {
     void setWeightedRootFrequencies(std::vector<double> freqs);
 
     void makeJointMLAncestralReconstruction();
-    void makeJointMLAncrTree();
-    double makeJointMLAncestralReconstructionTest();
+    //void makeJointMLAncrTree();
 
     
 
@@ -710,18 +711,18 @@ namespace bpp {
 
     std::shared_ptr<ForwardLikelihoodTree> getForwardLikelihoodTree(size_t nCat);
 
-    ConditionalLikelihoodRef getLikelihoodsAtNodeMLAncestral(uint nodeId, bool shrunk = false)
-    {
-      if (!(condLikelihoodTree_ && condLikelihoodTree_->hasNode(nodeId)))
-        makeLikelihoodAncestralReconstructionAtNode_(nodeId);
+    // ConditionalLikelihoodRef getLikelihoodsAtNodeMLAncestral(uint nodeId, bool shrunk = false)
+    // {
+    //   if (!(condLikelihoodTree_ && condLikelihoodTree_->hasNode(nodeId)))
+    //     makeLikelihoodAncestralReconstructionAtNode_(nodeId);
 
-      auto vv = condLikelihoodTree_->getNode(nodeId);
+    //   auto vv = condLikelihoodTree_->getNode(nodeId);
 
-      return shrunk?vv:expandMatrix(vv);
-    }
+    //   return shrunk?vv:expandMatrix(vv);
+    // }
 
     ValueRef<RowLik> getLikelihoodAtNodeFromRoot(uint nodeId, bool shrunk = false){
-      auto rootVal = getLikelihoodsAtNodeMLAncestral(nodeId, shrunk);
+      auto rootVal = getLikelihoodsAtNode(nodeId, shrunk);
       size_t nbDistSite = getNumberOfDistinctSites();
       auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(getContext_(), {rFreqs_}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
       auto cond = MatrixArgMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
@@ -779,7 +780,7 @@ namespace bpp {
 
     std::shared_ptr<SiteLikelihoodsTree> getSiteLikelihoodsTree_(size_t nCat);
 
-    void makeLikelihoodAncestralReconstructionAtNode_(uint nodeId);
+    //void makeLikelihoodAncestralReconstructionAtNode_(uint nodeId);
 
   };
 

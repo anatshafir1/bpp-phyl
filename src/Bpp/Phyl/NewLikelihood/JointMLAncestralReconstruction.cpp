@@ -61,7 +61,7 @@ std::vector<size_t> JointMLAncestralReconstruction::getAncestralStatesForNode(ui
         }
 
     }else{
-        auto nodeReconstruction = likelihood_->getLikelihoodsAtNodeMLAncestral(nodeId)->getTargetValue();
+        auto nodeReconstruction = likelihood_->getLikelihoodsAtNode(nodeId)->getTargetValue();
         //std::cerr <<  " ->  N " << nodeId <<": " << nodeReconstruction << std::endl;
         uint fatherId = (*fathers_).at(nodeId);
         
