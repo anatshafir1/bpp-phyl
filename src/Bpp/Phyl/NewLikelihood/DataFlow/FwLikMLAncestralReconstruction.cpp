@@ -96,7 +96,7 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
     // L_son1(j) * L_son2(j) --> j is the state of the father
     auto sonsMulNode = SpeciationForward::create(context_, std::move(depsForSonsMul),
                                                           likelihoodMatrixDim_);
-    auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel> (context_, {model, brlen, zero, nMod}, transitionMatrixDimension (size_t(nbState_)));
+    auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel> (context_, {model, brlen, zero, nMod, factorNode_}, transitionMatrixDimension (size_t(nbState_)));
       
     edge->setTransitionMatrix(transitionMatrix);
 

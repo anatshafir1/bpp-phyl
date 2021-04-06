@@ -22,19 +22,21 @@ namespace bpp{
             ValueRef<RowLik> rFreqs_;
             Eigen::Index nbState_;
             Eigen::Index nbSites_;
+            ValueRef<uint> factorNode_;
             std::map<Speciesindex, DAGindexes> mapNodesIndexes_; // For nodes that bring
             //information (ie not the empty ones)
 
             std::map<Speciesindex, DAGindexes> mapEdgesIndexes_; // For edges that bring
             //information (ie not the empty ones)
+            
 
 
         public:
             FwLikMLAncestralReconstruction(Context& c, 
                           std::shared_ptr<ProcessTree> tree,
-                          const StateMap& statemap, ValueRef<RowLik> rootFreqs) : DAClass(), context_(c), processTree_(tree), likelihoodMatrixDim_(),
+                          const StateMap& statemap, ValueRef<RowLik> rootFreqs, ValueRef<uint> factorNode) : DAClass(), context_(c), processTree_(tree), likelihoodMatrixDim_(),
                                                          statemap_(statemap), rFreqs_(rootFreqs), nbState_(Eigen::Index(statemap.getNumberOfModelStates())),
-                                                        nbSites_(0){
+                                                        nbSites_(0), factorNode_(factorNode){
             }
             ConditionalLikelihoodForwardRef makeForwardComputationAtRoot(std::shared_ptr<ProcessNode> node, const AlignedValuesContainer & sites);
 
