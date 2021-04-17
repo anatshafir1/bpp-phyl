@@ -1987,8 +1987,8 @@ namespace bpp {
     }
 
     NodeRef derive (Context & c, const Node_DF & node) final {
-      //Do not care about the derivative (this node is for ancestral reconstuction)
-      return ConstantOne<R>::create (c, targetDimension_);     
+      throw Exception ("DataFlowCWiseComputing: MatrixMaxProduct has no derivative!");
+      //return ConstantOne<R>::create (c, targetDimension_);     
     }
 
     NodeRef recreate (Context & c, NodeRefVec && deps) final {
@@ -2118,8 +2118,8 @@ namespace bpp {
     }
 
     NodeRef derive (Context & c, const Node_DF & node) final {
-      //Do not care about the derivative (this node is for ancestral reconstuction)
-      return ConstantOne<R>::create (c, targetDimension_);     
+      throw Exception ("DataFlowCWiseComputing: MatrixArgMaxProduct has no derivative!");
+      //return ConstantOne<R>::create (c, targetDimension_);     
     }
 
     NodeRef recreate (Context & c, NodeRefVec && deps) final {
@@ -2134,9 +2134,9 @@ namespace bpp {
       const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
       size_t nrows = x0.rows();
       size_t ncols = x1.cols();
-      std::cerr << "***** ARG MAX ******" << std::endl;
-      std::cerr << "      ARG x0= " << x0 << std::endl;
-      std::cerr << "      ARG x1= " << x1 << std::endl;
+      //std::cerr << "***** ARG MAX ******" << std::endl;
+      //std::cerr << "      ARG x0= " << x0 << std::endl;
+      //std::cerr << "      ARG x1= " << x1 << std::endl;
       result = zero (targetDimension_);
       if (x0.cols() == 1){
         nrows = 1;
@@ -2151,8 +2151,8 @@ namespace bpp {
             //std::cerr << "y1= " << y1 << std::endl;
             //std::cerr << "y2= " << y2 << std::endl;
             auto prod = y1 * y2;
-            std::cerr << "!!! Product !!!" << std::endl;
-            std::cerr << prod << std::endl;
+            //std::cerr << "!!! Product !!!" << std::endl;
+            //std::cerr << prod << std::endl;
 
 
             //std::cerr << "prod= " << prod << std::endl;
@@ -2168,8 +2168,8 @@ namespace bpp {
             //std::cerr << "y1= " << y1 << std::endl;
             //std::cerr << "y2= " << y2 << std::endl;
             auto prod = y1 * y2;
-            std::cerr << "!!! Product !!!" << std::endl;
-            std::cerr << prod << std::endl;
+            //std::cerr << "!!! Product !!!" << std::endl;
+            //std::cerr << prod << std::endl;
             //std::cerr << "prod= " << prod << std::endl;
             //std::cerr << "max= " << prod.maxCoeff() << std::endl;
             prod.maxCoeff(&pos);
