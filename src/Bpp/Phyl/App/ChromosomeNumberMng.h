@@ -66,6 +66,7 @@
 //from bpp-phyl
 #include <Bpp/Phyl/TreeTemplate.h>
 #include <Bpp/Phyl/Tree/PhyloTree.h>
+#include <Bpp/Phyl/Tree/PhyloTreeTools.h>
 #include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
 #include <Bpp/Phyl/Io/IoTree.h>
 #include <Bpp/Phyl/TreeTemplateTools.h>
@@ -135,11 +136,13 @@ namespace bpp{
             //void runTest();
             void runChromEvol();
             ChromosomeNumberOptimizer* optimizeLikelihoodMultiStartPoints() const;
-            // void getJointMLAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
+            void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const;
             // map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             // void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int numOfSimulations) const;
             // void simulateData();
             // void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
+            void printTreeWithStates(PhyloTree tree, std::map<uint, std::vector<size_t>> &ancestors, const string &filePath) const;
+            void convertNodesNames(PhyloTree &tree, uint nodeId, std::map<uint, std::vector<size_t>> &ancestors) const;
 
         protected:
             VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* initialAlpha);
@@ -149,8 +152,8 @@ namespace bpp{
             // void printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, const string &filePath, std::map<int, map<size_t, std::vector<double>>>* probs = 0) const;
             // void printSimulatedDataAndAncestors(RASiteSimulationResult* simResult) const;
             // void printSimulatedEvoPath(TreeTemplate<Node> tree, const string outPath, RASiteSimulationResult* simResult) const;
-            // static string printTree(const TreeTemplate<Node>& tree, map <string, double>* mapNameProb = 0);
-            // static string nodeToParenthesis(const Node& node, map<string, double>* mapNameProb);
+            static string printTree(const PhyloTree& tree);
+            static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
             // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 

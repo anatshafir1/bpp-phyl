@@ -181,51 +181,6 @@ void ChromosomeNumberOptimizer::optimize()
     printLikParameters(vectorOfLikelohoods_[0], 1, outPath);
     std:: cout << "final number of evaluations is : " << totalNumOfEvaluations << endl;
 
-    //just to test ancestral reconstruction before proceeding
-    SingleProcessPhyloLikelihood* lik = vectorOfLikelohoods_[0];
-    ValueRef <RowLik> rootFreqs = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
-    const SubstitutionModel* modelRaw = dynamic_cast<const SubstitutionModel*>(lik->getLikelihoodCalculationSingleProcess()->getSubstitutionProcess().getModel(1));
-    std::shared_ptr<SubstitutionModel> model(modelRaw->clone());
-    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
-    NonHomogeneousSubstitutionProcess* subProSim;
-    ParametrizablePhyloTree parTree(*tree_);
-    subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
-    SubstitutionProcess* subProcess = subProSim->clone();
-    Context context;
-    auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *subProcess, rootFreqs);
-    likAncestralRec->makeJointMLAncestralReconstruction();
-    JointMLAncestralReconstruction* ancr = new JointMLAncestralReconstruction(likAncestralRec);
-    ancr->init();
-    std::map<uint, std::vector<size_t>> ancestors = ancr->getAllAncestralStates();
-    std::map<uint, std::vector<size_t>>::iterator it = ancestors.begin();
-    std::cout <<"******* ******* ANCESTRAL RECONSTRUCTION ******* ********" << endl;
-    while(it != ancestors.end()){
-        uint nodeId = it->first;
-        if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
-            cout << "   ----> N-" << nodeId <<" states are: " << endl;
-            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
-                cout << "           state: "<< ancestors[nodeId][s] << endl;
-            }
-        }else{
-            cout << "   ----> " << (tree_->getNode(nodeId))->getName() << " states are: " << endl;
-            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
-                cout << "           state: "<< ancestors[nodeId][s] << endl;
-            }
-        }
-        it++;
-    }
-
-    delete ancr;
-
-   
-
-    //double likVal = likAncestralRec->makeJointMLAncestralReconstructionTest();
-    std::cout << "********************************************\n";
-    std::cout << " * * * * * * * * * * * * * * * * * * * * *\n";
-    std::cout << "********************************************\n";
-    //std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
-    delete subProSim;
-
 }
 
 /********************************************************************************/

@@ -187,6 +187,55 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
        
 }
 /******************************************************************************************************/
+void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const{
+    vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = optimizer->getVectorOfLikelihoods();
+    // get the best likelihood
+    SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
+    ValueRef <RowLik> rootFreqs = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
+    const SubstitutionModel* modelRaw = dynamic_cast<const SubstitutionModel*>(lik->getLikelihoodCalculationSingleProcess()->getSubstitutionProcess().getModel(1));
+    std::shared_ptr<SubstitutionModel> model(modelRaw->clone());
+    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    NonHomogeneousSubstitutionProcess* subProSim;
+    ParametrizablePhyloTree parTree(*tree_);
+    subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
+    SubstitutionProcess* subProcess = subProSim->clone();
+    Context context;
+    auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *subProcess, rootFreqs);
+    likAncestralRec->makeJointMLAncestralReconstruction();
+    JointMLAncestralReconstruction* ancr = new JointMLAncestralReconstruction(likAncestralRec);
+    ancr->init();
+    std::map<uint, std::vector<size_t>> ancestors = ancr->getAllAncestralStates();
+    std::map<uint, std::vector<size_t>>::iterator it = ancestors.begin();
+    std::cout <<"******* ******* ANCESTRAL RECONSTRUCTION ******* ********" << endl;
+    while(it != ancestors.end()){
+        uint nodeId = it->first;
+        if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
+            cout << "   ----> N-" << nodeId <<" states are: " << endl;
+            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
+                cout << "           state: "<< ancestors[nodeId][s] << endl;
+            }
+        }else{
+            cout << "   ----> " << (tree_->getNode(nodeId))->getName() << " states are: " << endl;
+            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
+                cout << "           state: "<< ancestors[nodeId][s] << endl;
+            }
+        }
+        it++;
+    }
+    const string outFilePath = ChromEvolOptions::resultsPathDir_ + "//" + "MLAncestralReconstruction.tree";
+    PhyloTree* treeWithStates = tree_->clone();
+    printTreeWithStates(*treeWithStates, ancestors, outFilePath);
+    delete treeWithStates;
+
+
+    delete ancr;
+    //double likVal = likAncestralRec->makeJointMLAncestralReconstructionTest();
+    std::cout << "********************************************\n";
+    std::cout << " * * * * * * * * * * * * * * * * * * * * *\n";
+    std::cout << "********************************************\n";
+    //std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
+    delete subProSim;
+}
 /* void ChromosomeNumberMng::getJointMLAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const{
     std::cout << "ML Joint Ancestral Reconstruction"<<endl;
     TransitionModel* model = lik->getSubstitutionModelSet()->getModel(0);
@@ -383,7 +432,7 @@ void ChromosomeNumberMng::runChromEvol(){
     ChromosomeNumberOptimizer* chrOptimizer = optimizeLikelihoodMultiStartPoints();
     //std::vector <DRNonHomogeneousTreeLikelihood> lik_vec = chrOptimizer->getVectorOfLikelihoods();
     // get joint ML ancestral reconstruction
-    //getJointMLAncestralReconstruction(&lik_vec[0]);
+    getJointMLAncestralReconstruction(chrOptimizer);
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
     //std::map<int, std::map<size_t, VVdouble>>  jointProbabilitiesFatherSon = getMarginalAncestralReconstruction(&lik_vec[0]);
     
@@ -473,6 +522,41 @@ void ChromosomeNumberMng::runChromEvol(){
     outFile.close();
 
 } */
+void ChromosomeNumberMng::printTreeWithStates(PhyloTree tree, std::map<uint, std::vector<size_t>> &ancestors, const string &filePath) const{
+    uint rootId = tree.getRootIndex();
+    convertNodesNames(tree, rootId, ancestors);
+    string tree_str = printTree(tree);
+    cout << tree_str << endl;
+    if (filePath != "none"){
+       ofstream outFile;
+       outFile.open(filePath);
+       outFile << tree_str << endl;
+       outFile.close();
+    }
+
+}
+/**************************************************************************************/
+void ChromosomeNumberMng::convertNodesNames(PhyloTree &tree, uint nodeId, std::map<uint, std::vector<size_t>> &ancestors) const{
+    size_t state = ancestors[nodeId][0] + alphabet_->getMin();
+    if (tree.isLeaf(nodeId)){
+        string prevName = tree.getNode(nodeId)->getName();
+        const string newName = (prevName + "-"+ std::to_string(state));
+        tree.getNode(nodeId)->setName(newName);
+
+    }else{
+        // internal node -> N[nodeId]-[state]
+        string prevName = "N" + std::to_string(nodeId);
+        const string newName = (prevName + "-"+ std::to_string(state));
+        tree.getNode(nodeId)->setName(newName);
+        auto sons = tree.getSons(tree.getNode(nodeId));
+        //auto sons = tree.getNode(nodeId)->getSons();
+        for (size_t i = 0; i < sons.size(); i++){
+            uint sonId = tree.getNodeIndex(sons[i]);
+            convertNodesNames(tree, sonId, ancestors);
+
+        }
+    }
+}
 /**************************************************************************************/
 /* void ChromosomeNumberMng::printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, const string &filePath, std::map<int, map<size_t, std::vector<double>>>* probs) const{
     map <string, double> mapOfNodeNameProb;
@@ -529,77 +613,79 @@ void ChromosomeNumberMng::runChromEvol(){
 
 } */
 /****************************************************************************************/
-/* string ChromosomeNumberMng::printTree(const TreeTemplate<Node>& tree, map<string, double>* mapNameProb)
+string ChromosomeNumberMng::printTree(const PhyloTree& tree)
 {
   ostringstream s;
   s << "(";
-  const Node* node = tree.getRootNode();
-  if (node->isLeaf() && node->hasName()) // In case we have a tree like ((A:1.0)); where the root node is an unamed leaf!
+  uint rootId = tree.getRootIndex();
+  auto node = tree.getNode(rootId);
+  if (tree.isLeaf(rootId) && node->hasName()) // In case we have a tree like ((A:1.0)); where the root node is an unamed leaf!
   {
     s << node->getName();
-    for (size_t i = 0; i < node->getNumberOfSons(); ++i)
+    auto sons = tree.getSons(node);
+    for (size_t i = 0; i < sons.size(); ++i)
     {
-      s << "," << nodeToParenthesis(*node->getSon(i), mapNameProb);
+        uint sonId = tree.getNodeIndex(sons[i]);
+        s << "," << nodeToParenthesis(sonId, tree);
     }
   }
   else
   {
-    s << nodeToParenthesis(*node->getSon(0), mapNameProb);
-    for (size_t i = 1; i < node->getNumberOfSons(); ++i)
+    auto sons = tree.getSons(node);
+    uint firstSonId = tree.getNodeIndex(sons[0]);
+    s << nodeToParenthesis(firstSonId, tree);
+    for (size_t i = 1; i < sons.size(); ++i)
     {
-      s << "," << nodeToParenthesis(*node->getSon(i), mapNameProb);
+        uint sonId = tree.getNodeIndex(sons[i]);
+        s << "," << nodeToParenthesis(sonId, tree);
     }
   }
   s << ")";
-  s << tree.getRootNode()->getName();
-  if (! mapNameProb){
-    if (node->hasDistanceToFather()){
-        s << ":" << node->getDistanceToFather();
+  s << tree.getNode(rootId)->getName();
+//   shared_ptr<PhyloBranch> branch=tree.getEdgeToFather(rootId);
+//   if (branch->hasLength()){
+//     s << ":" << branch->getLength();
 
-    }
-        
-  }else{
-      s << ":" << (*mapNameProb)[node->getName()];
-  }
+//   }
 
- 
-  
   s << ";" << endl;
   return s.str();
-} */
+}
 
 /******************************************************************************/
-/* string ChromosomeNumberMng::nodeToParenthesis(const Node& node, map<string, double>* mapNameProb)
+string ChromosomeNumberMng::nodeToParenthesis(const uint nodeId, const PhyloTree &tree)
 {
   ostringstream s;
-  if (node.isLeaf())
+  if (tree.isLeaf(tree.getNode(nodeId)))
   {
-    s << node.getName();
+    s << tree.getNode(nodeId)->getName();
   }
   else
   {
     s << "(";
-    s << nodeToParenthesis(*node[0], mapNameProb);
-    for (int i = 1; i < static_cast<int>(node.getNumberOfSons()); i++)
+  
+    auto sons = tree.getSons(tree.getNode(nodeId));
+    uint firstSonId = tree.getNodeIndex(sons[0]);
+    s << nodeToParenthesis(firstSonId, tree);
+    for (size_t i = 1; i < sons.size(); i++)
     {
-      s << "," << nodeToParenthesis(*node[i], mapNameProb);
+        uint sonId = tree.getNodeIndex(sons[i]);
+        
+        s << "," << nodeToParenthesis(sonId, tree);
     }
     s << ")";
   }
-  if (! node.isLeaf()){
-      s << node.getName();
+  if (! tree.isLeaf(tree.getNode(nodeId))){
+      s << tree.getNode(nodeId)->getName();
   }
-  if (node.hasDistanceToFather()){
-    if (!mapNameProb){
-        s << ":" << node.getDistanceToFather();
-    }else{
-        s << ":" << (*mapNameProb)[node.getName()];
+  shared_ptr<PhyloBranch> branch=tree.getEdgeToFather(nodeId);
+  if (branch->hasLength()){
+    s << ":" << branch->getLength();
 
-    }
   }
 
   return s.str();
-} */
+}
 /*********************************************************************************/
 /* void ChromosomeNumberMng::simulateData(){
     if ((ChromEvolOptions::minChrNum_ <= 0) || (ChromEvolOptions::maxChrNum_ < 0)){
