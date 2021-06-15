@@ -8,6 +8,8 @@
 # File list
 set (CPP_FILES
   Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
+  Bpp/Phyl/App/ChromEvolOptions.cpp
+  Bpp/Phyl/App/ChromosomeNumberMng.cpp
   Bpp/Phyl/Distance/AbstractAgglomerativeDistanceMethod.cpp
   Bpp/Phyl/Distance/BioNJ.cpp
   Bpp/Phyl/Distance/DistanceEstimation.cpp
@@ -42,6 +44,7 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/AbstractHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/AbstractNonHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/AbstractTreeLikelihood.cpp
+  Bpp/Phyl/Likelihood/ChromosomeNumberOptimizer.cpp
   Bpp/Phyl/Likelihood/DRASDRTreeLikelihoodData.cpp
   Bpp/Phyl/Likelihood/DRASRTreeLikelihoodData.cpp
   Bpp/Phyl/Likelihood/DRHomogeneousMixedTreeLikelihood.cpp
@@ -140,6 +143,7 @@ set (CPP_FILES
   Bpp/Phyl/Model/AbstractSubstitutionModel.cpp
   Bpp/Phyl/Model/AbstractWordSubstitutionModel.cpp
   Bpp/Phyl/Model/BinarySubstitutionModel.cpp
+  Bpp/Phyl/Model/ChromosomeSubstitutionModel.cpp
   Bpp/Phyl/Model/TwoParameterBinarySubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAARateSubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAAFitnessSubstitutionModel.cpp

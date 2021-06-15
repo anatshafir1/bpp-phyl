@@ -1985,7 +1985,248 @@ namespace bpp {
 
     Dimension<R> targetDimension_;
   };
-  
+  /*************************************************************************
+   * @brief For each row i: ri = max{x0_ij*x1_j} 
+   * - r: R (matrix).
+   * - x0: T0 (matrix), allows NumericalDependencyTransform.
+   * - x1: T1 (matrix), allows NumericalDependencyTransform.
+   * Same as MatrixProduct, but with max operator instead of '+' operator
+   */
+  template <typename R, typename T0, typename T1> class MatrixMaxProduct : public Value<R> {
+  public:
+    using Self = MatrixMaxProduct;
+    using DepT0 = typename NumericalDependencyTransform<T0>::DepType;
+    using DepT1 = typename NumericalDependencyTransform<T1>::DepType;
+
+
+    static ValueRef<R> create (Context & c, NodeRefVec && deps, const Dimension<R> & dim) {
+      // Check dependencies
+      checkDependenciesNotNull (typeid (Self), deps);
+      checkDependencyVectorSize (typeid (Self), deps, 2);
+      checkNthDependencyIsValue<DepT0> (typeid (Self), deps, 0);
+      checkNthDependencyIsValue<DepT1> (typeid (Self), deps, 1);
+      // Return 0 if any 0.
+      if (std::any_of (deps.begin (), deps.end (), [](const NodeRef & dep) -> bool{
+            return dep->hasNumericalProperty (NumericalProperty::ConstantZero);
+          })) {
+        return ConstantZero<R>::create (c, dim);
+      }
+      // Select node implementation
+      bool identityDep0 = deps[0]->hasNumericalProperty (NumericalProperty::ConstantIdentity);
+      bool identityDep1 = deps[1]->hasNumericalProperty (NumericalProperty::ConstantIdentity);
+      if (identityDep0 && identityDep1) {
+        // No specific class for Identity
+        using namespace numeric;
+        return NumericConstant<R>::create (c, identity (dim));
+      } else if (identityDep0 && !identityDep1) {
+        return Convert<R, T1>::create (c, {deps[1]}, dim);
+      } else if (!identityDep0 && identityDep1) {
+        return Convert<R, T0>::create (c, {deps[0]}, dim);
+      } else {
+        return cachedAs<Value<R>> (c, std::make_shared<Self> (std::move (deps), dim));
+      }
+      
+    }
+    MatrixMaxProduct (NodeRefVec && deps, const Dimension<R> & dim)
+      : Value<R> (std::move (deps)), targetDimension_ (dim)
+    {
+    }
+
+    std::string debugInfo () const override {
+      using namespace numeric;
+      return debug (this->accessValueConst ()) + " targetDim=" + to_string (targetDimension_);
+    }
+
+    std::string shape() const override
+    {
+      return "doubleoctagon";
+    }
+
+    std::string color() const override
+    {
+      return "#9e9e9e";
+    }
+
+
+    std::string description() const override
+    {
+      return "Matrix Max";
+    }
+
+    // MatrixMaxProduct additional arguments = ().
+    bool compareAdditionalArguments (const Node_DF & other) const final {
+      return dynamic_cast<const Self *> (&other) != nullptr;
+    }
+
+    NodeRef derive (Context & c, const Node_DF & node) final {
+      throw Exception ("DataFlowCWiseComputing: MatrixMaxProduct has no derivative!");
+      //return ConstantOne<R>::create (c, targetDimension_);     
+    }
+
+    NodeRef recreate (Context & c, NodeRefVec && deps) final {
+      return Self::create (c, std::move (deps), targetDimension_);
+    }
+
+  private:
+    void compute () final {
+      throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: compute() Not implemented yet for eflik branch!");
+      // using namespace numeric;
+      // auto & result = this->accessValueMutable ();
+      // const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+      // const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+      // size_t nrows = x0.rows();  
+      // size_t ncols = x1.cols();
+      // result = zero (targetDimension_);
+      // if (x0.cols() == 1){
+      //   nrows = 1;
+      // }
+      // for (size_t i = 0; i < nrows; i++){
+      //  for (size_t j = 0; j < ncols; j++){
+      //    if (nrows == 1){
+      //       auto y1 = x0.col(i).transpose().array();
+      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto prod = y1 * y2;
+      //       result (i, j) = prod.maxCoeff();
+
+
+      //    }else{
+      //       auto y1 = x0.row(i).array();
+      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto prod = y1 * y2;
+      //       result (i, j) = prod.maxCoeff();
+
+      //    }
+
+      //  }
+      // }
+    }
+    Dimension<R> targetDimension_;
+  };
+
+  /***********************************************************************
+   * @brief For each row i: ri = arg max{x0_ij*x1_j} 
+   * - r: R (matrix).
+   * - x0: T0 (matrix), allows NumericalDependencyTransform.
+   * - x1: T1 (matrix), allows NumericalDependencyTransform.
+   * Same as MatrixProduct, but with max operator instead of '+' operator
+   */
+  template <typename R, typename T0, typename T1> class MatrixArgMaxProduct : public Value<R> {
+  public:
+    using Self = MatrixArgMaxProduct;
+    using DepT0 = typename NumericalDependencyTransform<T0>::DepType;
+    using DepT1 = typename NumericalDependencyTransform<T1>::DepType;
+
+    static ValueRef<R> create (Context & c, NodeRefVec && deps, const Dimension<R> & dim) {
+      // Check dependencies
+      checkDependenciesNotNull (typeid (Self), deps);
+      checkDependencyVectorSize (typeid (Self), deps, 2);
+      checkNthDependencyIsValue<DepT0> (typeid (Self), deps, 0);
+      checkNthDependencyIsValue<DepT1> (typeid (Self), deps, 1);
+      // Return 0 if any 0.
+      if (std::any_of (deps.begin (), deps.end (), [](const NodeRef & dep) -> bool{
+            return dep->hasNumericalProperty (NumericalProperty::ConstantZero);
+          })) {
+        return ConstantZero<R>::create (c, dim);
+      }
+      // Select node implementation
+      bool identityDep0 = deps[0]->hasNumericalProperty (NumericalProperty::ConstantIdentity);
+      bool identityDep1 = deps[1]->hasNumericalProperty (NumericalProperty::ConstantIdentity);
+      if (identityDep0 && identityDep1) {
+        // No specific class for Identity
+        using namespace numeric;
+        return NumericConstant<R>::create (c, identity (dim));
+      } else if (identityDep0 && !identityDep1) {
+        return Convert<R, T1>::create (c, {deps[1]}, dim);
+      } else if (!identityDep0 && identityDep1) {
+        return Convert<R, T0>::create (c, {deps[0]}, dim);
+      } else {
+        return cachedAs<Value<R>> (c, std::make_shared<Self> (std::move (deps), dim));
+      }
+      
+    }
+    MatrixArgMaxProduct (NodeRefVec && deps, const Dimension<R> & dim)
+      : Value<R> (std::move (deps)), targetDimension_ (dim)
+    {
+    }
+
+    std::string debugInfo () const override {
+      using namespace numeric;
+      return debug (this->accessValueConst ()) + " targetDim=" + to_string (targetDimension_);
+    }
+
+    std::string shape() const override
+    {
+      return "doubleoctagon";
+    }
+
+    std::string color() const override
+    {
+      return "#9e9e9e";
+    }
+
+
+    std::string description() const override
+    {
+      return "Matrix arg Max";
+    }
+
+    // MatrixArgMaxProduct additional arguments = ().
+    bool compareAdditionalArguments (const Node_DF & other) const final {
+      return dynamic_cast<const Self *> (&other) != nullptr;
+    }
+
+    NodeRef derive (Context & c, const Node_DF & node) final {
+      throw Exception ("DataFlowCWiseComputing: MatrixArgMaxProduct has no derivative!");
+      //return ConstantOne<R>::create (c, targetDimension_);     
+    }
+
+    NodeRef recreate (Context & c, NodeRefVec && deps) final {
+      return Self::create (c, std::move (deps), targetDimension_);
+    }
+
+  private:
+    void compute () final {
+      throw Exception("DataFlowCWiseComputing:MatrixArgMaxProduct: compute() Not implemented yet for eflik branch!");
+
+      // using namespace numeric;
+      // auto & result = this->accessValueMutable ();
+      // const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+      // const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+      // size_t nrows = x0.rows();
+      // size_t ncols = x1.cols();
+      // result = zero (targetDimension_);
+      // if (x0.cols() == 1){
+      //   nrows = 1;
+      // }
+      // for (size_t i = 0; i < nrows; i++){
+      //  for (size_t j = 0; j < ncols; j++){
+      //    size_t pos;
+      //    if (nrows == 1){
+      //       auto y1 = x0.col(i).transpose().array();
+      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto prod = y1 * y2;
+      //       prod.maxCoeff(&pos);
+      //       result (i, j) = (double) pos;
+
+
+      //    }else{
+      //       auto y1 = x0.row(i).array();
+      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto prod = y1 * y2;
+      //       prod.maxCoeff(&pos);
+      
+      //       result (i, j) = (double) pos;
+
+      //    }
+
+      //  }
+      // }
+    }
+    Dimension<R> targetDimension_;
+  };
+
+
+
   /*************************************************************************
    * @brief r = n * delta + x.
    * - r: T.
@@ -2395,6 +2636,17 @@ namespace bpp {
   extern template class MatrixProduct<Eigen::RowVectorXd, Eigen::RowVectorXd, Eigen::MatrixXd>;
   extern template class MatrixProduct<MatrixLik, MatrixLik, Eigen::MatrixXd>;
   extern template class MatrixProduct<MatrixLik, MatrixLik, Transposed<Eigen::MatrixXd>>;
+
+
+  extern template class MatrixMaxProduct<ExtendedFloatRowVectorXd, Eigen::RowVectorXd, ExtendedFloatMatrixXd>;
+  extern template class MatrixMaxProduct<Eigen::RowVectorXd, Eigen::RowVectorXd, Eigen::MatrixXd>;
+  extern template class MatrixMaxProduct<MatrixLik, MatrixLik, Eigen::MatrixXd>;
+  extern template class MatrixMaxProduct<MatrixLik, MatrixLik, Transposed<Eigen::MatrixXd>>;
+
+  extern template class MatrixArgMaxProduct<ExtendedFloatRowVectorXd, Eigen::RowVectorXd, ExtendedFloatMatrixXd>;
+  extern template class MatrixArgMaxProduct<Eigen::RowVectorXd, Eigen::RowVectorXd, Eigen::MatrixXd>;
+  extern template class MatrixArgMaxProduct<MatrixLik, MatrixLik, Eigen::MatrixXd>;
+  extern template class MatrixArgMaxProduct<MatrixLik, MatrixLik, Transposed<Eigen::MatrixXd>>;
 
   extern template class ShiftDelta<double>;
   extern template class ShiftDelta<VectorLik>;

@@ -48,6 +48,8 @@
 #include "Bpp/Phyl/NewLikelihood/DataFlow/FrequencySet.h"
 #include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlow.h>
 #include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlowCWiseComputing.h>
+//#include <Bpp/Phyl/NewLikelihood/DataFlow/FwLikMLAncestralReconstruction.h>
+
 #include "Bpp/Phyl/NewLikelihood/SubstitutionProcess.h"
 
 #include <Bpp/Seq/Container/AlignedValuesContainer.h>
@@ -84,6 +86,7 @@ namespace bpp {
   class ProcessTree;
   class ForwardLikelihoodTree;
   class BackwardLikelihoodTree;
+  class FwLikMLAncestralReconstruction;
 
   //using RowLik = Eigen::Matrix<double, 1, Eigen::Dynamic>;
   //using MatrixLik = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
@@ -188,6 +191,8 @@ namespace bpp {
 
       std::shared_ptr<SiteLikelihoodsTree> speciesLt;
 
+      std::shared_ptr <FwLikMLAncestralReconstruction> acr;
+
     };
 
     /*
@@ -255,27 +260,41 @@ namespace bpp {
      */
     
     std::shared_ptr<NumericMutable<uint>> factorNode_;
+    /* indicates whether the root likelihoods should be determined according to likelihood */
+    bool weightedRootFrequencies_;
+    /* indicates whether ancestral reconstruction should be performed instead of standard likelihood calculation */
+    //bool ancestralReconstruction_;
     
   public:
     LikelihoodCalculationSingleProcess(Context & context,
                                        const AlignedValuesContainer & sites,
+                                       const SubstitutionProcess& process, uint factor = 1,
+                                       bool weightedRootFreqs = false);
+
+    LikelihoodCalculationSingleProcess(Context & context,
+                                       const AlignedValuesContainer & sites,
                                        const SubstitutionProcess& process, 
-                                       uint factor = 1);
+                                       ValueRef<Eigen::RowVectorXd> rootFreqs, uint factor = 1,
+                                       bool weightedRootFreqs = false);
+
 
     LikelihoodCalculationSingleProcess(Context & context,
                                        const SubstitutionProcess& process,
-                                       uint factor = 1);
+                                       uint factor = 1, bool weightedRootFreqs = false);
+
 
     LikelihoodCalculationSingleProcess(Context & context,
                                        const AlignedValuesContainer & sites,
                                        const SubstitutionProcess& process,
-                                       ParameterList& paramList, 
-                                       uint factor = 1);
+                                       ParameterList& paramList, uint factor = 1,
+                                       bool weightedRootFreqs = false);
+
 
     LikelihoodCalculationSingleProcess(Context & context,
                                        const SubstitutionProcess& process,
-                                       ParameterList& paramList, 
-                                       uint factor = 1);
+                                       ParameterList& paramList, uint factor = 1,
+                                       bool weightedRootFreqs = false);
+
 
     /*
      * @brief Build using Nodes of CollectionNodes.
@@ -287,13 +306,13 @@ namespace bpp {
 
     LikelihoodCalculationSingleProcess(CollectionNodes& collection,
                                        const AlignedValuesContainer & sites,
-                                       size_t nProcess,
-                                       uint factor = 1);
-
+                                       size_t nProcess, uint factor = 1,
+                                       bool weightedRootFreqs = false);
     
     LikelihoodCalculationSingleProcess(CollectionNodes& collection,
-                                       size_t nProcess,
-                                       uint factor = 1);
+                                       size_t nProcess, uint factor = 1,
+                                       bool weightedRootFreqs = false);
+
 
     
     LikelihoodCalculationSingleProcess(const LikelihoodCalculationSingleProcess& lik);
@@ -324,8 +343,21 @@ namespace bpp {
      *  - remove all branch lengths parameters from the parameters
      *
      */
-
     void setClockLike(double rate=1);
+    /**
+     * get root frequencies weighted by likelihood: f(i) = Li/sigma_j{Lj}
+     */
+    //std::vector<double> findWeightedRootFrequencies();
+    /**
+     * Set root new root frequencies that are determined by the likelhood
+     * @param vector of root frequencies to set.
+     */
+    void setWeightedRootFrequencies(std::vector<double> freqs);
+
+    void makeJointMLAncestralReconstruction();
+    //void makeJointMLAncrTree();
+
+    
 
     /**************************************************/
 
@@ -681,6 +713,25 @@ namespace bpp {
     }
 
     std::shared_ptr<ForwardLikelihoodTree> getForwardLikelihoodTree(size_t nCat);
+
+    // ConditionalLikelihoodRef getLikelihoodsAtNodeMLAncestral(uint nodeId, bool shrunk = false)
+    // {
+    //   if (!(condLikelihoodTree_ && condLikelihoodTree_->hasNode(nodeId)))
+    //     makeLikelihoodAncestralReconstructionAtNode_(nodeId);
+
+    //   auto vv = condLikelihoodTree_->getNode(nodeId);
+
+    //   return shrunk?vv:expandMatrix(vv);
+    // }
+
+    // ValueRef<RowLik> getLikelihoodAtNodeFromRoot(uint nodeId, bool shrunk = false){
+    //   auto rootVal = getLikelihoodsAtNode(nodeId, shrunk);
+    //   size_t nbDistSite = getNumberOfDistinctSites();
+    //   auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(getContext_(), {rFreqs_}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
+    //   auto cond = MatrixArgMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
+    //                        getContext_(), {rootFreqs, rootVal}, RowVectorDimension (nbDistSite));
+    //   return shrunk?cond:expandVector(cond);
+    // }
 
   private:
     void setPatterns_();
