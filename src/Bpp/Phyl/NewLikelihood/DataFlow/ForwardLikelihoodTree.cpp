@@ -120,10 +120,13 @@ ForwardLikelihoodBelowRef ForwardLikelihoodTree::makeForwardLikelihoodAtEdge (sh
     }
   }
 
-#ifdef DEBUG
-  std::cerr << "E " << getEdgeIndex(forwardEdge) << " : forwardEdge " << forwardEdge << endl;
-  std::cerr << "   -> N " << processTree_->getNodeIndex(processTree_->getSon(processEdge)) << std::endl;
-#endif
+// #ifdef DEBUG
+//   std::cerr << "E " << getEdgeIndex(forwardEdge) << " : forwardEdge " << forwardEdge << endl;
+//   std::cerr << "   -> N " << processTree_->getNodeIndex(processTree_->getSon(processEdge)) << std::endl;
+//   //std::cerr << "*******************" << std::endl;
+//   //std::cerr << forwardEdge->getTargetValue() << std::endl;
+//   //std::cerr << "/////////////////////" << std::endl;
+// #endif
   
   return forwardEdge;
 }
@@ -203,13 +206,16 @@ ConditionalLikelihoodForwardRef ForwardLikelihoodTree::makeForwardLikelihoodAtNo
     
   }
 
-#ifdef DEBUG
-  std::cerr << "N " << getNodeIndex(forwardNode) << " : forwardNode " << forwardNode << endl;
-  for (size_t i = 0; i < childBranches.size (); ++i) {
-    std::cerr << "  -> E " << processTree_->getEdgeIndex(childBranches[i]) << std::endl;
-  }
+// #ifdef DEBUG
+//   std::cerr << "N " << getNodeIndex(forwardNode) << " : forwardNode " << forwardNode << endl;
+//   for (size_t i = 0; i < childBranches.size (); ++i) {
+//     std::cerr << "  -> E " << processTree_->getEdgeIndex(childBranches[i]) << std::endl;
+//   }
+//   std::cerr << "*******************" << std::endl;
+//   std::cerr << forwardNode->getTargetValue() << std::endl;
+//   std::cerr << "/////////////////////" << std::endl;
 
-#endif
+// #endif
   
   return(forwardNode);
 }

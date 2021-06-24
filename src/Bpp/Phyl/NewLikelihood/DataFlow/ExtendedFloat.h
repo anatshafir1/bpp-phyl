@@ -75,7 +75,7 @@ namespace bpp {
     using ExtType = int;
 
     // Parameter: decide how much product we can do safely before having to normalize (smaller -> less normalizations)
-    static constexpr int allowed_product_without_normalization = 50;
+    static constexpr int allowed_product_without_normalization = 2;
 
     // Radix is the float exponent base
     static constexpr int radix = std::numeric_limits<FloatType>::radix;
@@ -108,6 +108,7 @@ namespace bpp {
     // factors to scale f_ to renormalize.
     static constexpr FloatType normalize_big_factor = 1. / biggest_normalized_value;
     static constexpr FloatType normalize_small_factor = 1. / smallest_normalized_value;
+    static constexpr FloatType smallest_float_for_op = constexpr_power (FloatType (radix), -500);
 
     // TODO add denorm info for sum
 
@@ -117,27 +118,36 @@ namespace bpp {
     const FloatType & float_part () const noexcept { return f_; }
     const ExtType & exponent_part () const noexcept { return exp_; }
 
-    void normalize_big () noexcept {
+    bool normalize_big () noexcept {
       if (std::isfinite (f_)) {
+        bool normalized = false;
         while (std::abs(f_) > biggest_normalized_value) {
           f_ *= (double)normalize_big_factor;
           exp_ += biggest_normalized_radix_power;
+          normalized = true;
         }
+        return normalized;
       }
+      return false;
     }
     
-    void normalize_small () {
+    bool normalize_small () {
       if (f_!=0) {
+        bool normalized = false;
         while (std::abs(f_) < smallest_normalized_value) {
-        f_ *= (double)normalize_small_factor;
-        exp_ += smallest_normalized_radix_power;
+          f_ *= (double)normalize_small_factor;
+          exp_ += smallest_normalized_radix_power;
+          normalized = true;
         }
+        return normalized;
       }
+      return false;
     }
     
     void normalize () noexcept {
-      normalize_big ();
-      normalize_small ();
+      if (!normalize_big()){
+        normalize_small();
+      }
     }
 
     // Static methods without normalization

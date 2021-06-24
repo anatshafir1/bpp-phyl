@@ -298,13 +298,13 @@ namespace bpp {
       const auto & x1 = accessValueConstCast<T1> (*this->dependency (1));
       result = cwise(x0) + cwise(x1);
 
-#ifdef DEBUG
-      std::cerr << "=== Add === " << this << std::endl;
-      std::cerr << "x0= " << x0 << std::endl;
-      std::cerr << "x1= " << x1 << std::endl;
-      std::cerr << "res=" << result << std::endl;
-      std::cerr << "=== end Add === " << this << std::endl << std::endl;
-#endif
+// #ifdef DEBUG
+//       std::cerr << "=== Add === " << this << std::endl;
+//       std::cerr << "x0= " << x0 << std::endl;
+//       std::cerr << "x1= " << x1 << std::endl;
+//       std::cerr << "res=" << result << std::endl;
+//       std::cerr << "=== end Add === " << this << std::endl << std::endl;
+// #endif
     }
 
     template<class U>
@@ -396,13 +396,13 @@ namespace bpp {
       const auto & x0 = accessValueConstCast<T0> (*this->dependency (0));
       const auto & x1 = accessValueConstCast<T1> (*this->dependency (1));
       result = cwise(x0) - cwise(x1);
-#ifdef DEBUG
-      std::cerr << "=== Sub === " << this << std::endl;
-      std::cerr << "x0= " << x0 << std::endl;
-      std::cerr << "x1= " << x1 << std::endl;
-      std::cerr << "result= " << result << std::endl;
-      std::cerr << "=== end Sub === " << this << std::endl << std::endl;
-#endif
+// #ifdef DEBUG
+//       std::cerr << "=== Sub === " << this << std::endl;
+//       std::cerr << "x0= " << x0 << std::endl;
+//       std::cerr << "x1= " << x1 << std::endl;
+//       std::cerr << "result= " << result << std::endl;
+//       std::cerr << "=== end Sub === " << this << std::endl << std::endl;
+// #endif
     }
 
     Dimension<R> targetDimension_;
@@ -713,10 +713,26 @@ namespace bpp {
       auto & result = this->accessValueMutable ();
       result = zero (targetDimension_);
       size_t half=this->nbDependencies()/2;
+      // #ifdef DEBUG
+      //   std::cerr << "=== CWiseMean === " << this << std::endl;
+      // #endif
       for (size_t i=0; i<half; i++)
       {
+        auto x0 = accessValueConstCast<P> (*this->dependency(i+half));
+        auto x1 = accessValueConstCast<T> (*this->dependency(i));
+        //auto x2 = cwise (accessValueConstCast<P> (*this->dependency(i+half)));
+        //auto x3 = cwise (accessValueConstCast<T> (*this->dependency(i)));
         cwise(result) += cwise (accessValueConstCast<P> (*this->dependency(i+half))) * cwise (accessValueConstCast<T> (*this->dependency(i)));
+        // #ifdef DEBUG
+        //   std::cerr << "x0 = accessValueConstCast<P> (*this->dependency(i+half))= " << x0 << std::endl;
+        //   std::cerr << "x1 = accessValueConstCast<T> (*this->dependency(i))= " << x1 << std::endl;
+
+        // #endif
       }
+      // #ifdef DEBUG
+      //   std::cerr << "result= " << result << std::endl;
+      //   std::cerr << "=== end CWiseMean === " << this << std::endl << std::endl;
+      // #endif
     }
 
     Dimension<R> targetDimension_;
@@ -917,13 +933,13 @@ namespace bpp {
       const auto & x1 = accessValueConstCast<V> (*this->dependency (1));
       result = cwise (x0) * cwise (x1);
 
-#ifdef DEBUG
-      std::cerr << "=== Mul === " << this << std::endl;
-      std::cerr << "x0= "     << x0 << std::endl;
-      std::cerr << "x1= "     << x1 << std::endl;
-      std::cerr << "result= " << result << std::endl;
-      std::cerr << "=== end Mul === " << this << std::endl << std::endl;
-#endif
+// #ifdef DEBUG
+//       std::cerr << "=== Mul === " << this << std::endl;
+//       std::cerr << "x0= "     << x0 << std::endl;
+//       std::cerr << "x1= "     << x1 << std::endl;
+//       std::cerr << "result= " << result << std::endl;
+//       std::cerr << "=== end Mul === " << this << std::endl << std::endl;
+// #endif
     }
 
     template<class U, class V>
@@ -1670,9 +1686,9 @@ namespace bpp {
     typename std::enable_if<std::is_convertible<G*, Eigen::DenseBase<G>*>::value, void>::type
     compute () 
     {
-#ifdef DEBUG
-      std::cerr << "=== SumOfLogarithms === " << this << std::endl;
-#endif
+// #ifdef DEBUG
+//       std::cerr << "=== SumOfLogarithms === " << this << std::endl;
+// #endif
 
       auto & result = this->accessValueMutable ();
 
@@ -1690,10 +1706,10 @@ namespace bpp {
           return r;
         });
         result = product.log();
-#ifdef DEBUG
-        std::cerr << "product= " << product << std::endl;
-        std::cerr << "result log= " << result << std::endl;
-#endif
+// #ifdef DEBUG
+//         std::cerr << "product= " << product << std::endl;
+//         std::cerr << "result log= " << result << std::endl;
+// #endif
       }
       else
       {
@@ -1717,23 +1733,23 @@ namespace bpp {
         });
         
         result = product.log ();
-#ifdef DEBUG
-        std::cerr << "PRODUCT= " << product << std::endl;
-        std::cerr << "RESULT log= " << result << std::endl;
-#endif
+// #ifdef DEBUG
+//         std::cerr << "PRODUCT= " << product << std::endl;
+//         std::cerr << "RESULT log= " << result << std::endl;
+// #endif
       }
-#ifdef DEBUG
-      std::cerr << "=== end SumOfLogarithms === " << this << std::endl;
-#endif
+// #ifdef DEBUG
+//       std::cerr << "=== end SumOfLogarithms === " << this << std::endl;
+// #endif
     }
 
     template<class G=F>
     typename std::enable_if<std::is_convertible<G*, ExtendedFloatEigenBase<G>*>::value, void>::type
     compute () 
     {
-#ifdef DEBUG
-      std::cerr << "=== SumOfLogarithms === " << this << std::endl;
-#endif
+// #ifdef DEBUG
+//       std::cerr << "=== SumOfLogarithms === " << this << std::endl;
+// #endif
 
       auto & result = this->accessValueMutable ();
 
@@ -1751,10 +1767,10 @@ namespace bpp {
           return r;
         });
         result = product.log() + m.exponent_part() * ExtendedFloat::ln_radix;
-#ifdef DEBUG
-        std::cerr << "product= " << product << std::endl;
-        std::cerr << "result log= " << result << std::endl;
-#endif
+// #ifdef DEBUG
+//         std::cerr << "product= " << product << std::endl;
+//         std::cerr << "result log= " << result << std::endl;
+// #endif
       }
       else
       {
@@ -1778,14 +1794,14 @@ namespace bpp {
         });
         
         result = product.log () + m.exponent_part() * ExtendedFloat::ln_radix;
-#ifdef DEBUG
-        std::cerr << "PRODUCT= " << product << std::endl;
-        std::cerr << "RESULT log= " << result << std::endl;
-#endif
+// #ifdef DEBUG
+//         std::cerr << "PRODUCT= " << product << std::endl;
+//         std::cerr << "RESULT log= " << result << std::endl;
+// #endif
       }
-#ifdef DEBUG
-      std::cerr << "=== end SumOfLogarithms === " << this << std::endl;
-#endif
+// #ifdef DEBUG
+//       std::cerr << "=== end SumOfLogarithms === " << this << std::endl;
+// #endif
     }
   
     Dimension<F> mTargetDimension_;
@@ -1969,18 +1985,18 @@ namespace bpp {
       const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
       result.noalias () =
         NumericalDependencyTransform<T0>::transform (x0) * NumericalDependencyTransform<T1>::transform (x1);
-#ifdef DEBUG
-      if ((x1.cols() + x1.rows() < 100 ) &&  (x0.cols() + x0.rows() < 100))
-      {
-      std::cerr << "=== MatrixProd === " << this << std::endl;
-      std::cerr << "x0= "     << x0.rows() << " x " << x0.cols() << std::endl;
-      std::cerr << "x0= " << NumericalDependencyTransform<T0>::transform (x0) << std::endl;
-      std::cerr << "x1= "     << x1.rows() << " x " << x1.cols() << std::endl;
-      std::cerr << "x1= " << NumericalDependencyTransform<T1>::transform (x1) << std::endl;
-      std::cerr << "result= " << result << std::endl;
-      std::cerr << "=== end MatrixProd === " << this << std::endl << std::endl;
-      }
-#endif
+// #ifdef DEBUG
+//       if ((x1.cols() + x1.rows() < 100 ) &&  (x0.cols() + x0.rows() < 100))
+//       {
+//       std::cerr << "=== MatrixProd === " << this << std::endl;
+//       std::cerr << "x0= "     << x0.rows() << " x " << x0.cols() << std::endl;
+//       std::cerr << "x0= " << NumericalDependencyTransform<T0>::transform (x0) << std::endl;
+//       std::cerr << "x1= "     << x1.rows() << " x " << x1.cols() << std::endl;
+//       std::cerr << "x1= " << NumericalDependencyTransform<T1>::transform (x1) << std::endl;
+//       std::cerr << "result= " << result << std::endl;
+//       std::cerr << "=== end MatrixProd === " << this << std::endl << std::endl;
+//       }
+// #endif
     }
 
     Dimension<R> targetDimension_;

@@ -476,14 +476,34 @@ void LikelihoodCalculationSingleProcess::makeRootFreqs_()
 {
   //set root frequency
   size_t nbState = getStateMap().getNumberOfModelStates();
+  auto nbSite = Eigen::Index(getNumberOfDistinctSites());
   if (weightedRootFrequencies_){
-    throw Exception("LikelihoodCalculationSingleProcess::makeRootFreqs_(): No implementation for weightedRootFrequencies_!!");
-      // auto sumOfWeights = CWiseAdd<double, RowLik>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, Dimension<double>());
-      // // warning: this is correct only for one site!!!!
-      // size_t nbSite = vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue().cols();
-      // auto converted = Convert<MatrixLik, Transposed<MatrixLik>>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, MatrixDimension (nbSite, nbState));
-      // auto rootCondLik = CWiseAdd<RowLik, MatrixLik>::create(getContext_(), {converted}, RowVectorDimension(Eigen::Index(nbState)));
-      // rFreqs_ = CWiseDiv<RowLik, std::tuple<RowLik, double>>::create(getContext_(),{rootCondLik, sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
+    //throw Exception("LikelihoodCalculationSingleProcess::makeRootFreqs_(): No implementation for weightedRootFrequencies_!!");
+    auto sumOfWeights = CWiseAdd<RowLik, MatrixLik>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, RowVectorDimension(Eigen::Index(nbSite)));
+    auto rootSumOfWeights = CWiseAdd<DataLik, RowLik>::create(getContext_(), {sumOfWeights}, Dimension<DataLik>());
+    std::cerr << "Calculating ..." << std::endl;
+    std::cerr << sumOfWeights->getTargetValue() << std::endl;
+    std::cerr << "Root likelihoods are: " << vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue() << std::endl;
+    std::cerr << "Sum of weights: " << sumOfWeights->getTargetValue() << std::endl;
+    std::cerr << "Sum of root weights: "<< rootSumOfWeights->getTargetValue() << std::endl;
+    auto converted = Convert<MatrixLik, Transposed<MatrixLik>>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, MatrixDimension ((size_t)nbSite, nbState));
+
+    //throw Exception("LikelihoodCalculationSingleProcess::makeRootFreqs_(): No implementation for weightedRootFrequencies_!!");
+    // warning: this is correct only for one site!!!!
+    //size_t nbSite = vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue().cols();
+    //auto converted = Convert<MatrixLik, Transposed<MatrixLik>>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, MatrixDimension (nbSite, nbState));
+    std::cerr << "Transposed root likelihoods: "<< converted->getTargetValue() << std::endl;
+    auto rootCondLik = CWiseAdd<RowLik, MatrixLik>::create(getContext_(), {converted}, RowVectorDimension(Eigen::Index(nbState)));
+    auto freqs_ef = CWiseDiv<RowLik, std::tuple<RowLik, DataLik>>::create(getContext_(),{rootCondLik, rootSumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
+    std::cerr << "Converted from matrix to RowLik: " << rootCondLik->getTargetValue() << std::endl;
+    //auto freqEf = CWiseDiv<RowLik, std::tuple<RowLik, RowLik>>::create(getContext_(),{rootCondLik, sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
+    //auto freqEf = CWiseDiv<RowLik, std::tuple<MatrixLik, RowLik>>::create(getContext_(),{vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue(), sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
+
+    std::cerr << "Root frequencies in EF: " << freqs_ef->getTargetValue() << std::endl;
+    //rFreqs_ = CWiseApply<Eigen::RowVectorXd, ExtendedFloatRowVectorXd, std::function<ExtendedFloat::convert(const DataLik&)>>::create(getContext_(), {freqs_ef, std::function<ExtendedFloat::convert(const DataLik&)},  RowVectorDimension (Eigen::Index (nbState)));
+    rFreqs_ = Convert<Eigen::RowVectorXd, ExtendedFloatRowVectorXd>::create(getContext_(), {freqs_ef}, RowVectorDimension (Eigen::Index (nbState)));
+    std::cerr << "Final root freqs: " << rFreqs_->getTargetValue() << std::endl;
+    //rFreqs_ = CWiseDiv<Eigen::RowVectorXd, std::tuple<RowLik, DataLik>>::create(getContext_(),{rootCondLik, sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
   }else{
     rFreqs_ = processNodes_.rootFreqsNode_?ConfiguredParametrizable::createRowVector<ConfiguredFrequencySet, FrequenciesFromFrequencySet, Eigen::RowVectorXd> (
       getContext_(), {processNodes_.rootFreqsNode_}, RowVectorDimension (Eigen::Index (nbState))):
@@ -589,9 +609,31 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtRoot_()
       //                      getContext_(), {rootFreqs, rateCat.acr->getForwardLikelihoodArrayAtRoot()}, RowVectorDimension (nbDistSite)));
 
       //}else{
-      vLikRoot.push_back(LikelihoodFromRootConditionalAtRoot::create (
+      // #ifdef DEBUG
+
+      // std::cerr << "************************************" << std::endl;
+      // std::cerr << "*LikelihoodCalculationSingleProcess*" << std::endl;
+      // std::cerr << "************************************" << std::endl;
+
+      // std::cerr << "Likelihood At root:" << std::endl;
+      // std::cerr << rateCat.flt->getForwardLikelihoodArrayAtRoot()->getTargetValue() << std::endl;
+      // std::cerr << "Root frequencies:" << std::endl;
+      // std::cerr << rFreqs_->getTargetValue() << std::endl;
+      // #endif
+      auto likAtRoot = LikelihoodFromRootConditionalAtRoot::create (
                           getContext_(), {rFreqs_, rateCat.flt->getForwardLikelihoodArrayAtRoot()},
-                          RowVectorDimension (Eigen::Index (nbDistSite))));
+                          RowVectorDimension (Eigen::Index (nbDistSite)));
+
+      // #ifdef DEBUG
+      // std::cerr << "Root frequencies + likelihood at root:" << std::endl;
+      // std::cerr << likAtRoot->getTargetValue() << std::endl;
+      // #endif
+      //vLikRoot.push_back(LikelihoodFromRootConditionalAtRoot::create (
+                          //getContext_(), {rFreqs_, rateCat.flt->getForwardLikelihoodArrayAtRoot()},
+                          //RowVectorDimension (Eigen::Index (nbDistSite))));
+      vLikRoot.push_back(likAtRoot);
+      
+
 
       //}
 
@@ -603,6 +645,12 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtRoot_()
       vLikRoot.push_back(ProbabilityFromDiscreteDistribution::create(getContext_(), {processNodes_.ratesNode_},(uint)nCat));
     
     sL = CWiseMean<RowLik, ReductionOf<RowLik>, ReductionOf<double>>::create(getContext_(), std::move(vLikRoot), RowVectorDimension (Eigen::Index(nbDistSite)));
+    // #ifdef DEBUG
+
+    // std::cerr << "Overall Site Likelhood (SL):" << std::endl;
+    // std::cerr << sL->getTargetValue() << std::endl;
+
+    // #endif
   }
   else
   {
@@ -636,6 +684,12 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtRoot_()
   //   setLikelihoodNode(val);
     
   // }
+  // #ifdef DEBUG
+
+  // std::cerr << "Sum of Likelihoods:" << std::endl;
+  // std::cerr << val->getTargetValue() << std::endl;
+
+  // #endif
 
   // Factor used for transition matrices in ForwardLikelihoodTree. 
 

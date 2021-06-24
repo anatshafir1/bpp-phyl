@@ -145,11 +145,11 @@ namespace bpp {
   void copyBppToEigen (const bpp::Matrix<double> & bppMatrix, eMatrix & eigenMatrix) {
     const auto eigenRows = static_cast<Eigen::Index> (bppMatrix.getNumberOfRows ());
     const auto eigenCols = static_cast<Eigen::Index> (bppMatrix.getNumberOfColumns ());
-#ifdef DEBUG
-    std::cerr << "copyBppToEigen(" << typeid(bppMatrix).name() << ", " << typeid(eigenMatrix).name() << ")" << std::endl;
+// #ifdef DEBUG
+//     std::cerr << "copyBppToEigen(" << typeid(bppMatrix).name() << ", " << typeid(eigenMatrix).name() << ")" << std::endl;
     
-    std::cerr << eigenRows << "," << eigenCols << std::endl;
-#endif
+//     std::cerr << eigenRows << "," << eigenCols << std::endl;
+// #endif
     eigenMatrix.resize (eigenRows, eigenCols);
     eigenMatrix.fill(0);
     for (Eigen::Index i = 0; i < eigenRows; ++i) {
@@ -646,11 +646,14 @@ namespace bpp {
     }
 
     template< int R,  int C>
-    const Eigen::Matrix<double, R, C>& convert (const ExtendedFloatMatrix<R, C> & from,
+    const Eigen::Matrix<double, R, C> convert (const ExtendedFloatMatrix<R, C> & from,
                                                 const Dimension<Eigen::Matrix<double, R, C>> & dim)
     {
-      return from.float_part(); // efmatrix -> matrix
+      return from.float_part() * constexpr_power<double>(ExtendedFloat::radix, from.exponent_part()); // efmatrix -> matrix
     }
+
+
+
 
     // template< int R,  int C, template< int R2,  int C2> class EigenType>
     // EigenType<R,C>& convert (ExtendedFloatEigen<R, C, EigenType> & from,
@@ -673,10 +676,32 @@ namespace bpp {
       r = R(from);
     }
 
-    template <typename R, typename F>  
-    const R& convert (const F & from, const Dimension<R> & dim) {
-      return convert (from, dim);
+    template <typename R, typename F>
+    typename std::enable_if<!((std::is_base_of<R, Eigen::MatrixXd>::value) && (std::is_base_of<R, MatrixLik>::value)), const R &>::type
+    convert (const F & from, const Dimension<R> & dim) {
+      const R & result = convert (from, dim);
+      return result;
     }
+
+    // template<class U, class V>
+    //   typename std::enable_if<!std::is_same<U, TransitionFunction>::value && std::is_same<V, TransitionFunction>::value, void>::type
+    //   compute () {
+    //   using namespace numeric;
+    //   auto & result = this->accessValueMutable ();
+    //   const auto & x0 = accessValueConstCast<U> (*this->dependency (0));
+    //   const auto & x1 = accessValueConstCast<V> (*this->dependency (1));
+        
+    //   result = [x0, x1](const VectorLik& x)->VectorLik{return cwise(x1(x)) * cwise(x0);};
+    // }
+    // template <typename R, typename F>
+    // //typename std::enable_if<std::is_same<R, double>::value && std::is_base_of<F, MatrixLik>::value>::type
+    // const R convert (const F & from, const Dimension<R> & dim, bool byVal) {
+    //   if ((std::is_same<R, Eigen::RowVectorXd>::value) && (std::is_same<F, RowLik>::value)){
+    //     return (from.float_part() * constexpr_power<double>(ExtendedFloat::radix, from.exponent_part()));
+    //   }else{
+    //     throw Exception("convert(): not a correct template!");
+    //   }      
+    // }
 
 
     /*******************************************/
@@ -1237,7 +1262,13 @@ namespace bpp {
       using namespace numeric;
       auto & result = this->accessValueMutable ();
       const auto & arg = accessValueConstCast<DepF> (*this->dependency (0));
+      //if ((std::is_same<F, RowLik>::value) && (std::is_same<R, Eigen::RowVectorMatrix>::value)){
+        //result = convert (NumericalDependencyTransform<F>::transform (arg), targetDimension_, true);
+      //}else{
       convert (result, NumericalDependencyTransform<F>::transform (arg), targetDimension_);
+
+      //}
+      
     }
 
     Dimension<R> targetDimension_;

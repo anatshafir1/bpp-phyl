@@ -139,6 +139,9 @@ namespace bpp {
       {
         f_=x;
       }
+      void set_exponent_part(ExtendedFloat::ExtType x){
+        exp_ = x;
+      }
       
     public:
       OwnedExtendedFloat(const ExtendedFloatEigen& eigen) :
@@ -316,29 +319,38 @@ namespace bpp {
 
     // Normalization methods
     
-    void normalize_big () noexcept {
+    bool normalize_big () noexcept {
       using namespace std;
       
       if (isfinite(float_part().cwiseAbs().maxCoeff())) {
+        bool normalized = false;
         while (float_part().cwiseAbs().maxCoeff() > ExtendedFloat::biggest_normalized_value) {
           float_part() *= (double)ExtendedFloat::normalize_big_factor;
           exp_ += ExtendedFloat::biggest_normalized_radix_power;
+          normalized = true;
         }
+        return normalized;
       }
+      return false;
     }
     
-    void normalize_small () {
+    bool normalize_small () {
       if (float_part().cwiseAbs().minCoeff()!=0) {
+        bool normalized = false;
         while (float_part().cwiseAbs().minCoeff() < ExtendedFloat::smallest_normalized_value) {
           float_part() *= (double)ExtendedFloat::normalize_small_factor;
           exp_ -= ExtendedFloat::biggest_normalized_radix_power;
+          normalized = true;
         }
+        return normalized;
       }
+      return false;
     }
     
     void normalize () noexcept {
-      normalize_big ();
-      normalize_small ();
+      if (!normalize_big()){
+        normalize_small();
+      }
     }
 
     // Static methods without normalization
@@ -793,6 +805,7 @@ namespace bpp {
     const ExtendedFloat& sum() const
     {
       EFtmp_.set_float_part(float_part().sum());
+      EFtmp_.set_exponent_part(exponent_part());
       return EFtmp_;
     }
 
@@ -998,6 +1011,8 @@ namespace bpp {
 
     Self operator+=(const Array& rhs) 
     {
+      if (efm_->float_part().isZero())
+        return operator=(rhs);  // a temporary solution for the non-working case when the efm_ is 0.
       if (efm_->exponent_part ()>=rhs.exponent_part ())
       {
         efm_->float_part().array() += rhs.float_part() * constexpr_power<double>(ExtendedFloat::radix, rhs.exponent_part () - efm_->exponent_part ());
