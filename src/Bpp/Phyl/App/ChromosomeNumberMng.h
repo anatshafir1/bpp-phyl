@@ -64,12 +64,12 @@
 #include <Bpp/Seq/App/SequenceApplicationTools.h>
 
 //from bpp-phyl
-#include <Bpp/Phyl/TreeTemplate.h>
+#include <Bpp/Phyl/Tree/TreeTemplate.h>
 #include <Bpp/Phyl/Tree/PhyloTree.h>
 #include <Bpp/Phyl/Tree/PhyloTreeTools.h>
 #include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
 #include <Bpp/Phyl/Io/IoTree.h>
-#include <Bpp/Phyl/TreeTemplateTools.h>
+#include <Bpp/Phyl/Tree/TreeTemplateTools.h>
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
 #include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
