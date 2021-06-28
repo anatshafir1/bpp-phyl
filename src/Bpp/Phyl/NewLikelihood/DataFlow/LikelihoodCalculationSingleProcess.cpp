@@ -481,28 +481,28 @@ void LikelihoodCalculationSingleProcess::makeRootFreqs_()
     //throw Exception("LikelihoodCalculationSingleProcess::makeRootFreqs_(): No implementation for weightedRootFrequencies_!!");
     auto sumOfWeights = CWiseAdd<RowLik, MatrixLik>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, RowVectorDimension(Eigen::Index(nbSite)));
     auto rootSumOfWeights = CWiseAdd<DataLik, RowLik>::create(getContext_(), {sumOfWeights}, Dimension<DataLik>());
-    std::cerr << "Calculating ..." << std::endl;
-    std::cerr << sumOfWeights->getTargetValue() << std::endl;
-    std::cerr << "Root likelihoods are: " << vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue() << std::endl;
-    std::cerr << "Sum of weights: " << sumOfWeights->getTargetValue() << std::endl;
-    std::cerr << "Sum of root weights: "<< rootSumOfWeights->getTargetValue() << std::endl;
+    //std::cerr << "Calculating ..." << std::endl;
+    //std::cerr << sumOfWeights->getTargetValue() << std::endl;
+    //std::cerr << "Root likelihoods are: " << vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue() << std::endl;
+    //std::cerr << "Sum of weights: " << sumOfWeights->getTargetValue() << std::endl;
+    //std::cerr << "Sum of root weights: "<< rootSumOfWeights->getTargetValue() << std::endl;
     auto converted = Convert<MatrixLik, Transposed<MatrixLik>>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, MatrixDimension ((size_t)nbSite, nbState));
 
     //throw Exception("LikelihoodCalculationSingleProcess::makeRootFreqs_(): No implementation for weightedRootFrequencies_!!");
     // warning: this is correct only for one site!!!!
     //size_t nbSite = vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue().cols();
     //auto converted = Convert<MatrixLik, Transposed<MatrixLik>>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, MatrixDimension (nbSite, nbState));
-    std::cerr << "Transposed root likelihoods: "<< converted->getTargetValue() << std::endl;
+    //std::cerr << "Transposed root likelihoods: "<< converted->getTargetValue() << std::endl;
     auto rootCondLik = CWiseAdd<RowLik, MatrixLik>::create(getContext_(), {converted}, RowVectorDimension(Eigen::Index(nbState)));
     auto freqs_ef = CWiseDiv<RowLik, std::tuple<RowLik, DataLik>>::create(getContext_(),{rootCondLik, rootSumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
-    std::cerr << "Converted from matrix to RowLik: " << rootCondLik->getTargetValue() << std::endl;
+    //std::cerr << "Converted from matrix to RowLik: " << rootCondLik->getTargetValue() << std::endl;
     //auto freqEf = CWiseDiv<RowLik, std::tuple<RowLik, RowLik>>::create(getContext_(),{rootCondLik, sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
     //auto freqEf = CWiseDiv<RowLik, std::tuple<MatrixLik, RowLik>>::create(getContext_(),{vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue(), sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
 
-    std::cerr << "Root frequencies in EF: " << freqs_ef->getTargetValue() << std::endl;
+    //std::cerr << "Root frequencies in EF: " << freqs_ef->getTargetValue() << std::endl;
     //rFreqs_ = CWiseApply<Eigen::RowVectorXd, ExtendedFloatRowVectorXd, std::function<ExtendedFloat::convert(const DataLik&)>>::create(getContext_(), {freqs_ef, std::function<ExtendedFloat::convert(const DataLik&)},  RowVectorDimension (Eigen::Index (nbState)));
     rFreqs_ = Convert<Eigen::RowVectorXd, ExtendedFloatRowVectorXd>::create(getContext_(), {freqs_ef}, RowVectorDimension (Eigen::Index (nbState)));
-    std::cerr << "Final root freqs: " << rFreqs_->getTargetValue() << std::endl;
+    //std::cerr << "Final root freqs: " << rFreqs_->getTargetValue() << std::endl;
     //rFreqs_ = CWiseDiv<Eigen::RowVectorXd, std::tuple<RowLik, DataLik>>::create(getContext_(),{rootCondLik, sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
   }else{
     rFreqs_ = processNodes_.rootFreqsNode_?ConfiguredParametrizable::createRowVector<ConfiguredFrequencySet, FrequenciesFromFrequencySet, Eigen::RowVectorXd> (

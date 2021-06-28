@@ -338,6 +338,9 @@ namespace bpp {
       if (float_part().cwiseAbs().minCoeff()!=0) {
         bool normalized = false;
         while (float_part().cwiseAbs().minCoeff() < ExtendedFloat::smallest_normalized_value) {
+          if (float_part().cwiseAbs().maxCoeff() >= ExtendedFloat::biggest_value_for_mult){
+            break;
+          }
           float_part() *= (double)ExtendedFloat::normalize_small_factor;
           exp_ -= ExtendedFloat::biggest_normalized_radix_power;
           normalized = true;
@@ -821,6 +824,7 @@ namespace bpp {
         EFtmp_.set_float_part(float_part().maxCoeff(pos));
       else
         EFtmp_.set_float_part(float_part().maxCoeff());
+      //EFtmp_.set_exponent_part(exponent_part());
       return EFtmp_;
     }
 

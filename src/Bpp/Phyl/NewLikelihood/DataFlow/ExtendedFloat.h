@@ -84,6 +84,8 @@ namespace bpp {
     
     // biggest_repr_radix_power = max { n ; radix^n is representable }
     static constexpr int biggest_repr_radix_power = std::numeric_limits<FloatType>::max_exponent - 1;
+    static constexpr int biggest_power_for_mult = 477;
+    static constexpr FloatType biggest_value_for_mult = constexpr_power (FloatType (radix), biggest_power_for_mult);
     
     // biggest_normalized_radix_power = max { n ; (radix^n)^allowed_product_without_normalization is representable }
     static constexpr int biggest_normalized_radix_power =

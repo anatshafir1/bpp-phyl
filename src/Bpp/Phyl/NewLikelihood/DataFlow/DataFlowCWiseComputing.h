@@ -718,8 +718,8 @@ namespace bpp {
       // #endif
       for (size_t i=0; i<half; i++)
       {
-        auto x0 = accessValueConstCast<P> (*this->dependency(i+half));
-        auto x1 = accessValueConstCast<T> (*this->dependency(i));
+        //auto x0 = accessValueConstCast<P> (*this->dependency(i+half));
+        //auto x1 = accessValueConstCast<T> (*this->dependency(i));
         //auto x2 = cwise (accessValueConstCast<P> (*this->dependency(i+half)));
         //auto x3 = cwise (accessValueConstCast<T> (*this->dependency(i)));
         cwise(result) += cwise (accessValueConstCast<P> (*this->dependency(i+half))) * cwise (accessValueConstCast<T> (*this->dependency(i)));
@@ -2099,22 +2099,25 @@ namespace bpp {
       // for (size_t i = 0; i < nrows; i++){
       //  for (size_t j = 0; j < ncols; j++){
       //    if (nrows == 1){
-      //       auto y1 = x0.col(i).transpose().array();
-      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto y1 = cwise(x0.col(i).transpose());
+      //       auto y2 = cwise(x1.col(j).transpose());
       //       auto prod = y1 * y2;
-      //       result (i, j) = prod.maxCoeff();
+      //       auto maxRes = ExtendedFloat::convert(prod.maxCoeff());
+      //       result (i, j) = maxRes;
 
 
       //    }else{
-      //       auto y1 = x0.row(i).array();
-      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto y1 = cwise(x0.row(i));
+      //       auto y2 = cwise(x1.col(j).transpose());
       //       auto prod = y1 * y2;
-      //       result (i, j) = prod.maxCoeff();
+      //       auto maxRes = ExtendedFloat::convert(prod.maxCoeff());
+      //       result (i, j) = maxRes;
 
       //    }
 
       //  }
       // }
+      // result.normalize();
     }
     Dimension<R> targetDimension_;
   };
@@ -2218,16 +2221,16 @@ namespace bpp {
       //  for (size_t j = 0; j < ncols; j++){
       //    size_t pos;
       //    if (nrows == 1){
-      //       auto y1 = x0.col(i).transpose().array();
-      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto y1 = cwise(x0.col(i).transpose());
+      //       auto y2 = cwise(x1.col(j).transpose());
       //       auto prod = y1 * y2;
       //       prod.maxCoeff(&pos);
       //       result (i, j) = (double) pos;
 
 
       //    }else{
-      //       auto y1 = x0.row(i).array();
-      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto y1 = cwise(x0.row(i));
+      //       auto y2 = cwise(x1.col(j).transpose());
       //       auto prod = y1 * y2;
       //       prod.maxCoeff(&pos);
       
