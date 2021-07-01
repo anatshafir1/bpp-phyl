@@ -513,7 +513,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
             //model->checkParametersBounds();
             if ((baseNumOptimizationMethod_ != "Brent") && (param.getName() == "Chromosome.baseNum_1")){
                 if (optimizeBaseNumber_){
-                    optimizeBaseNum(tl, j, baseNumCandidates, &currentLikelihood, lowerBound, upperBound);
+                    optimizeBaseNum(tl, j, baseNumCandidates, &currentLikelihood, lowerBound, upperBound, nameOfParam, params);
                     std::cout << "parameter value after optimization "<< tl->getLikelihoodCalculation()->getParameter(param.getName()).getValue() << endl;
                     continue;
 
@@ -617,26 +617,30 @@ string ChromosomeNumberOptimizer::findParameterNameInModel(string fullParameterN
     return paramName;
 }
 /***************************************************************************************/
-void ChromosomeNumberOptimizer::optimizeBaseNum(SingleProcessPhyloLikelihood* tl, size_t index, std::vector <unsigned int> baseNumCandidates, double* currentLikelihood, double lowerBound, double upperBound){
+void ChromosomeNumberOptimizer::optimizeBaseNum(SingleProcessPhyloLikelihood* tl, size_t index, std::vector <unsigned int> baseNumCandidates, double* currentLikelihood, double lowerBound, 
+                                                double upperBound, const string &paramName, ParameterList& params){
 
     Function* func = tl;
-    ParameterList params = tl->getSubstitutionModelParameters();
-    size_t best_i = (size_t)(params[index].getValue());
-    //double f_value = func->f(params);
+    ParameterList substitutionParams = tl->getSubstitutionModelParameters();
+    vector <std::string> names;
+    for (size_t k = 0; k < substitutionParams.size(); k ++){
+        names.push_back(substitutionParams[k].getName());
+    }
+    ParameterList updatedSubstitutionParams = params.createSubList(names);
+    size_t best_i = (size_t)(params.getParameter(paramName).getValue());
     double f_value = *currentLikelihood;
     
     for (size_t i = 0; i < baseNumCandidates.size(); i++){
         unsigned int baseNum = baseNumCandidates[i];
-        params[index].setValue((double)baseNum);
-        //ParameterList params = tl->getSubstitutionModelParameters();
+        params.getParameter(paramName).setValue((double)baseNum);
         double f_i = func->f(params);
         if (f_i < f_value){
             best_i = baseNum;
             f_value = f_i;
         }
     }
-    params[index].setValue((double)best_i);
-    func->f(params);
+    updatedSubstitutionParams.getParameter(paramName).setValue((double)best_i);
+    func->f(updatedSubstitutionParams);
     //param.setValue((double)best_i);
     *currentLikelihood = f_value;
 
