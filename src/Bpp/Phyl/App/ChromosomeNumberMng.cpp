@@ -253,12 +253,59 @@ void ChromosomeNumberMng::runChromEvol(){
     // get joint ML ancestral reconstruction
     //getJointMLAncestralReconstruction(chrOptimizer);
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
+    const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "ancestorsProbs.txt";
+    getMarginalAncestralReconstruction(chrOptimizer, outFilePath);
     
     //compute expectations
 
     delete chrOptimizer;
 
 
+}
+/**************************************************************************************/
+void ChromosomeNumberMng::getMarginalAncestralReconstruction(ChromosomeNumberOptimizer* chrOptimizer, const string &filePath){
+    vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = chrOptimizer->getVectorOfLikelihoods();
+    // get the best likelihood
+    SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
+    auto singleLikProcess = lik->getLikelihoodCalculationSingleProcess();
+    vector<shared_ptr<PhyloNode> > nodes = tree_->getAllNodes();
+    size_t nbNodes = nodes.size();
+    MarginalAncestralReconstruction *asr = new MarginalAncestralReconstruction(singleLikProcess);
+    std::map<uint, VVdouble> posteriorProbs;
+    std::map<uint, vector<size_t>> mapOfAncestors;
+    for (size_t n = 0; n < nbNodes; n++){
+        uint nodeId = tree_->getNodeIndex(nodes[n]);
+        posteriorProbs[nodeId].reserve(1);//one site
+        mapOfAncestors[nodeId] = asr->getAncestralStatesForNode(nodeId, posteriorProbs[nodeId], false); 
+    }
+    ofstream outFile;
+    outFile.open(filePath);
+    outFile << "NODE";
+    for (size_t i = 0; i < alphabet_->getSize(); i ++){
+        outFile << "\t" << (i + alphabet_->getMin());
+    }
+    outFile <<"\n";
+    std::map<uint, std::vector<size_t>>::iterator it = mapOfAncestors.begin();
+    while(it != mapOfAncestors.end()){
+        uint nodeId = it->first;
+        if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
+            outFile << "N-" << nodeId;
+        }else{
+            outFile << (tree_->getNode(nodeId))->getName();
+        }
+        for (size_t i = 0; i < posteriorProbs[nodeId][0].size(); i ++){
+            outFile << "\t" << (posteriorProbs[nodeId][0][i]);
+
+        }
+        outFile << "\n";
+
+        it++;
+    }
+
+    outFile.close();
+    const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+"MarginalAncestralReconstruction.tree";
+    printTreeWithStates(*tree_, mapOfAncestors, outFilePath);
+    delete asr;
 }
 /**************************************************************************************/
 /* void ChromosomeNumberMng::printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const{
