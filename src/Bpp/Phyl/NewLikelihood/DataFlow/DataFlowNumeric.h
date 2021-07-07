@@ -677,7 +677,7 @@ namespace bpp {
     }
 
     template <typename R, typename F>
-    typename std::enable_if<!((std::is_base_of<R, Eigen::MatrixXd>::value) && (std::is_base_of<R, MatrixLik>::value)), const R &>::type
+    typename std::enable_if<!((std::is_base_of<R, Eigen::MatrixXd>::value) && (std::is_base_of<F, ExtendedFloatMatrixXd>::value)), const R &>::type
     convert (const F & from, const Dimension<R> & dim) {
       const R & result = convert (from, dim);
       return result;
