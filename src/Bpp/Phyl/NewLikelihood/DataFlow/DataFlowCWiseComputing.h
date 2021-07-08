@@ -2084,41 +2084,46 @@ namespace bpp {
     }
 
   private:
-    void compute () final {
-      throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: compute() Not implemented yet for eflik branch!");
-      // using namespace numeric;
-      // auto & result = this->accessValueMutable ();
-      // const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
-      // const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
-      // size_t nrows = x0.rows();  
-      // size_t ncols = x1.cols();
-      // result = zero (targetDimension_);
-      // if (x0.cols() == 1){
-      //   nrows = 1;
-      // }
-      // for (size_t i = 0; i < nrows; i++){
-      //  for (size_t j = 0; j < ncols; j++){
-      //    if (nrows == 1){
-      //       auto y1 = cwise(x0.col(i).transpose());
-      //       auto y2 = cwise(x1.col(j).transpose());
-      //       auto prod = y1 * y2;
-      //       auto maxRes = ExtendedFloat::convert(prod.maxCoeff());
-      //       result (i, j) = maxRes;
+    void compute() override { compute<T0,T1>();}
+      
+    template<class U, class V>
+    typename std::enable_if<(std::is_same<U, ExtendedFloatMatrixXd>::value) && (std::is_same<V, ExtendedFloatMatrixXd>::value), void>::type
+      compute () {
+        using namespace numeric;
+        auto & result = this->accessValueMutable ();
+        const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+        const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+        result = maxProduct(x0, x1);
 
-
-      //    }else{
-      //       auto y1 = cwise(x0.row(i));
-      //       auto y2 = cwise(x1.col(j).transpose());
-      //       auto prod = y1 * y2;
-      //       auto maxRes = ExtendedFloat::convert(prod.maxCoeff());
-      //       result (i, j) = maxRes;
-
-      //    }
-
-      //  }
-      // }
-      // result.normalize();
     }
+
+
+    template<class U, class V>
+    typename std::enable_if<(std::is_same<U, Eigen::MatrixXd>::value) && (std::is_same<V, Eigen::MatrixXd>::value), void>::type
+      compute () {
+        using namespace numeric;
+        auto & result = this->accessValueMutable ();
+        const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+        const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+        size_t nrows = x0.rows();
+        size_t ncols = x1.cols();
+        result = zero (targetDimension_);
+        for (size_t i = 0; i < nrows; i++){
+          for (size_t j = 0; j < ncols; j++){
+            auto y1 = x0.row(i).array();
+            auto y2 = (x1.col(j).transpose()).array();
+            auto prod = y1 * y2;
+            result (i, j) = prod.maxCoeff();
+          }
+        }
+    }
+    template<class U, class V>
+    typename std::enable_if<((!std::is_same<U, ExtendedFloatMatrixXd>::value) || (!std::is_same<V, ExtendedFloatMatrixXd>::value)) && ((!std::is_same<U, Eigen::MatrixXd>::value) || (!std::is_same<V, Eigen::MatrixXd>::value)), void>::type
+      compute () {
+        throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: the input should consist of two matrices!");
+
+    }
+
     Dimension<R> targetDimension_;
   };
 
@@ -2204,43 +2209,62 @@ namespace bpp {
     }
 
   private:
-    void compute () final {
-      throw Exception("DataFlowCWiseComputing:MatrixArgMaxProduct: compute() Not implemented yet for eflik branch!");
-
-      // using namespace numeric;
-      // auto & result = this->accessValueMutable ();
-      // const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
-      // const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
-      // size_t nrows = x0.rows();
-      // size_t ncols = x1.cols();
-      // result = zero (targetDimension_);
-      // if (x0.cols() == 1){
-      //   nrows = 1;
-      // }
-      // for (size_t i = 0; i < nrows; i++){
-      //  for (size_t j = 0; j < ncols; j++){
-      //    size_t pos;
-      //    if (nrows == 1){
-      //       auto y1 = cwise(x0.col(i).transpose());
-      //       auto y2 = cwise(x1.col(j).transpose());
-      //       auto prod = y1 * y2;
-      //       prod.maxCoeff(&pos);
-      //       result (i, j) = (double) pos;
-
-
-      //    }else{
-      //       auto y1 = cwise(x0.row(i));
-      //       auto y2 = cwise(x1.col(j).transpose());
-      //       auto prod = y1 * y2;
-      //       prod.maxCoeff(&pos);
+    void compute() override { compute<T0,T1>();}
+    template<class U, class V>
+    typename std::enable_if<(std::is_same<U, ExtendedFloatMatrixXd>::value) && (std::is_same<V, ExtendedFloatMatrixXd>::value), void>::type
+      compute(){
+        using namespace numeric;
+        auto & result = this->accessValueMutable ();
+        const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+        const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+        size_t nrows = x0.rows();
+        size_t ncols = x1.cols();
+        result = zero (targetDimension_);
+        for (size_t i = 0; i < nrows; i++){
+          for (size_t j = 0; j < ncols; j++){
+            size_t pos;
+            auto y1 = cwise(x0.row(i));
+            auto y2 = cwise(x1.col(j).transpose());
+            auto prod = y1 * y2;
+            prod.maxCoeff(&pos);
       
-      //       result (i, j) = (double) pos;
+            result (i, j) = (double) pos;      
 
-      //    }
-
-      //  }
-      // }
+          }
+        }
     }
+
+    template<class U, class V>
+    typename std::enable_if<(std::is_same<U, Eigen::MatrixXd>::value) && (std::is_same<V, Eigen::MatrixXd>::value), void>::type
+      compute(){
+        using namespace numeric;
+        auto & result = this->accessValueMutable ();
+        const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+        const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+        size_t nrows = x0.rows();
+        size_t ncols = x1.cols();
+        result = zero (targetDimension_);
+        for (size_t i = 0; i < nrows; i++){
+          for (size_t j = 0; j < ncols; j++){
+            size_t pos;
+            auto y1 = (x0.row(i)).array();
+            auto y2 = (x1.col(j)).transpose().array();
+            auto prod = y1 * y2;
+            prod.maxCoeff(&pos);
+      
+            result (i, j) = (double) pos;      
+
+          }
+        }
+    }
+
+    template<class U, class V>
+    typename std::enable_if<((!std::is_same<U, ExtendedFloatMatrixXd>::value) || (!std::is_same<V, ExtendedFloatMatrixXd>::value)) && ((!std::is_same<U, Eigen::MatrixXd>::value) || (!std::is_same<V, Eigen::MatrixXd>::value)), void>::type
+      compute () {
+        throw Exception("DataFlowCWiseComputing:MatrixArgMaxProduct: the input should consist of two matrices!");
+
+    }
+
     Dimension<R> targetDimension_;
   };
 

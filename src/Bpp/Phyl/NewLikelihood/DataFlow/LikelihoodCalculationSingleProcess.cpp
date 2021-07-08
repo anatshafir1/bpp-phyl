@@ -478,32 +478,13 @@ void LikelihoodCalculationSingleProcess::makeRootFreqs_()
   size_t nbState = getStateMap().getNumberOfModelStates();
   auto nbSite = Eigen::Index(getNumberOfDistinctSites());
   if (weightedRootFrequencies_){
-    //throw Exception("LikelihoodCalculationSingleProcess::makeRootFreqs_(): No implementation for weightedRootFrequencies_!!");
     auto sumOfWeights = CWiseAdd<RowLik, MatrixLik>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, RowVectorDimension(Eigen::Index(nbSite)));
     auto rootSumOfWeights = CWiseAdd<DataLik, RowLik>::create(getContext_(), {sumOfWeights}, Dimension<DataLik>());
-    //std::cerr << "Calculating ..." << std::endl;
-    //std::cerr << sumOfWeights->getTargetValue() << std::endl;
-    //std::cerr << "Root likelihoods are: " << vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue() << std::endl;
-    //std::cerr << "Sum of weights: " << sumOfWeights->getTargetValue() << std::endl;
-    //std::cerr << "Sum of root weights: "<< rootSumOfWeights->getTargetValue() << std::endl;
     auto converted = Convert<MatrixLik, Transposed<MatrixLik>>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, MatrixDimension ((size_t)nbSite, nbState));
-
-    //throw Exception("LikelihoodCalculationSingleProcess::makeRootFreqs_(): No implementation for weightedRootFrequencies_!!");
-    // warning: this is correct only for one site!!!!
-    //size_t nbSite = vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue().cols();
-    //auto converted = Convert<MatrixLik, Transposed<MatrixLik>>::create(getContext_(), {vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()}, MatrixDimension (nbSite, nbState));
-    //std::cerr << "Transposed root likelihoods: "<< converted->getTargetValue() << std::endl;
     auto rootCondLik = CWiseAdd<RowLik, MatrixLik>::create(getContext_(), {converted}, RowVectorDimension(Eigen::Index(nbState)));
     auto freqs_ef = CWiseDiv<RowLik, std::tuple<RowLik, DataLik>>::create(getContext_(),{rootCondLik, rootSumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
-    //std::cerr << "Converted from matrix to RowLik: " << rootCondLik->getTargetValue() << std::endl;
-    //auto freqEf = CWiseDiv<RowLik, std::tuple<RowLik, RowLik>>::create(getContext_(),{rootCondLik, sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
-    //auto freqEf = CWiseDiv<RowLik, std::tuple<MatrixLik, RowLik>>::create(getContext_(),{vRateCatTrees_[0].flt->getForwardLikelihoodArrayAtRoot()->getTargetValue(), sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
-
-    //std::cerr << "Root frequencies in EF: " << freqs_ef->getTargetValue() << std::endl;
-    //rFreqs_ = CWiseApply<Eigen::RowVectorXd, ExtendedFloatRowVectorXd, std::function<ExtendedFloat::convert(const DataLik&)>>::create(getContext_(), {freqs_ef, std::function<ExtendedFloat::convert(const DataLik&)},  RowVectorDimension (Eigen::Index (nbState)));
     rFreqs_ = Convert<Eigen::RowVectorXd, ExtendedFloatRowVectorXd>::create(getContext_(), {freqs_ef}, RowVectorDimension (Eigen::Index (nbState)));
-    //std::cerr << "Final root freqs: " << rFreqs_->getTargetValue() << std::endl;
-    //rFreqs_ = CWiseDiv<Eigen::RowVectorXd, std::tuple<RowLik, DataLik>>::create(getContext_(),{rootCondLik, sumOfWeights}, RowVectorDimension(Eigen::Index(nbState)));
+
   }else{
     rFreqs_ = processNodes_.rootFreqsNode_?ConfiguredParametrizable::createRowVector<ConfiguredFrequencySet, FrequenciesFromFrequencySet, Eigen::RowVectorXd> (
       getContext_(), {processNodes_.rootFreqsNode_}, RowVectorDimension (Eigen::Index (nbState))):
@@ -711,7 +692,7 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtRoot_()
   // writeGraphToDot(
   //   "debug_lik.dot", {likelihood_.get()});//, DotOptions::DetailedNodeInfo | DotOp
 }
-  
+
 
 
 void LikelihoodCalculationSingleProcess::makeLikelihoodsAtNode_(uint speciesId)
@@ -751,23 +732,20 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtNode_(uint speciesId)
     
   for (auto& rateCat: vRateCatTrees_)
   {
-    if (!rateCat.blt)// & (!ancestralReconstruction_))
+    if (!rateCat.blt)
       rateCat.blt=std::make_shared<BackwardLikelihoodTree>(getContext_(), rateCat.flt, rateCat.phyloTree, rFreqs_, stateMap, nbDistSite);
 
     if (!rateCat.clt)
-      //ancestralReconstruction_ ? rateCat.clt=std::make_shared<ConditionalLikelihoodDAG>(rateCat.acr->getGraph()) :
-        rateCat.clt=std::make_shared<ConditionalLikelihoodDAG>(rateCat.flt->getGraph());
+      rateCat.clt=std::make_shared<ConditionalLikelihoodDAG>(rateCat.flt->getGraph());
 
     if (!rateCat.lt)
-      //ancestralReconstruction_ ? rateCat.lt=std::make_shared<SiteLikelihoodsDAG>(rateCat.acr->getGraph()) :
-        rateCat.lt=std::make_shared<SiteLikelihoodsDAG>(rateCat.flt->getGraph());
+      rateCat.lt=std::make_shared<SiteLikelihoodsDAG>(rateCat.flt->getGraph());
 
     
     if (!rateCat.speciesLt)
       rateCat.speciesLt=std::make_shared<SiteLikelihoodsTree>(phylotree.getGraph());
 
     auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
-    //auto& dagIndexes = ancestralReconstruction_? rateCat.acr->getDAGNodesIndexes(speciesId) : rateCat.flt->getDAGNodesIndexes(speciesId);
 
     std::vector<std::shared_ptr<Node_DF>> vCond;
 
@@ -780,26 +758,7 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtNode_(uint speciesId)
           vCond.push_back(cond);
         continue;
       }
-      // if (ancestralReconstruction_){
-      //   auto condAncr = rateCat.acr->getForwardLikelihoodArray(index);
-      //   if (index != rateCat.acr->getRootIndex()){
-      //     auto incomingEdgeIndex = rateCat.acr->getIncomingEdges(index)[0];
-      //     auto incomingEdge = rateCat.acr->getEdge(incomingEdgeIndex);
-      //     cond = incomingEdge;
-      //     //auto test = cond->getTargetValue();
-      //     //std::cerr <<  " ->  N " << speciesId <<": " << test << std::endl;
-        
 
-      //   }else{
-      //     cond = condAncr;
-      //   }
-      //   if (dagIndexes.size()>1) // for sum 
-      //     vCond.push_back(cond);
-      
-      //   rateCat.clt->associateNode(cond, rateCat.acr->getNodeGraphid(rateCat.acr->getNode(index)));
-      //   rateCat.clt->setNodeIndex(cond, index);
-
-      // }else{
       auto condAbove = rateCat.blt->getBackwardLikelihoodArray(index);
       auto condBelow = rateCat.flt->getForwardLikelihoodArray(index);
 
@@ -807,26 +766,16 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtNode_(uint speciesId)
         getContext_(), {condAbove, condBelow}, likelihoodMatrixDim);
 
       if (dagIndexes.size()>1) // for sum 
-        if (dagIndexes.size()>1) // for sum 
-      if (dagIndexes.size()>1) // for sum 
         vCond.push_back(cond);
       
       rateCat.clt->associateNode(cond, rateCat.flt->getNodeGraphid(rateCat.flt->getNode(index)));
       rateCat.clt->setNodeIndex(cond, index);
 
-      //}
-
-
-
       // Site Likelihoods on this point
-      auto lt =LikelihoodFromRootConditionalAtRoot::create (
-          getContext_(), {one, cond}, RowVectorDimension (nbDistSite));
-      // if (ancestralReconstruction_){
-      //   rateCat.lt->associateNode(lt, rateCat.acr->getNodeGraphid(rateCat.acr->getNode(index)));
-      //}else{
-      rateCat.lt->associateNode(lt, rateCat.flt->getNodeGraphid(rateCat.flt->getNode(index)));
+      auto lt = LikelihoodFromRootConditionalAtRoot::create (
+        getContext_(), {one, cond}, RowVectorDimension (nbDistSite));
 
-      //}     
+      rateCat.lt->associateNode(lt, rateCat.flt->getNodeGraphid(rateCat.flt->getNode(index)));
       rateCat.lt->setNodeIndex(lt, index);
     }
 
@@ -866,8 +815,10 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtNode_(uint speciesId)
   if (processNodes_.ratesNode_)
   {
     auto catProb = ProbabilitiesFromDiscreteDistribution::create(getContext_(), {processNodes_.ratesNode_});
-    vRoot.push_back(catProb);
-    vCondRate.push_back(catProb);
+    auto catProbEf = Convert<RowLik, Eigen::RowVectorXd>::create(getContext_(), {catProb}, RowVectorDimension (Eigen::Index (nbDistSite)));
+    vRoot.push_back(catProbEf);
+    vCondRate.push_back(catProbEf);
+
 
     distinctSiteLikelihoodsNode = CWiseMean<RowLik, ReductionOf<RowLik>, RowLik>::create(getContext_(), std::move(vRoot), RowVectorDimension (nbDistSite));
 
@@ -876,19 +827,181 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtNode_(uint speciesId)
 
   condLikelihoodTree_->associateNode(conditionalLikelihoodsNode, phylotree.getNodeGraphid(phylotree.getNode(speciesId)));
   condLikelihoodTree_->setNodeIndex(conditionalLikelihoodsNode, speciesId);
-    
-  // // And sum all ll
-  // auto totalLogLikelihood =
-  //   SumOfLogarithms<RowLik>::create (getContext_(), {distinctSiteLikelihoodsNode, rootWeights_}, RowVectorDimension (Eigen::Index (nbDistSite)));
-
-  // return totalLogLikelihood;
-
-  // We want -log(likelihood)
-  // auto totalNegLogLikelihood =
-  //   CWiseNegate<double>::create (getContext_(), {totalLogLikelihood}, Dimension<double> ());
-  //  return totalNegLogLikelihood;
-
 }
+
+// void LikelihoodCalculationSingleProcess::makeLikelihoodsAtNode_(uint speciesId)
+// {
+//   // Already built
+//   if (condLikelihoodTree_ && condLikelihoodTree_->hasNode(speciesId))
+//     return;
+  
+//   if (vRateCatTrees_.size()==0)
+//     makeForwardLikelihoodTree_();
+
+//   if (rFreqs_==0)
+//     makeRootFreqs_();
+  
+//   const auto& stateMap = getStateMap();
+//   auto nbDistSite = Eigen::Index(getNumberOfDistinctSites());
+//   auto nbState = Eigen::Index(stateMap.getNumberOfModelStates());
+//   MatrixDimension likelihoodMatrixDim = conditionalLikelihoodDimension (nbState, nbDistSite);
+
+//   const auto& phylotree = process_.getParametrizablePhyloTree();
+  
+//   ValueRef<RowLik> siteLikelihoodsNode;
+
+//   std::shared_ptr<ConditionalLikelihood> cond(0);
+
+//   std::vector<NodeRef> vCondRate;
+  
+//   SiteLikelihoodsRef distinctSiteLikelihoodsNode;
+//   ConditionalLikelihoodRef conditionalLikelihoodsNode;
+  
+//   std::vector<std::shared_ptr<Node_DF>> vRoot; // if several rates
+
+//   if (!condLikelihoodTree_)
+//     condLikelihoodTree_ = std::make_shared<ConditionalLikelihoodTree>(phylotree.getGraph());
+  
+//   auto one=ConstantOne<Eigen::RowVectorXd>::create(getContext_(), RowVectorDimension (nbState));
+    
+//   for (auto& rateCat: vRateCatTrees_)
+//   {
+//     if (!rateCat.blt)// & (!ancestralReconstruction_))
+//       rateCat.blt=std::make_shared<BackwardLikelihoodTree>(getContext_(), rateCat.flt, rateCat.phyloTree, rFreqs_, stateMap, nbDistSite);
+
+//     if (!rateCat.clt)
+//       //ancestralReconstruction_ ? rateCat.clt=std::make_shared<ConditionalLikelihoodDAG>(rateCat.acr->getGraph()) :
+//         rateCat.clt=std::make_shared<ConditionalLikelihoodDAG>(rateCat.flt->getGraph());
+
+//     if (!rateCat.lt)
+//       //ancestralReconstruction_ ? rateCat.lt=std::make_shared<SiteLikelihoodsDAG>(rateCat.acr->getGraph()) :
+//         rateCat.lt=std::make_shared<SiteLikelihoodsDAG>(rateCat.flt->getGraph());
+
+    
+//     if (!rateCat.speciesLt)
+//       rateCat.speciesLt=std::make_shared<SiteLikelihoodsTree>(phylotree.getGraph());
+
+//     auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
+//     //auto& dagIndexes = ancestralReconstruction_? rateCat.acr->getDAGNodesIndexes(speciesId) : rateCat.flt->getDAGNodesIndexes(speciesId);
+
+//     std::vector<std::shared_ptr<Node_DF>> vCond;
+
+//     for (const auto& index : dagIndexes)
+//     {
+//       if (rateCat.clt->hasNode(index))
+//       {
+//         cond = rateCat.clt->getNode(index);
+//         if (dagIndexes.size()>1) // for sum 
+//           vCond.push_back(cond);
+//         continue;
+//       }
+//       // if (ancestralReconstruction_){
+//       //   auto condAncr = rateCat.acr->getForwardLikelihoodArray(index);
+//       //   if (index != rateCat.acr->getRootIndex()){
+//       //     auto incomingEdgeIndex = rateCat.acr->getIncomingEdges(index)[0];
+//       //     auto incomingEdge = rateCat.acr->getEdge(incomingEdgeIndex);
+//       //     cond = incomingEdge;
+//       //     //auto test = cond->getTargetValue();
+//       //     //std::cerr <<  " ->  N " << speciesId <<": " << test << std::endl;
+        
+
+//       //   }else{
+//       //     cond = condAncr;
+//       //   }
+//       //   if (dagIndexes.size()>1) // for sum 
+//       //     vCond.push_back(cond);
+      
+//       //   rateCat.clt->associateNode(cond, rateCat.acr->getNodeGraphid(rateCat.acr->getNode(index)));
+//       //   rateCat.clt->setNodeIndex(cond, index);
+
+//       // }else{
+//       auto condAbove = rateCat.blt->getBackwardLikelihoodArray(index);
+//       auto condBelow = rateCat.flt->getForwardLikelihoodArray(index);
+
+//       cond = BuildConditionalLikelihood::create (
+//         getContext_(), {condAbove, condBelow}, likelihoodMatrixDim);
+
+//       if (dagIndexes.size()>1) // for sum 
+//         vCond.push_back(cond);
+      
+//       rateCat.clt->associateNode(cond, rateCat.flt->getNodeGraphid(rateCat.flt->getNode(index)));
+//       rateCat.clt->setNodeIndex(cond, index);
+
+//       //}
+
+
+
+//       // Site Likelihoods on this point
+//       auto lt =LikelihoodFromRootConditionalAtRoot::create (
+//           getContext_(), {one, cond}, RowVectorDimension (nbDistSite));
+//       // if (ancestralReconstruction_){
+//       //   rateCat.lt->associateNode(lt, rateCat.acr->getNodeGraphid(rateCat.acr->getNode(index)));
+//       //}else{
+//       rateCat.lt->associateNode(lt, rateCat.flt->getNodeGraphid(rateCat.flt->getNode(index)));
+
+//       //}     
+//       rateCat.lt->setNodeIndex(lt, index);
+//     }
+
+//     /*
+//      * If several DAG nodes related with this species node, sum the
+//      * likelihoods of all (already multiplied by their probability).
+//      *
+//      */
+
+//     if (dagIndexes.size()>1)
+//       cond = CWiseAdd<MatrixLik, ReductionOf<MatrixLik>>::create(getContext_(), std::move(vCond), likelihoodMatrixDim);
+
+//     // for Lik at Node
+//     auto siteLikelihoodsCat = LikelihoodFromRootConditionalAtRoot::create (
+//       getContext_(), {one, cond}, RowVectorDimension (nbDistSite));
+
+//     if (!rateCat.speciesLt->hasNode(speciesId))
+//     {
+//       rateCat.speciesLt->associateNode(siteLikelihoodsCat, phylotree.getNodeGraphid(phylotree.getNode(speciesId)));
+//       rateCat.speciesLt->setNodeIndex(siteLikelihoodsCat, speciesId);
+//     }
+    
+//     if (!processNodes_.ratesNode_)
+//     {
+//       distinctSiteLikelihoodsNode = siteLikelihoodsCat;
+//       conditionalLikelihoodsNode = cond;
+//       break;
+//     }
+//     else
+//     {
+//       // For Conditional at Node
+//       vCondRate.push_back(cond);
+//       vRoot.push_back(siteLikelihoodsCat);
+//     }
+//   }
+
+//   if (processNodes_.ratesNode_)
+//   {
+//     auto catProb = ProbabilitiesFromDiscreteDistribution::create(getContext_(), {processNodes_.ratesNode_});
+//     vRoot.push_back(catProb);
+//     vCondRate.push_back(catProb);
+
+//     distinctSiteLikelihoodsNode = CWiseMean<RowLik, ReductionOf<RowLik>, RowLik>::create(getContext_(), std::move(vRoot), RowVectorDimension (nbDistSite));
+
+//     conditionalLikelihoodsNode = CWiseMean<MatrixLik, ReductionOf<MatrixLik>, RowLik>::create(getContext_(), std::move(vCondRate), MatrixDimension (nbState, nbDistSite));
+//   }
+
+//   condLikelihoodTree_->associateNode(conditionalLikelihoodsNode, phylotree.getNodeGraphid(phylotree.getNode(speciesId)));
+//   condLikelihoodTree_->setNodeIndex(conditionalLikelihoodsNode, speciesId);
+    
+//   // // And sum all ll
+//   // auto totalLogLikelihood =
+//   //   SumOfLogarithms<RowLik>::create (getContext_(), {distinctSiteLikelihoodsNode, rootWeights_}, RowVectorDimension (Eigen::Index (nbDistSite)));
+
+//   // return totalLogLikelihood;
+
+//   // We want -log(likelihood)
+//   // auto totalNegLogLikelihood =
+//   //   CWiseNegate<double>::create (getContext_(), {totalLogLikelihood}, Dimension<double> ());
+//   //  return totalNegLogLikelihood;
+
+// }
 
 void LikelihoodCalculationSingleProcess::makeLikelihoodsAtDAGNode_(uint nodeId)
 {
@@ -1082,3 +1195,7 @@ void LikelihoodCalculationSingleProcess::setWeightedRootFrequencies(std::vector<
   rFreqs_ = ConfiguredParametrizable::createRowVector<ConfiguredFrequencySet, FrequenciesFromFrequencySet, Eigen::RowVectorXd> (
     getContext_(), {processNodes_.rootFreqsNode_}, RowVectorDimension (Eigen::Index (nbState)));
 }
+// void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint speciesId){
+//   auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
+  
+// }

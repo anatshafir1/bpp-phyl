@@ -788,12 +788,14 @@ namespace bpp {
     const ExtendedFloat& operator()(Eigen::Index col) const
     {
       EFtmp_.set_float_part(float_part()(col));
+      EFtmp_.set_exponent_part(exponent_part());
       return EFtmp_;
     }
 
     const ExtendedFloat& operator()(Eigen::Index row, Eigen::Index col) const
     {
       EFtmp_.set_float_part(float_part()(row, col));
+      EFtmp_.set_exponent_part(exponent_part());
       return EFtmp_;
     }
 
@@ -944,6 +946,25 @@ namespace bpp {
     return r;
   }
 
+  inline static ExtendedFloatMatrixXd maxProduct(const ExtendedFloatMatrixXd& matA, const ExtendedFloatMatrixXd& matB){
+    size_t nrows = (size_t)(matA.rows());
+    size_t ncols = (size_t)(matB.cols());
+    ExtendedFloatMatrixXd mat = ExtendedFloatMatrixXd::Zero(matA.rows(), matB.cols());
+    for (size_t i = 0; i < nrows; i++){
+      for (size_t j = 0; j < ncols; j++){
+        auto rowArr = matA.float_part().row(i).array();
+        auto colArr = matB.float_part().col(j).transpose().array();
+        auto product = rowArr * colArr;
+        auto maxRes = product.maxCoeff();
+        mat.float_part()(i, j) = maxRes;
+
+      }
+    }
+    mat.exponent_part() = matA.exponent_part() + matB.exponent_part();
+    mat.normalize();
+    return mat;
+
+  }
   
   template<int R, int C, template< int R2=R,  int C2=C> class MatType, typename T>
   typename std::enable_if<std::is_same<T, ExtendedFloat>::value

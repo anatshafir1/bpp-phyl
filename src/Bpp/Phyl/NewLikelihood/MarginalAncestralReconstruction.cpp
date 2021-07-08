@@ -51,12 +51,22 @@ vector<size_t> MarginalAncestralReconstruction::getAncestralStatesForNode(uint n
   DataLik r;
 
   auto vv = likelihood_->getLikelihoodsAtNode(nodeId)->getTargetValue();
+  auto vv_t = vv.transpose();
+  probs.resize(vv_t.rows());
+  for (auto i = 0;i < vv_t.rows();i++){
+    probs[i].resize(vv_t.cols());
+    ExtendedFloat sumStates = ExtendedFloat{0};   
+    //vv.col(i)/= vv.col(i).sum();  // it is not updated. Maybe I can try only to update probs, because all the the proportionality is retained in vv.
+    for (auto j = 0; j < vv_t.cols(); j++){
+      probs[i][j] = convert(vv_t(i,j));
+      sumStates += ExtendedFloat{probs[i][j]};
+    }
+    for (auto k = 0; k < vv_t.cols(); k++){
+      auto probEf = ExtendedFloat{probs[i][k]};
+      probs[i][k] = ExtendedFloat::convert(probEf/sumStates);
+    }
+  }
 
-  for (auto i=0;i<vv.cols();i++)
-    vv.col(i)/=vv.col(i).sum();
-
-  copyEigenToBpp(vv.transpose(), probs);
-    
   if (sample)
   { 
     for (size_t i = 0; i < nbDistinctSites_; i++)

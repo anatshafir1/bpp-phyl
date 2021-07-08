@@ -782,6 +782,12 @@ namespace bpp {
     void makeLikelihoodsAtDAGNode_(uint nodeId);
 
     std::shared_ptr<SiteLikelihoodsTree> getSiteLikelihoodsTree_(size_t nCat);
+    /*
+     * @brief Compute the joint likelihood of father state and node state,
+     *
+     * @param nodeId : index of the node in the phylo Tree
+     */
+    //void makeJointLikelihoodFatherNode_(uint nodeId);
 
   };
 
