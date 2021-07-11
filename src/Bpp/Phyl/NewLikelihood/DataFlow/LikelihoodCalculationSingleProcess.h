@@ -48,7 +48,7 @@
 #include "Bpp/Phyl/NewLikelihood/DataFlow/FrequencySet.h"
 #include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlow.h>
 #include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlowCWiseComputing.h>
-//#include <Bpp/Phyl/NewLikelihood/DataFlow/FwLikMLAncestralReconstruction.h>
+#include <Bpp/Phyl/NewLikelihood/DataFlow/FwLikMLAncestralReconstruction.h>
 
 #include "Bpp/Phyl/NewLikelihood/SubstitutionProcess.h"
 
@@ -263,7 +263,7 @@ namespace bpp {
     /* indicates whether the root likelihoods should be determined according to likelihood */
     bool weightedRootFrequencies_;
     /* indicates whether ancestral reconstruction should be performed instead of standard likelihood calculation */
-    //bool ancestralReconstruction_;
+    bool ancestralReconstruction_;
     
   public:
     LikelihoodCalculationSingleProcess(Context & context,
@@ -355,7 +355,32 @@ namespace bpp {
     void setWeightedRootFrequencies(std::vector<double> freqs);
 
     void makeJointMLAncestralReconstruction();
-    //void makeJointMLAncrTree();
+    void makeFwLikJointMLAncestralReconstruction();
+    void makeJointMLAncestralReconstructionAtNode_(uint speciesId);
+    
+    ConditionalLikelihoodRef getJointMLAncestralReconstructionAtNode(uint nodeId, bool shrunk = false)
+    {
+      if (!(condLikelihoodTree_ && condLikelihoodTree_->hasNode(nodeId)))
+        makeJointMLAncestralReconstructionAtNode_(nodeId);
+
+      auto vv = condLikelihoodTree_->getNode(nodeId);
+
+      return shrunk?vv:expandMatrix(vv);
+    }
+
+    ValueRef<RowLik> getJointMLAncestralReconstructionFromRoot(uint nodeId, bool shrunk = false){
+      auto rootVal = getJointMLAncestralReconstructionAtNode(nodeId, shrunk);
+      size_t nbDistSite = getNumberOfDistinctSites();
+      size_t nbState = getStateMap().getNumberOfModelStates();
+      auto rootFreqsEf = Convert<ExtendedFloatRowVectorXd, Eigen::RowVectorXd>::create(getContext_(), {rFreqs_}, RowVectorDimension (Eigen::Index (nbState)));
+      auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(getContext_(), {rootFreqsEf}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
+      auto cond = MatrixArgMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
+                           getContext_(), {rootFreqs, rootVal}, RowVectorDimension (nbDistSite));
+      return shrunk?cond:expandVector(cond);
+    }
+
+
+
 
     
 
@@ -714,24 +739,7 @@ namespace bpp {
 
     std::shared_ptr<ForwardLikelihoodTree> getForwardLikelihoodTree(size_t nCat);
 
-    // ConditionalLikelihoodRef getLikelihoodsAtNodeMLAncestral(uint nodeId, bool shrunk = false)
-    // {
-    //   if (!(condLikelihoodTree_ && condLikelihoodTree_->hasNode(nodeId)))
-    //     makeLikelihoodAncestralReconstructionAtNode_(nodeId);
 
-    //   auto vv = condLikelihoodTree_->getNode(nodeId);
-
-    //   return shrunk?vv:expandMatrix(vv);
-    // }
-
-    // ValueRef<RowLik> getLikelihoodAtNodeFromRoot(uint nodeId, bool shrunk = false){
-    //   auto rootVal = getLikelihoodsAtNode(nodeId, shrunk);
-    //   size_t nbDistSite = getNumberOfDistinctSites();
-    //   auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(getContext_(), {rFreqs_}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
-    //   auto cond = MatrixArgMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
-    //                        getContext_(), {rootFreqs, rootVal}, RowVectorDimension (nbDistSite));
-    //   return shrunk?cond:expandVector(cond);
-    // }
 
   private:
     void setPatterns_();

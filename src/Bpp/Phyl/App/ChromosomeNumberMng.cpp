@@ -187,55 +187,55 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
        
 }
 /******************************************************************************************************/
-// void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const{
-//     vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = optimizer->getVectorOfLikelihoods();
-//     // get the best likelihood
-//     SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
-//     ValueRef <RowLik> rootFreqs = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
-//     const SubstitutionModel* modelRaw = dynamic_cast<const SubstitutionModel*>(lik->getLikelihoodCalculationSingleProcess()->getSubstitutionProcess().getModel(1));
-//     std::shared_ptr<SubstitutionModel> model(modelRaw->clone());
-//     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
-//     NonHomogeneousSubstitutionProcess* subProSim;
-//     ParametrizablePhyloTree parTree(*tree_);
-//     subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
-//     SubstitutionProcess* subProcess = subProSim->clone();
-//     Context context;
-//     auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *subProcess, rootFreqs);
-//     likAncestralRec->makeJointMLAncestralReconstruction();
-//     JointMLAncestralReconstruction* ancr = new JointMLAncestralReconstruction(likAncestralRec);
-//     ancr->init();
-//     std::map<uint, std::vector<size_t>> ancestors = ancr->getAllAncestralStates();
-//     std::map<uint, std::vector<size_t>>::iterator it = ancestors.begin();
-//     std::cout <<"******* ******* ANCESTRAL RECONSTRUCTION ******* ********" << endl;
-//     while(it != ancestors.end()){
-//         uint nodeId = it->first;
-//         if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
-//             cout << "   ----> N-" << nodeId <<" states are: " << endl;
-//             for (size_t s = 0; s < ancestors[nodeId].size(); s++){
-//                 cout << "           state: "<< ancestors[nodeId][s] << endl;
-//             }
-//         }else{
-//             cout << "   ----> " << (tree_->getNode(nodeId))->getName() << " states are: " << endl;
-//             for (size_t s = 0; s < ancestors[nodeId].size(); s++){
-//                 cout << "           state: "<< ancestors[nodeId][s] << endl;
-//             }
-//         }
-//         it++;
-//     }
-//     const string outFilePath = ChromEvolOptions::resultsPathDir_ + "//" + "MLAncestralReconstruction.tree";
-//     PhyloTree* treeWithStates = tree_->clone();
-//     printTreeWithStates(*treeWithStates, ancestors, outFilePath);
-//     delete treeWithStates;
+void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const{
+    vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = optimizer->getVectorOfLikelihoods();
+    // get the best likelihood
+    SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
+    ValueRef <Eigen::RowVectorXd> rootFreqs = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
+    const SubstitutionModel* modelRaw = dynamic_cast<const SubstitutionModel*>(lik->getLikelihoodCalculationSingleProcess()->getSubstitutionProcess().getModel(1));
+    std::shared_ptr<SubstitutionModel> model(modelRaw->clone());
+    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    NonHomogeneousSubstitutionProcess* subProSim;
+    ParametrizablePhyloTree parTree(*tree_);
+    subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
+    SubstitutionProcess* subProcess = subProSim->clone();
+    Context context;
+    auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *subProcess, rootFreqs);
+    likAncestralRec->makeJointMLAncestralReconstruction();
+    JointMLAncestralReconstruction* ancr = new JointMLAncestralReconstruction(likAncestralRec);
+    ancr->init();
+    std::map<uint, std::vector<size_t>> ancestors = ancr->getAllAncestralStates();
+    std::map<uint, std::vector<size_t>>::iterator it = ancestors.begin();
+    std::cout <<"******* ******* ANCESTRAL RECONSTRUCTION ******* ********" << endl;
+    while(it != ancestors.end()){
+        uint nodeId = it->first;
+        if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
+            cout << "   ----> N-" << nodeId <<" states are: " << endl;
+            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
+                cout << "           state: "<< ancestors[nodeId][s] + alphabet_->getMin() << endl;
+            }
+        }else{
+            cout << "   ----> " << (tree_->getNode(nodeId))->getName() << " states are: " << endl;
+            for (size_t s = 0; s < ancestors[nodeId].size(); s++){
+                cout << "           state: "<< ancestors[nodeId][s]+ alphabet_->getMin() << endl;
+            }
+        }
+        it++;
+    }
+    const string outFilePath = ChromEvolOptions::resultsPathDir_ + "//" + "MLAncestralReconstruction.tree";
+    PhyloTree* treeWithStates = tree_->clone();
+    printTreeWithStates(*treeWithStates, ancestors, outFilePath);
+    delete treeWithStates;
 
 
-//     delete ancr;
-//     //double likVal = likAncestralRec->makeJointMLAncestralReconstructionTest();
-//     std::cout << "********************************************\n";
-//     std::cout << " * * * * * * * * * * * * * * * * * * * * *\n";
-//     std::cout << "********************************************\n";
-//     //std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
-//     delete subProSim;
-// }
+    delete ancr;
+    //double likVal = likAncestralRec->makeJointMLAncestralReconstructionTest();
+    std::cout << "********************************************\n";
+    std::cout << " * * * * * * * * * * * * * * * * * * * * *\n";
+    std::cout << "********************************************\n";
+    //std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
+    delete subProSim;
+}
 
 /***********************************************************************************/
 void ChromosomeNumberMng::runChromEvol(){
@@ -251,7 +251,7 @@ void ChromosomeNumberMng::runChromEvol(){
     // optimize likelihood
     ChromosomeNumberOptimizer* chrOptimizer = optimizeLikelihoodMultiStartPoints();
     // get joint ML ancestral reconstruction
-    //getJointMLAncestralReconstruction(chrOptimizer);
+    getJointMLAncestralReconstruction(chrOptimizer);
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
     const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "ancestorsProbs.txt";
     getMarginalAncestralReconstruction(chrOptimizer, outFilePath);

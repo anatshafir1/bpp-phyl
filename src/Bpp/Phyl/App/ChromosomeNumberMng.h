@@ -75,6 +75,7 @@
 #include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
 #include <Bpp/Phyl/NewLikelihood/MarginalAncestralReconstruction.h>
+#include <Bpp/Phyl/NewLikelihood/JointMLAncestralReconstruction.h>
 //#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
 #include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
 //#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
@@ -137,7 +138,7 @@ namespace bpp{
             //void runTest();
             void runChromEvol();
             ChromosomeNumberOptimizer* optimizeLikelihoodMultiStartPoints() const;
-            //void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const;
+            void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const;
             void getMarginalAncestralReconstruction(ChromosomeNumberOptimizer* chrOptimizer, const string &filePath);
             // map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             // void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int numOfSimulations) const;

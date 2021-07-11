@@ -17,11 +17,6 @@ void FwLikMLAncestralReconstruction::initialize(const AlignedValuesContainer& si
   rootAt(sonsMulNode);
   deleteNode(bidonRoot);
 
-  //RootConditionalLikelihoodsRef rootNode;
-  //auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(context_, {rFreqs_}, likelihoodMatrixDim_);
-  //std::cerr << "   -> Root frequencies : "<< " " << rootFreqs->getTargetValue() << std::endl;
-  //rootNode = MatrixMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
-                           //context_, {rootFreqs, sonsMulNode}, RowVectorDimension (nbSites_));
 
   // just for debug:
   //auto vec = rootFreqs->getTargetValue().array() * sonsMulNode->getTargetValue().array();
@@ -42,10 +37,6 @@ void FwLikMLAncestralReconstruction::initialize(const AlignedValuesContainer& si
 
 ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikelihoodAtNode (shared_ptr<ProcessNode> processNode, const AlignedValuesContainer & sites, ConditionalLikelihoodForwardRef* forwardEdge)
 {
-  // if (processTree_->getRootIndex() == processTree_->getNodeIndex(processNode)){
-  //   return setRootFrequencies(processNode, sites);
-
-  // }
   const auto childBranches = processTree_->getBranches (processNode);
   auto spIndex=processNode->getSpeciesIndex();
   ConditionalLikelihoodForwardRef forwardNode;
@@ -60,17 +51,17 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
     ConditionalLikelihoodForwardRef leafNode;
     leafNode = makeInitialConditionalLikelihood (processNode->getName (), sites);
 
-    //const auto edge = processTree_->getEdge(edgeIndex);
     if (dynamic_cast<const TransitionModel*>(model->getTargetValue()))
     {
-      auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel> (context_, {model, brlen, zero, nMod}, transitionMatrixDimension (size_t(nbState_)));
-      
+      auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel, Eigen::MatrixXd> (context_, {model, brlen, zero, nMod, factorNode_}, transitionMatrixDimension (size_t(nbState_)));
+            
       edge->setTransitionMatrix(transitionMatrix);
+      auto transitionMatrixEf = Convert<MatrixLik, Eigen::MatrixXd>::create(context_, {transitionMatrix}, transitionMatrixDimension (size_t(nbState_)));
       forwardNode = ForwardTransition::create (
         context_, {transitionMatrix, leafNode}, likelihoodMatrixDim_);
       if (forwardEdge){
         *forwardEdge = MatrixArgMaxProduct<MatrixLik, MatrixLik, MatrixLik>::create (
-          context_, {transitionMatrix, leafNode}, likelihoodMatrixDim_);
+          context_, {transitionMatrixEf, leafNode}, likelihoodMatrixDim_);
       }
       
     }
@@ -96,18 +87,19 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
     // L_son1(j) * L_son2(j) --> j is the state of the father
     auto sonsMulNode = SpeciationForward::create(context_, std::move(depsForSonsMul),
                                                           likelihoodMatrixDim_);
-    auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel> (context_, {model, brlen, zero, nMod, factorNode_}, transitionMatrixDimension (size_t(nbState_)));
+    auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel,  Eigen::MatrixXd> (context_, {model, brlen, zero, nMod, factorNode_}, transitionMatrixDimension (size_t(nbState_)));
       
     edge->setTransitionMatrix(transitionMatrix);
 
     // L_node(i) = max_j{P_ij * (L_son1(j) * L_son2(j))}
     // Note: the MaxJointLik operator is very similar to MatrixProduct.
     // The only difference is that instead of summation, MaxJointLik uses the operator max().
+    auto transitionMatrixEf = Convert<MatrixLik, Eigen::MatrixXd>::create(context_, {transitionMatrix}, transitionMatrixDimension (size_t(nbState_)));
     forwardNode = MaxJointLik::create (
-        context_, {transitionMatrix, sonsMulNode}, likelihoodMatrixDim_);
+        context_, {transitionMatrixEf, sonsMulNode}, likelihoodMatrixDim_);
     if (forwardEdge){
       *forwardEdge = MatrixArgMaxProduct<MatrixLik, MatrixLik, MatrixLik>::create (
-        context_, {transitionMatrix, sonsMulNode}, likelihoodMatrixDim_);
+        context_, {transitionMatrixEf, sonsMulNode}, likelihoodMatrixDim_);
     }
 
 
@@ -134,12 +126,12 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
       //linkNodes(forwardNode, childBranches, depE);
       
     
-    //std::cerr << "   -> son1 of N "<< getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[0]) << "; " << depE[0]->getTargetValue() << std::endl; 
-    //std::cerr << "   -> son2 of N " << getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[1]) << "; " << depE[1]->getTargetValue() << std::endl;  
+    std::cerr << "   -> son1 of N "<< getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[0]) << "; " << depE[0]->getTargetValue() << std::endl; 
+    std::cerr << "   -> son2 of N " << getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[1]) << "; " << depE[1]->getTargetValue() << std::endl;  
   }
   std::cerr <<  " -> N " << getNodeIndex(forwardNode) << " same as  -> N " << processTree_->getNodeIndex(processNode) << std::endl;
 
-  //std::cerr << "   -> N " << getNodeIndex(forwardNode) << "; " << forwardNode->getTargetValue() << std::endl;
+  std::cerr << "   -> N " << getNodeIndex(forwardNode) << "; " << forwardNode->getTargetValue() << std::endl;
   
   return(forwardNode);
 }
@@ -149,7 +141,7 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeInitialCondi
 {
   size_t nbSites=sites.getNumberOfSites();
   const auto sequenceIndex = sites.getSequencePosition (sequenceName);
-  MatrixLik initCondLik (nbState_, nbSites);
+  MatrixLik initCondLik ((int)nbState_, (int)nbSites);
   for (size_t site = 0; site < nbSites; ++site) {
     for (auto state = 0; state < nbState_; ++state) {
       initCondLik (Eigen::Index (state), Eigen::Index (site)) =
@@ -193,18 +185,8 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardCompu
     }       
 
   }
-  //linkNodes(sonsMulNode, childBranches, depE);
   return sonsMulNode;
-  // RootConditionalLikelihoodsRef rootNode;
-  // auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(context_, {rFreqs_}, likelihoodMatrixDim_);
-  // rootNode = LikelihoodRootConditional::create (
-  //                          context_, {rootFreqs, sonsMulNode}, RowVectorDimension (nbSites_));
-  // ValueRef<double> val;
-  // val = SumOfLogarithms<RowLik>::create (context_, {rootNode}, RowVectorDimension (Eigen::Index (nbSites_)));
 
-
-
-  //return val;
 }
 /**************************************************************************************/
 void FwLikMLAncestralReconstruction::linkNodes(ConditionalLikelihoodForwardRef forwardNode, std::vector<std::shared_ptr<ProcessEdge>> childBranches, std::vector<ConditionalLikelihoodForwardRef> depE){

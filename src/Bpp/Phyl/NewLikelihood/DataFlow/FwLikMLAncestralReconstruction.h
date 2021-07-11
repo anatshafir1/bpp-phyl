@@ -19,7 +19,7 @@ namespace bpp{
             std::shared_ptr<ProcessTree> processTree_;
             MatrixDimension likelihoodMatrixDim_;
             const StateMap& statemap_;
-            ValueRef<RowLik> rFreqs_;
+            ValueRef<Eigen::RowVectorXd> rFreqs_;
             Eigen::Index nbState_;
             Eigen::Index nbSites_;
             ValueRef<uint> factorNode_;
@@ -34,7 +34,7 @@ namespace bpp{
         public:
             FwLikMLAncestralReconstruction(Context& c, 
                           std::shared_ptr<ProcessTree> tree,
-                          const StateMap& statemap, ValueRef<RowLik> rootFreqs, ValueRef<uint> factorNode) : DAClass(), context_(c), processTree_(tree), likelihoodMatrixDim_(),
+                          const StateMap& statemap, ValueRef<Eigen::RowVectorXd> rootFreqs, ValueRef<uint> factorNode) : DAClass(), context_(c), processTree_(tree), likelihoodMatrixDim_(),
                                                          statemap_(statemap), rFreqs_(rootFreqs), nbState_(Eigen::Index(statemap.getNumberOfModelStates())),
                                                         nbSites_(0), factorNode_(factorNode){
             }

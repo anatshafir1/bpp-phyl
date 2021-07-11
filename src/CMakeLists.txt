@@ -72,6 +72,7 @@ set (CPP_FILES
   Bpp/Phyl/NewLikelihood/DataFlow/DataFlowCWiseComputing.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/DiscreteDistribution.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/ForwardLikelihoodTree.cpp
+  Bpp/Phyl/NewLikelihood/DataFlow/FwLikMLAncestralReconstruction.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/ExtendedFloat.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/FrequencySet.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.cpp
@@ -114,6 +115,7 @@ set (CPP_FILES
   Bpp/Phyl/NewLikelihood/PhyloLikelihoods/MixtureProcessPhyloLikelihood.cpp
   Bpp/Phyl/NewLikelihood/PhyloLikelihoods/HmmProcessPhyloLikelihood.cpp
   Bpp/Phyl/NewLikelihood/PhyloLikelihoods/AutoCorrelationProcessPhyloLikelihood.cpp
+  Bpp/Phyl/NewLikelihood/JointMLAncestralReconstruction.cpp
   Bpp/Phyl/NewLikelihood/MarginalAncestralReconstruction.cpp
   Bpp/Phyl/Mapping/DecompositionMethods.cpp
   Bpp/Phyl/Mapping/DecompositionReward.cpp

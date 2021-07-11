@@ -949,14 +949,26 @@ namespace bpp {
   inline static ExtendedFloatMatrixXd maxProduct(const ExtendedFloatMatrixXd& matA, const ExtendedFloatMatrixXd& matB){
     size_t nrows = (size_t)(matA.rows());
     size_t ncols = (size_t)(matB.cols());
+    if (matA.cols() == 1){
+      nrows = 1;
+    }
     ExtendedFloatMatrixXd mat = ExtendedFloatMatrixXd::Zero(matA.rows(), matB.cols());
     for (size_t i = 0; i < nrows; i++){
       for (size_t j = 0; j < ncols; j++){
-        auto rowArr = matA.float_part().row(i).array();
-        auto colArr = matB.float_part().col(j).transpose().array();
-        auto product = rowArr * colArr;
-        auto maxRes = product.maxCoeff();
-        mat.float_part()(i, j) = maxRes;
+        if (nrows == 1){
+          auto rowArr = matA.float_part().col(i).transpose().array();
+          auto colArr = matB.float_part().col(j).transpose().array();
+          auto product = rowArr * colArr;
+          auto maxRes = product.maxCoeff();
+          mat.float_part()(i, j) = maxRes;
+        }else{
+          auto rowArr = matA.float_part().row(i).array();
+          auto colArr = matB.float_part().col(j).transpose().array();
+          auto product = rowArr * colArr;
+          auto maxRes = product.maxCoeff();
+          mat.float_part()(i, j) = maxRes;
+        }     
+
 
       }
     }
