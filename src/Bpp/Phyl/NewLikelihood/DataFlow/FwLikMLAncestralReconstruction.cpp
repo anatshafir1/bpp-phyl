@@ -126,12 +126,12 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
       //linkNodes(forwardNode, childBranches, depE);
       
     
-    std::cerr << "   -> son1 of N "<< getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[0]) << "; " << depE[0]->getTargetValue() << std::endl; 
-    std::cerr << "   -> son2 of N " << getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[1]) << "; " << depE[1]->getTargetValue() << std::endl;  
+    //std::cerr << "   -> son1 of N "<< getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[0]) << "; " << depE[0]->getTargetValue() << std::endl; 
+    //std::cerr << "   -> son2 of N " << getNodeIndex(forwardNode) << " is: " << getNodeIndex(depE[1]) << "; " << depE[1]->getTargetValue() << std::endl;  
   }
-  std::cerr <<  " -> N " << getNodeIndex(forwardNode) << " same as  -> N " << processTree_->getNodeIndex(processNode) << std::endl;
+  //std::cerr <<  " -> N " << getNodeIndex(forwardNode) << " same as  -> N " << processTree_->getNodeIndex(processNode) << std::endl;
 
-  std::cerr << "   -> N " << getNodeIndex(forwardNode) << "; " << forwardNode->getTargetValue() << std::endl;
+  //std::cerr << "   -> N " << getNodeIndex(forwardNode) << "; " << forwardNode->getTargetValue() << std::endl;
   
   return(forwardNode);
 }

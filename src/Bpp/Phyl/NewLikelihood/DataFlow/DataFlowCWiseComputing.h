@@ -2228,9 +2228,9 @@ namespace bpp {
         auto & result = this->accessValueMutable ();
         const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
         const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
-        std::cerr << "===== ArgMax =====" << std::endl;
-        std::cerr << "x0 = " << x0 << std::endl;
-        std::cerr << "x1 = " << x1 << std::endl;
+        //std::cerr << "===== ArgMax =====" << std::endl;
+        //std::cerr << "x0 = " << x0 << std::endl;
+        //std::cerr << "x1 = " << x1 << std::endl;
         size_t nrows = x0.rows();
         size_t ncols = x1.cols();
         if (x0.cols() == 1){
@@ -2242,17 +2242,17 @@ namespace bpp {
             size_t pos;
             if (nrows == 1){
               auto y1 = cwise(x0.col(i).transpose());
-              std::cerr << "y1 = " << y1 << std::endl;
+              //std::cerr << "y1 = " << y1 << std::endl;
               auto y2 = cwise(x1.col(j).transpose());
-              std::cerr << "y2 = " << y2 << std::endl;
+              //std::cerr << "y2 = " << y2 << std::endl;
               auto prod = y1 * y2;
               prod.maxCoeff(&pos);   
               result (i, j) = (double) pos;  
             }else{
               auto y1 = cwise(x0.row(i));
-              std::cerr << "y1 = " << y1 << std::endl;
+              //std::cerr << "y1 = " << y1 << std::endl;
               auto y2 = cwise(x1.col(j).transpose());
-              std::cerr << "y2 = " << y2 << std::endl;
+              //std::cerr << "y2 = " << y2 << std::endl;
               auto prod = y1 * y2;
               prod.maxCoeff(&pos);   
               result (i, j) = (double) pos; 

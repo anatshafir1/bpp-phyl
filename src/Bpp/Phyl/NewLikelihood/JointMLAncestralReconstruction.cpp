@@ -41,7 +41,6 @@ std::vector<size_t> JointMLAncestralReconstruction::getAncestralStatesForNode(ui
     vector <size_t> ancestors;
     if (nodeId == tree_->getNodeIndex(tree_->getRoot())){
         auto rootReconstruction = likelihood_->getJointMLAncestralReconstructionFromRoot(nodeId)->getTargetValue();
-        std::cerr <<  " -> Root: N " << nodeId <<": " << rootReconstruction << std::endl;
         for (size_t i = 0; i < nbDistinctSites_; i++){
             size_t rootStateForCurrSite = (size_t)rootReconstruction(i);
             ancestors.push_back(rootStateForCurrSite);
