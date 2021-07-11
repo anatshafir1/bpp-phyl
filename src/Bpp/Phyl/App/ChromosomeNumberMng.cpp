@@ -192,15 +192,31 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOpti
     // get the best likelihood
     SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
     ValueRef <Eigen::RowVectorXd> rootFreqs = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
-    const SubstitutionModel* modelRaw = dynamic_cast<const SubstitutionModel*>(lik->getLikelihoodCalculationSingleProcess()->getSubstitutionProcess().getModel(1));
-    std::shared_ptr<SubstitutionModel> model(modelRaw->clone());
+    std::cout << "*** Root frequencies !!!! ****" << std::endl;
+    auto rootFreqsValues =  rootFreqs->getTargetValue();
+    Vdouble rootFreqsBpp;
+    copyEigenToBpp(rootFreqsValues, rootFreqsBpp);
     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
-    NonHomogeneousSubstitutionProcess* subProSim;
+    vector <double> modelParams = getVectorToSetModelParams(lik);
+    unsigned int maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, modelParams, maxBaseNumTransition, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+    std::shared_ptr<SubstitutionModel> model(static_pointer_cast<SubstitutionModel>(chrModel)->clone());
+
+    std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqsBpp);
+    std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
+    
+    //const SubstitutionModel* modelRaw = dynamic_cast<const SubstitutionModel*>(lik->getLikelihoodCalculationSingleProcess()->getSubstitutionProcess().getModel(1));
+    //std::shared_ptr<SubstitutionModel> model(modelRaw->clone());
+    //ParameterList paramsUpdated = lik->getLikelihoodCalculationSingleProcess()->getParameters();
+    //ParameterList params = model->getParameters();
+    //NonHomogeneousSubstitutionProcess* subProSim;
     ParametrizablePhyloTree parTree(*tree_);
-    subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
+    auto subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone(), shared_ptr<FrequencySet>(rootFrequencies->clone()));
+    //subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
     SubstitutionProcess* subProcess = subProSim->clone();
     Context context;
     auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *subProcess, rootFreqs);
+    ParameterList paramsUpdated = likAncestralRec->getParameters();
     likAncestralRec->makeJointMLAncestralReconstruction();
     JointMLAncestralReconstruction* ancr = new JointMLAncestralReconstruction(likAncestralRec);
     ancr->init();
@@ -235,6 +251,85 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOpti
     std::cout << "********************************************\n";
     //std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
     delete subProSim;
+}
+/***********************************************************************************/
+vector <double> ChromosomeNumberMng::getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik) const{
+    vector <double> params;
+    params.reserve(ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS);
+    for (size_t i = 0; i < ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS; i++){
+        switch(i){
+            case ChromosomeSubstitutionModel::BASENUM:
+                if (ChromEvolOptions::baseNum_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::baseNum_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.baseNum_1")).getValue());
+                }       
+                break;
+            case ChromosomeSubstitutionModel::BASENUMR:
+                if (ChromEvolOptions::baseNumR_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::baseNumR_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.baseNumR_1")).getValue());
+                }          
+                break;
+            case ChromosomeSubstitutionModel::DUPL:
+                if (ChromEvolOptions::constDupl_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::constDupl_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.dupl_1")).getValue());
+                }
+                break;
+            case ChromosomeSubstitutionModel::LOSS:
+                if (ChromEvolOptions::constLoss_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::constLoss_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.loss_1")).getValue());
+                }
+                break;
+            case ChromosomeSubstitutionModel::GAIN:
+                if (ChromEvolOptions::constGain_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::constGain_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.gain_1")).getValue());
+                }
+                break;
+            case ChromosomeSubstitutionModel::DEMIDUPL:
+                if (ChromEvolOptions::constDemiDupl_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::constDemiDupl_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.demi_1")).getValue());
+                }
+                break;
+            case ChromosomeSubstitutionModel::LOSSR:
+                if (ChromEvolOptions::lossR_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::lossR_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.lossR_1")).getValue());
+                }
+                break;
+            case ChromosomeSubstitutionModel::GAINR:
+                if (ChromEvolOptions::gainR_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::gainR_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.gainR_1")).getValue());
+                }
+                break;
+            case ChromosomeSubstitutionModel::DUPLR:
+                if (ChromEvolOptions::duplR_ == IgnoreParam){
+                    params.push_back(ChromEvolOptions::duplR_);
+                }else{
+                    params.push_back((lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.duplR_1")).getValue());
+                }
+                break;
+            default:
+                throw Exception("ChromosomeNumberMng::getVectorToSetModelParams(): Invalid rate type!");
+                break;
+        }
+
+    }
+    return params; 
+
+
 }
 
 /***********************************************************************************/

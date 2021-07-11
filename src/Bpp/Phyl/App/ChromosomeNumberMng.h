@@ -76,6 +76,7 @@
 #include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
 #include <Bpp/Phyl/NewLikelihood/MarginalAncestralReconstruction.h>
 #include <Bpp/Phyl/NewLikelihood/JointMLAncestralReconstruction.h>
+#include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlowNumeric.h>
 //#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
 #include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
 //#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
@@ -157,6 +158,7 @@ namespace bpp{
             // void printSimulatedEvoPath(TreeTemplate<Node> tree, const string outPath, RASiteSimulationResult* simResult) const;
             static string printTree(const PhyloTree& tree);
             static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
+            vector <double> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik) const;
             // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 
