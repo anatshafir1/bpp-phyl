@@ -52,20 +52,25 @@ vector<size_t> MarginalAncestralReconstruction::getAncestralStatesForNode(uint n
 
   auto vv = likelihood_->getLikelihoodsAtNode(nodeId)->getTargetValue();
   auto vv_t = vv.transpose();
-  probs.resize(vv_t.rows());
-  for (auto i = 0;i < vv_t.rows();i++){
-    probs[i].resize(vv_t.cols());
-    ExtendedFloat sumStates = ExtendedFloat{0};   
-    //vv.col(i)/= vv.col(i).sum();  // it is not updated. Maybe I can try only to update probs, because all the the proportionality is retained in vv.
-    for (auto j = 0; j < vv_t.cols(); j++){
-      probs[i][j] = convert(vv_t(i,j));
-      sumStates += ExtendedFloat{probs[i][j]};
-    }
-    for (auto k = 0; k < vv_t.cols(); k++){
-      auto probEf = ExtendedFloat{probs[i][k]};
-      probs[i][k] = ExtendedFloat::convert(probEf/sumStates);
-    }
-  }
+  auto vv_t_f = vv_t.float_part();
+  auto sumStates = vv_t_f.sum();
+  vv_t_f /= sumStates;
+  copyEigenToBpp(vv_t_f, probs);
+
+  
+  // probs.resize(vv_t.rows());
+  // for (auto i = 0;i < vv_t.rows();i++){
+  //   probs[i].resize(vv_t.cols());
+  //   ExtendedFloat sumStates = ExtendedFloat{0};   
+  //   for (auto j = 0; j < vv_t.cols(); j++){
+  //     probs[i][j] = convert(vv_t(i,j));
+  //     sumStates += ExtendedFloat{probs[i][j]};
+  //   }
+  //   for (auto k = 0; k < vv_t.cols(); k++){
+  //     auto probEf = ExtendedFloat{probs[i][k]};
+  //     probs[i][k] = ExtendedFloat::convert(probEf/sumStates);
+  //   }
+  // }
 
   if (sample)
   { 
