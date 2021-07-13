@@ -62,9 +62,9 @@
 
 
 //from bpp-phyl
-#include <Bpp/Phyl/TreeTemplate.h>
+#include <Bpp/Phyl/Tree/TreeTemplate.h>
 #include <Bpp/Phyl/Tree/PhyloTree.h>
-#include <Bpp/Phyl/TreeTemplateTools.h>
+#include <Bpp/Phyl/Tree/TreeTemplateTools.h>
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
 #include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
