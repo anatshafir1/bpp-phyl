@@ -688,7 +688,7 @@ void LikelihoodCalculationSingleProcess::makeLikelihoodsAtRoot_()
     makeForwardLikelihoodTree_();
 
   size_t nbDistSite = getNumberOfDistinctSites();
-  size_t nbState = getStateMap().getNumberOfModelStates(); 
+  //size_t nbState = getStateMap().getNumberOfModelStates(); 
 
   // Set root frequencies
   if (rFreqs_==0)
@@ -1223,7 +1223,44 @@ void LikelihoodCalculationSingleProcess::setWeightedRootFrequencies(std::vector<
   rFreqs_ = ConfiguredParametrizable::createRowVector<ConfiguredFrequencySet, FrequenciesFromFrequencySet, Eigen::RowVectorXd> (
     getContext_(), {processNodes_.rootFreqsNode_}, RowVectorDimension (Eigen::Index (nbState)));
 }
-// void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint speciesId){
-//   auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
-  
-// }
+/***************************************************************************************/
+void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint speciesId, VVdouble &matOfJointProbFatherNode, size_t cat){
+  throw Exception("Not implemented yet!");
+  //using numeric;
+  // using namespace numeric;
+  // auto rateCat = vRateCatTrees_[cat];
+  // size_t nbState = getStateMap().getNumberOfModelStates();
+  // matOfJointProbFatherNode.resize (nbState);
+  // std::vector<std::shared_ptr<Node_DF>> vJointLik;
+  // auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
+  // // there should be only one index
+  // if(dagIndexes.size() > 1){
+  //   throw Exception("LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(): not implemented for mixture models!");
+  // }
+  // for (const auto& index : dagIndexes){
+  //   auto edgeIndex =  rateCat.flt->getIncomingEdges(index)[0]; // to specific ?
+  //   auto edgeForward = rateCat.flt->getEdge(edgeIndex);
+  //   auto fatherIndex = rateCat.flt->getFatherOfEdge(edgeIndex);
+  //   auto condLikAtFatherNode = rateCat.clt->getNode(fatherIndex);
+  //   auto LikNodeForward = rateCat.flt->getForwardLikelihoodArray(index);
+  //   auto processEdge = rateCat.flt->getProcessTree()->getEdge(edgeIndex);
+  //   auto transitionMatrix = processEdge->getTransitionMatrix();
+  //   // In each iteration just take a row of a matrix to save memory
+  //   for (size_t i = 0; i < nbState; i++){
+  //     auto sonLik_i = (LikNodeForward->getTargetValue()).row(i); //L_son{i}
+  //     matOfJointProbFatherNode.resize(nbState);
+
+  //     for (size_t j = 0; j < nbState; j++){
+  //       auto fatherStateCondLik = (condLikAtFatherNode->getTargetValue()).row(j);
+  //       auto sonOfLikFather_j = (edgeForward->getTargetValue()).row(j); //sigma_k(py->k * L(N=k))
+  //       auto p_j = cwise((transitionMatrix->getTargetValue()).row(j)); //p_ji
+  //       Vdouble p_j_float;
+  //       auto convertedPijt = copyEigenToBpp(p_j, p_j_float);
+  //       auto jointLikFatherSon = cwise(fatherStateCondLik) * cwise(sonLik_i);
+  //       jointLikFatherSon /=  cwise(sonOfLikFather_j);
+  //       matOfJointProbFatherNode[i][j] = (convert(jointLikFatherSon).sum()) * convertedPijt;
+
+  //     }
+  //   }
+  // }
+}

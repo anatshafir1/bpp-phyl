@@ -795,7 +795,8 @@ namespace bpp {
      *
      * @param nodeId : index of the node in the phylo Tree
      */
-    //void makeJointLikelihoodFatherNode_(uint nodeId);
+    void makeJointLikelihoodFatherNode_(uint nodeId, VVdouble &matOfJointProbFatherNode, size_t cat);
+    
 
   };
 
