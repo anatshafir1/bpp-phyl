@@ -85,7 +85,7 @@
 //#include <Bpp/Phyl/Likelihood/MLAncestralStateReconstruction.h>
 //#include <Bpp/Phyl/Likelihood/MarginalNonRevAncestralStateReconstruction.h>
 #include <Bpp/Phyl/Likelihood/ChromosomeNumberOptimizer.h>
-//#include <Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.h>
+#include <Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.h>
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
 //#include <Bpp/Phyl/Simulation/NonHomogeneousSequenceSimulator.h>
 
@@ -143,6 +143,7 @@ namespace bpp{
             void getMarginalAncestralReconstruction(ChromosomeNumberOptimizer* chrOptimizer, const string &filePath);
             // map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             // void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int numOfSimulations) const;
+            void computeExpectations(ChromosomeNumberOptimizer* chrOptimizer, int numOfSimulations) const;
             // void simulateData();
             // void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
             void printTreeWithStates(PhyloTree tree, std::map<uint, std::vector<size_t>> &ancestors, const string &filePath) const;

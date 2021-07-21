@@ -117,6 +117,7 @@ set (CPP_FILES
   Bpp/Phyl/NewLikelihood/PhyloLikelihoods/AutoCorrelationProcessPhyloLikelihood.cpp
   Bpp/Phyl/NewLikelihood/JointMLAncestralReconstruction.cpp
   Bpp/Phyl/NewLikelihood/MarginalAncestralReconstruction.cpp
+  Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.cpp
   Bpp/Phyl/Mapping/DecompositionMethods.cpp
   Bpp/Phyl/Mapping/DecompositionReward.cpp
   Bpp/Phyl/Mapping/DecompositionSubstitutionCount.cpp

@@ -57,21 +57,6 @@ vector<size_t> MarginalAncestralReconstruction::getAncestralStatesForNode(uint n
   vv_t_f /= sumStates;
   copyEigenToBpp(vv_t_f, probs);
 
-  
-  // probs.resize(vv_t.rows());
-  // for (auto i = 0;i < vv_t.rows();i++){
-  //   probs[i].resize(vv_t.cols());
-  //   ExtendedFloat sumStates = ExtendedFloat{0};   
-  //   for (auto j = 0; j < vv_t.cols(); j++){
-  //     probs[i][j] = convert(vv_t(i,j));
-  //     sumStates += ExtendedFloat{probs[i][j]};
-  //   }
-  //   for (auto k = 0; k < vv_t.cols(); k++){
-  //     auto probEf = ExtendedFloat{probs[i][k]};
-  //     probs[i][k] = ExtendedFloat::convert(probEf/sumStates);
-  //   }
-  // }
-
   if (sample)
   { 
     for (size_t i = 0; i < nbDistinctSites_; i++)

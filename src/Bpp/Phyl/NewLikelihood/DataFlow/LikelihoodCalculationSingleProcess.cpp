@@ -1224,43 +1224,72 @@ void LikelihoodCalculationSingleProcess::setWeightedRootFrequencies(std::vector<
     getContext_(), {processNodes_.rootFreqsNode_}, RowVectorDimension (Eigen::Index (nbState)));
 }
 /***************************************************************************************/
-void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint speciesId, VVdouble &matOfJointProbFatherNode, size_t cat){
-  throw Exception("Not implemented yet!");
+void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint speciesId, VVdouble &matOfJointProbFatherNode, size_t cat, size_t site){
+  //throw Exception("Not implemented yet!");
   //using numeric;
-  // using namespace numeric;
-  // auto rateCat = vRateCatTrees_[cat];
-  // size_t nbState = getStateMap().getNumberOfModelStates();
-  // matOfJointProbFatherNode.resize (nbState);
-  // std::vector<std::shared_ptr<Node_DF>> vJointLik;
-  // auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
-  // // there should be only one index
-  // if(dagIndexes.size() > 1){
-  //   throw Exception("LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(): not implemented for mixture models!");
-  // }
-  // for (const auto& index : dagIndexes){
-  //   auto edgeIndex =  rateCat.flt->getIncomingEdges(index)[0]; // to specific ?
-  //   auto edgeForward = rateCat.flt->getEdge(edgeIndex);
-  //   auto fatherIndex = rateCat.flt->getFatherOfEdge(edgeIndex);
-  //   auto condLikAtFatherNode = rateCat.clt->getNode(fatherIndex);
-  //   auto LikNodeForward = rateCat.flt->getForwardLikelihoodArray(index);
-  //   auto processEdge = rateCat.flt->getProcessTree()->getEdge(edgeIndex);
-  //   auto transitionMatrix = processEdge->getTransitionMatrix();
-  //   // In each iteration just take a row of a matrix to save memory
-  //   for (size_t i = 0; i < nbState; i++){
-  //     auto sonLik_i = (LikNodeForward->getTargetValue()).row(i); //L_son{i}
-  //     matOfJointProbFatherNode.resize(nbState);
+  using namespace numeric;
+  DataLik likelihood;
+  if (getShrunkData()){
+    // A not very elegant way to get the DataLik object;
+    likelihood = getSiteLikelihoodsForAClass(cat, true).col(site).sum();
+  }else{
+    likelihood = getSiteLikelihoodsForAClass(cat).col(site).sum();
+  }
+  auto rateCat = vRateCatTrees_[cat];
+  size_t nbState = getStateMap().getNumberOfModelStates();
+  size_t nbDistSite = getNumberOfDistinctSites();
+  matOfJointProbFatherNode.resize (nbState);
+  std::vector<std::shared_ptr<Node_DF>> vJointLik;
+  auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
+  // there should be only one index
+  if(dagIndexes.size() > 1){
+    throw Exception("LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(): not implemented for mixture models!");
+  }
+  for (const auto& index : dagIndexes){
+    auto edgeIndex =  rateCat.flt->getIncomingEdges(index)[0]; // to specific ?
+    auto edgeForward = rateCat.flt->getEdge(edgeIndex);
+    auto fatherIndex = rateCat.flt->getFatherOfEdge(edgeIndex);
+    auto condLikAtFatherNode = rateCat.clt->getNode(fatherIndex);
+    auto LikNodeForward = rateCat.flt->getForwardLikelihoodArray(index);
+    auto processEdge = rateCat.flt->getProcessTree()->getEdge(edgeIndex);
+    auto transitionMatrix = processEdge->getTransitionMatrix();
+    auto inverseEdgeForward = CWiseInverse<MatrixLik>::create(getContext_(), {edgeForward}, conditionalLikelihoodDimension (nbState, nbDistSite));
+    auto productCondFatherSonPartLik = SpeciationForward::create(getContext_(), {condLikAtFatherNode, inverseEdgeForward}, conditionalLikelihoodDimension (nbState, nbDistSite));
+    // actual values
+    auto sonLik = LikNodeForward->getTargetValue();
+    auto fatherCondSonPartLik = productCondFatherSonPartLik->getTargetValue();
 
-  //     for (size_t j = 0; j < nbState; j++){
-  //       auto fatherStateCondLik = (condLikAtFatherNode->getTargetValue()).row(j);
-  //       auto sonOfLikFather_j = (edgeForward->getTargetValue()).row(j); //sigma_k(py->k * L(N=k))
-  //       auto p_j = cwise((transitionMatrix->getTargetValue()).row(j)); //p_ji
-  //       Vdouble p_j_float;
-  //       auto convertedPijt = copyEigenToBpp(p_j, p_j_float);
-  //       auto jointLikFatherSon = cwise(fatherStateCondLik) * cwise(sonLik_i);
-  //       jointLikFatherSon /=  cwise(sonOfLikFather_j);
-  //       matOfJointProbFatherNode[i][j] = (convert(jointLikFatherSon).sum()) * convertedPijt;
+    for (size_t i = 0; i < nbState; i++){
 
-  //     }
-  //   }
-  // }
+      matOfJointProbFatherNode[i].resize(nbState);
+
+      for (size_t j = 0; j < nbState; j++){
+        auto sonLik_i = sonLik.float_part()(i, site);
+        auto p_ji = transitionMatrix->getTargetValue()(j,i);
+        auto fatherCondSonPartLik_float = fatherCondSonPartLik.float_part()(j, site);
+        auto fatherCondSonPartLik_exp = fatherCondSonPartLik.exponent_part();
+        auto sonLik_i_exp = sonLik.exponent_part();
+
+        auto mul_cond_sonLik = fatherCondSonPartLik_float * sonLik_i;
+        ExtendedFloat ef{mul_cond_sonLik};
+        ef *= ExtendedFloat{constexpr_power<double>(ExtendedFloat::radix, sonLik_i_exp + fatherCondSonPartLik_exp)};
+        ef *= p_ji;
+        ef /= likelihood;
+        matOfJointProbFatherNode[i][j] = (convert(ef));
+
+
+    //     //auto fatherStateCondLik = condLikAtFatherNode.row(j);
+    //     //auto sonOfLikFather_j = edgeForward.row(j); //sigma_k(py->k * L(N=k))
+    //     //auto p_j = transitionMatrix.row(j); //p_ji
+    //     //Vdouble p_j_float;
+    //     //auto convertedPijt = copyEigenToBpp(p_j, p_j_float);
+    //     auto jointLikFatherSon = fatherStateCondLik * sonLik_i;
+    //     jointLikFatherSon.float_part() /=  sonOfLikFather_j.float_part();
+    //     jointLikFatherSon.exponent_part() -=  sonOfLikFather_j.exponent_part();
+
+    //     matOfJointProbFatherNode[i][j] = (convert(jointLikFatherSon).sum()) * convertedPijt;
+
+      }
+    }
+  }
 }

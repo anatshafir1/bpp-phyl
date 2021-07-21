@@ -349,9 +349,9 @@ void ChromosomeNumberMng::runChromEvol(){
     getJointMLAncestralReconstruction(chrOptimizer);
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
     const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "ancestorsProbs.txt";
-    getMarginalAncestralReconstruction(chrOptimizer, outFilePath);
-    
+    getMarginalAncestralReconstruction(chrOptimizer, outFilePath);   
     //compute expectations
+    computeExpectations(chrOptimizer, ChromEvolOptions::NumOfSimulations_);
 
     delete chrOptimizer;
 
@@ -400,6 +400,60 @@ void ChromosomeNumberMng::getMarginalAncestralReconstruction(ChromosomeNumberOpt
     outFile.close();
     const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+"MarginalAncestralReconstruction.tree";
     printTreeWithStates(*tree_, mapOfAncestors, outFilePath);
+    // just for test ///////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////
+    // size_t nbStates = alphabet_->getSize();
+    // std::map <uint, VVdouble> jointLikFatherSon;
+    // std::map <uint, VVdouble> testJointFatherNode;
+    // uint rootId = tree_->getRootIndex();
+    // for (size_t n = 0; n < nbNodes; n++){
+    //     uint nodeId = tree_->getNodeIndex(nodes[n]);
+    //     if (nodeId == rootId){
+    //         continue;
+    //     }
+    //     jointLikFatherSon[nodeId].reserve(nbStates);
+    //     singleLikProcess->makeJointLikelihoodFatherNode_(nodeId, jointLikFatherSon[nodeId], 0, 0);
+    //     //Vdouble probStates;
+    //     testJointFatherNode[nodeId].resize(1);// one site
+    //     for (size_t i = 0; i < jointLikFatherSon[nodeId].size(); i++){
+    //         double sumOfFathers = 0;
+    //         for (size_t j = 0; j < jointLikFatherSon[nodeId].size(); j++){
+    //             sumOfFathers += jointLikFatherSon[nodeId][i][j];
+    //         }
+    //         testJointFatherNode[nodeId][0].push_back(sumOfFathers);
+    //     }
+        
+    // }
+    // const string outFilePathTest = ChromEvolOptions::resultsPathDir_ +"//"+"JointFatherSonTest.txt";
+    // ofstream outFileTest;
+    // outFileTest.open(outFilePathTest);
+    // outFileTest << "NODE";
+    // for (size_t i = 0; i < alphabet_->getSize(); i ++){
+    //     outFileTest << "\t" << (i + alphabet_->getMin());
+    // }
+    // outFileTest <<"\n";
+    
+    // for (size_t n = 0; n < nbNodes; n++){
+    //     uint nodeId = tree_->getNodeIndex(nodes[n]);
+    //     if (nodeId == rootId){
+    //         continue;
+    //     }
+    //     if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
+    //         outFileTest << "N-" << nodeId;
+    //     }else{
+    //         outFileTest << (tree_->getNode(nodeId))->getName();
+    //     }
+    //     for (size_t i = 0; i < testJointFatherNode[nodeId][0].size(); i ++){
+    //         outFileTest << "\t" << (testJointFatherNode[nodeId][0][i]);
+
+    //     }
+    //     outFileTest << "\n";
+
+    // }
+
+    // outFileTest.close();
+   ////////////////////////////////////////////////////////////////////////////
+   ////////////////////////////////////////////////////////////////////////////
     delete asr;
 }
 /**************************************************************************************/
@@ -675,3 +729,53 @@ string ChromosomeNumberMng::nodeToParenthesis(const uint nodeId, const PhyloTree
     }
   
 } */
+
+void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOptimizer, int numOfSimulations) const{
+    vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = chrOptimizer->getVectorOfLikelihoods();
+    // get the best likelihood
+    SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
+    auto singleLikProcess = lik->getLikelihoodCalculationSingleProcess();
+    size_t nbStates = alphabet_->getSize();
+    std::map <uint, std::map<size_t, VVdouble>> jointProbabilitiesFatherSon;
+    uint rootId = tree_->getRootIndex();
+    vector<shared_ptr<PhyloNode> > nodes = tree_->getAllNodes();
+    size_t nbNodes = nodes.size();
+    for (size_t n = 0; n < nbNodes; n++){
+        uint nodeId = tree_->getNodeIndex(nodes[n]);
+        if (nodeId == rootId){
+            continue;
+        }
+        jointProbabilitiesFatherSon[nodeId][0].reserve(nbStates);
+        singleLikProcess->makeJointLikelihoodFatherNode_(nodeId, jointProbabilitiesFatherSon[nodeId][0], 0, 0);
+      
+    }
+    //creating the model with MLE parameters
+    vector <double> modelParams = getVectorToSetModelParams(lik);
+    unsigned int maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, modelParams, maxBaseNumTransition, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+    //initializing the expectation instance
+    ComputeChromosomeTransitionsExp* expCalculator = new ComputeChromosomeTransitionsExp(chrModel, tree_, alphabet_, jointProbabilitiesFatherSon, ChromEvolOptions::jumpTypeMethod_);
+    expCalculator->runSimulations(numOfSimulations);
+    expCalculator->computeExpectationPerType();
+    if (ChromEvolOptions::resultsPathDir_ == "none"){
+        expCalculator->printResults();
+    }else{
+        const string outFilePath = ChromEvolOptions::resultsPathDir_+"//"+ "expectations.txt";
+        //const string outFilePathForNonAccounted = ChromEvolOptions::resultsPathDir_+"//"+ "exp_nonAccounted_branches.txt";
+        const string outFilePathHeuristics = ChromEvolOptions::resultsPathDir_+"//"+ "expectations_second_round.txt";
+        const string outTreePath = ChromEvolOptions::resultsPathDir_+"//"+ "exp.tree";
+        expCalculator->printResults(outFilePath);
+        expCalculator->runHeuristics();
+        expCalculator->printResults(outFilePathHeuristics);
+        PhyloTree* expTree = expCalculator->getResultTree();
+        string tree_str = printTree(*expTree);
+        delete expTree;
+        ofstream treeFile;
+        treeFile.open(outTreePath);
+        treeFile << tree_str;
+        treeFile.close();
+    }
+    
+
+    delete expCalculator;
+}

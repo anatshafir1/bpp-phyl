@@ -738,6 +738,14 @@ namespace bpp {
     }
 
     std::shared_ptr<ForwardLikelihoodTree> getForwardLikelihoodTree(size_t nCat);
+    
+        /*
+     * @brief Compute the joint likelihood of father state and node state,
+     *
+     * @param nodeId : index of the node in the phylo Tree
+     */
+    void makeJointLikelihoodFatherNode_(uint nodeId, VVdouble &matOfJointProbFatherNode, size_t cat, size_t site);
+    
 
 
 
@@ -790,13 +798,7 @@ namespace bpp {
     void makeLikelihoodsAtDAGNode_(uint nodeId);
 
     std::shared_ptr<SiteLikelihoodsTree> getSiteLikelihoodsTree_(size_t nCat);
-    /*
-     * @brief Compute the joint likelihood of father state and node state,
-     *
-     * @param nodeId : index of the node in the phylo Tree
-     */
-    void makeJointLikelihoodFatherNode_(uint nodeId, VVdouble &matOfJointProbFatherNode, size_t cat);
-    
+
 
   };
 
