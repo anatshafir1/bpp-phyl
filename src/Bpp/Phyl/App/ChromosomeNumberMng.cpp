@@ -205,11 +205,6 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOpti
     std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqsBpp);
     std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
     
-    //const SubstitutionModel* modelRaw = dynamic_cast<const SubstitutionModel*>(lik->getLikelihoodCalculationSingleProcess()->getSubstitutionProcess().getModel(1));
-    //std::shared_ptr<SubstitutionModel> model(modelRaw->clone());
-    //ParameterList paramsUpdated = lik->getLikelihoodCalculationSingleProcess()->getParameters();
-    //ParameterList params = model->getParameters();
-    //NonHomogeneousSubstitutionProcess* subProSim;
     ParametrizablePhyloTree parTree(*tree_);
     auto subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone(), shared_ptr<FrequencySet>(rootFrequencies->clone()));
     //subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
@@ -400,105 +395,9 @@ void ChromosomeNumberMng::getMarginalAncestralReconstruction(ChromosomeNumberOpt
     outFile.close();
     const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+"MarginalAncestralReconstruction.tree";
     printTreeWithStates(*tree_, mapOfAncestors, outFilePath);
-    // just for test ///////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////
-    // size_t nbStates = alphabet_->getSize();
-    // std::map <uint, VVdouble> jointLikFatherSon;
-    // std::map <uint, VVdouble> testJointFatherNode;
-    // uint rootId = tree_->getRootIndex();
-    // for (size_t n = 0; n < nbNodes; n++){
-    //     uint nodeId = tree_->getNodeIndex(nodes[n]);
-    //     if (nodeId == rootId){
-    //         continue;
-    //     }
-    //     jointLikFatherSon[nodeId].reserve(nbStates);
-    //     singleLikProcess->makeJointLikelihoodFatherNode_(nodeId, jointLikFatherSon[nodeId], 0, 0);
-    //     //Vdouble probStates;
-    //     testJointFatherNode[nodeId].resize(1);// one site
-    //     for (size_t i = 0; i < jointLikFatherSon[nodeId].size(); i++){
-    //         double sumOfFathers = 0;
-    //         for (size_t j = 0; j < jointLikFatherSon[nodeId].size(); j++){
-    //             sumOfFathers += jointLikFatherSon[nodeId][i][j];
-    //         }
-    //         testJointFatherNode[nodeId][0].push_back(sumOfFathers);
-    //     }
-        
-    // }
-    // const string outFilePathTest = ChromEvolOptions::resultsPathDir_ +"//"+"JointFatherSonTest.txt";
-    // ofstream outFileTest;
-    // outFileTest.open(outFilePathTest);
-    // outFileTest << "NODE";
-    // for (size_t i = 0; i < alphabet_->getSize(); i ++){
-    //     outFileTest << "\t" << (i + alphabet_->getMin());
-    // }
-    // outFileTest <<"\n";
-    
-    // for (size_t n = 0; n < nbNodes; n++){
-    //     uint nodeId = tree_->getNodeIndex(nodes[n]);
-    //     if (nodeId == rootId){
-    //         continue;
-    //     }
-    //     if(!(tree_->isLeaf(tree_->getNode(nodeId)))){
-    //         outFileTest << "N-" << nodeId;
-    //     }else{
-    //         outFileTest << (tree_->getNode(nodeId))->getName();
-    //     }
-    //     for (size_t i = 0; i < testJointFatherNode[nodeId][0].size(); i ++){
-    //         outFileTest << "\t" << (testJointFatherNode[nodeId][0][i]);
-
-    //     }
-    //     outFileTest << "\n";
-
-    // }
-
-    // outFileTest.close();
-   ////////////////////////////////////////////////////////////////////////////
-   ////////////////////////////////////////////////////////////////////////////
     delete asr;
 }
-/**************************************************************************************/
-/* void ChromosomeNumberMng::printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const{
-    if (ChromEvolOptions::resultsPathDir_ == "none"){
-        throw Exception("Error in ChromosomeNumberMng::printPosteriorProbNodes(): No results file path!\n");
-    }
-    const string outPath = ChromEvolOptions::resultsPathDir_+"//"+ "ancestorsProbs.txt";
-    ofstream outFile;
-    outFile.open(outPath);
-    vector<int> nodesIds = tree_->getNodesId();
-    outFile <<"NODE\t";
-    for (size_t i = 0; i < alphabet_->getSize(); i++){
-        (i < alphabet_->getSize()-1) ? (outFile << (int)i + alphabet_->getMin() << "\t") : (outFile << (int)i + alphabet_->getMin() <<"\n");
-    }
-    for (size_t n = 0; n < nodesIds.size(); n++){
-        int nodeId = nodesIds[n];
-        string nodeName;
-        if (tree_->isLeaf(nodeId)){
-            nodeName = tree_->getNodeName(nodeId);
 
-        }else{
-            nodeName = "N" + std::to_string(nodeId);
-        }
-        outFile << nodeName <<"\t";
-        if (tree_->getRootId() == nodeId){
-            for (size_t state = 0; state < alphabet_->getSize(); state++){
-                (state < alphabet_->getSize()-1) ? (outFile << rootPosterior[state] << "\t") : (outFile << rootPosterior[state] <<"\n");
-            }
-            continue;
-        }
-        
-        for (size_t son = 0; son < alphabet_->getSize(); son++){
-            double posteriorProb = 0;
-            for (size_t father = 0; father < alphabet_->getSize(); father++){
-                posteriorProb += jointProbabilitiesFatherSon[nodeId][0][son][father];
-
-            }
-            (son == alphabet_->getSize()-1) ? (outFile << posteriorProb <<"\n") : (outFile << posteriorProb <<"\t");          
-        }
-        
-    }
-    outFile.close();
-
-} */
 /**************************************************************************************/
 /* void ChromosomeNumberMng::printSimulatedEvoPath(TreeTemplate<Node> tree, const string outPath, RASiteSimulationResult* simResult) const{
     ofstream outFile;
