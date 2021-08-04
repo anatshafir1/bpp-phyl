@@ -77,7 +77,7 @@
 #include <Bpp/Phyl/NewLikelihood/MarginalAncestralReconstruction.h>
 #include <Bpp/Phyl/NewLikelihood/JointMLAncestralReconstruction.h>
 #include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlowNumeric.h>
-//#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
 #include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
 //#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
 //#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
@@ -87,7 +87,7 @@
 #include <Bpp/Phyl/Likelihood/ChromosomeNumberOptimizer.h>
 #include <Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.h>
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
-//#include <Bpp/Phyl/Simulation/NonHomogeneousSequenceSimulator.h>
+#include <Bpp/Phyl/Simulation/SimpleSubstitutionProcessSequenceSimulator.h>
 
 
 //standard libraries
@@ -144,8 +144,8 @@ namespace bpp{
             // map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             // void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int numOfSimulations) const;
             void computeExpectations(ChromosomeNumberOptimizer* chrOptimizer, int numOfSimulations) const;
-            // void simulateData();
-            // void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
+            void simulateData();
+            void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
             void printTreeWithStates(PhyloTree tree, std::map<uint, std::vector<size_t>> &ancestors, const string &filePath) const;
             void convertNodesNames(PhyloTree &tree, uint nodeId, std::map<uint, std::vector<size_t>> &ancestors) const;
 
@@ -154,9 +154,8 @@ namespace bpp{
             void rescale_tree(PhyloTree* tree, double chrRange);
             void getMaxParsimonyUpperBound(double* parsimonyScore) const;
             // functions to print the tree with ancestral reconstruction
-            // void printTreeWithStates(TreeTemplate<Node> tree, std::map<int, std::vector<size_t> > ancestors, const string &filePath, std::map<int, map<size_t, std::vector<double>>>* probs = 0) const;
-            // void printSimulatedDataAndAncestors(RASiteSimulationResult* simResult) const;
-            // void printSimulatedEvoPath(TreeTemplate<Node> tree, const string outPath, RASiteSimulationResult* simResult) const;
+            void printSimulatedDataAndAncestors(SiteSimulationResult* simResult) const;
+            void printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult) const;
             static string printTree(const PhyloTree& tree);
             static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
             vector <double> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik) const;
