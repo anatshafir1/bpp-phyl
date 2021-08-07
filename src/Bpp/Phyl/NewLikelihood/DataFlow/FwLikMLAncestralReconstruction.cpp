@@ -53,7 +53,7 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
 
     if (dynamic_cast<const TransitionModel*>(model->getTargetValue()))
     {
-      auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel, Eigen::MatrixXd> (context_, {model, brlen, zero, nMod, factorNode_}, transitionMatrixDimension (size_t(nbState_)));
+      auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel, Eigen::MatrixXd> (context_, {model, brlen, zero, nMod}, transitionMatrixDimension (size_t(nbState_)));
             
       edge->setTransitionMatrix(transitionMatrix);
       auto transitionMatrixEf = Convert<MatrixLik, Eigen::MatrixXd>::create(context_, {transitionMatrix}, transitionMatrixDimension (size_t(nbState_)));
@@ -87,7 +87,7 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
     // L_son1(j) * L_son2(j) --> j is the state of the father
     auto sonsMulNode = SpeciationForward::create(context_, std::move(depsForSonsMul),
                                                           likelihoodMatrixDim_);
-    auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel,  Eigen::MatrixXd> (context_, {model, brlen, zero, nMod, factorNode_}, transitionMatrixDimension (size_t(nbState_)));
+    auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel,  Eigen::MatrixXd> (context_, {model, brlen, zero, nMod}, transitionMatrixDimension (size_t(nbState_)));
       
     edge->setTransitionMatrix(transitionMatrix);
 
