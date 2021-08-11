@@ -24,6 +24,11 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+
+// the params file should contain vectors of parameters. For example,
+//_gain = 2,1
+//_gainFunc = LINEAR
+// and so on...
 namespace bpp{
 
 class ChromEvolOptions
