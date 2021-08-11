@@ -29,6 +29,7 @@
 //_gain = 2,1
 //_gainFunc = LINEAR
 // and so on...
+// this implementation is meant to deal with more functions.
 namespace bpp{
 
 class ChromEvolOptions
