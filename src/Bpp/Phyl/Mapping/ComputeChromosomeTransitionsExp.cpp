@@ -34,24 +34,24 @@ ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::g
     }
     //gain
     if (chrStart + 1 == chrEnd){
-        if ((model_->getConstGain() != IgnoreParam) || (model_->getChangeRateGain() != IgnoreParam)){
+        if (!(model_->isIgnoredGain())){
             return ChromosomeSubstitutionModel::GAIN_T;
         }
         
     //loss
     }else if (chrStart == chrEnd + 1){
-        if ((model_->getConstLoss() != IgnoreParam) || (model_->getChangeRateLoss() != IgnoreParam)){
+        if (!(model_->isIgnoredLoss())){
             return ChromosomeSubstitutionModel::LOSS_T;
         }
         
     //dupl
     }else if (chrStart * 2 == chrEnd){
-        if ((model_->getConstDupl() != IgnoreParam) || (model_->getChangeRateDupl() != IgnoreParam)){
+        if (!(model_->isIgnoredDupl())){
             return ChromosomeSubstitutionModel::DUPL_T;
         }
         
     //demi dupl
-    }else if (model_->getDemiDupl() != IgnoreParam){
+    }else if (!(model_->isIgnoredDemiDupl())){
         if ((chrStart % 2 == 0) && (chrEnd == chrStart * 1.5)){
             return ChromosomeSubstitutionModel::DEMIDUPL_T;
         }else if ((chrStart % 2 != 0) && (chrEnd == (int)ceil(chrStart * 1.5))){
@@ -85,13 +85,13 @@ ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::g
     }
     //gain
     if (chrStart + 1 == chrEnd){
-        if ((model_->getConstGain() != IgnoreParam) || (model_->getChangeRateGain() != IgnoreParam)){
+        if (!(model_->isIgnoredGain())){
             return ChromosomeSubstitutionModel::GAIN_T;
         }
     }
     //loss
     if (chrStart - 1 == chrEnd){
-        if ((model_->getConstLoss() != IgnoreParam) || (model_->getChangeRateLoss() != IgnoreParam)){
+        if (!(model_->isIgnoredLoss())){
             return ChromosomeSubstitutionModel::LOSS_T;
         }
     }
@@ -107,14 +107,14 @@ ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::g
     }
     // duplication
     if (chrEnd == 2 * chrStart){
-        if ((model_->getConstDupl() != IgnoreParam) || (model_->getChangeRateDupl() != IgnoreParam)){
+        if (!(model_->isIgnoredDupl())){
             legalMove = true;
             jumpType.push_back(ChromosomeSubstitutionModel::DUPL_T);
         }
 
     }
     //Demi-duplication
-    if (model_->getDemiDupl() != IgnoreParam){
+    if (!(model_->isIgnoredDemiDupl())){
         if (chrStart % 2 == 0){
             if (chrEnd == chrStart * 1.5){
                 legalMove = true;
@@ -151,17 +151,17 @@ ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::g
     
     for (size_t i = 0; i < jumpType.size(); i++){
         if (jumpType[i] == ChromosomeSubstitutionModel::BASENUM_T){
-            sumOfRates += model_->getBaseNumR();
-            weights.push_back(model_->getBaseNumR());
+            sumOfRates += model_->getBaseNumR()->getRate(chrStart);
+            weights.push_back(model_->getBaseNumR()->getRate(chrStart));
             indices.push_back(i);
         }else if(jumpType[i] == ChromosomeSubstitutionModel::DUPL_T){
-            double rate =  model_->getRate(chrStart, model_->getConstDupl(), model_->getChangeRateDupl());
+            double rate =  model_->getDupl()->getRate(chrStart);
             sumOfRates += rate;
             weights.push_back(rate);
             indices.push_back(i);
         }else if (jumpType[i] == ChromosomeSubstitutionModel::DEMIDUPL_T){
-            sumOfRates += model_->getDemiDupl();
-            weights.push_back(model_->getDemiDupl());
+            sumOfRates += model_->getDemiDupl()->getRate(chrStart);
+            weights.push_back(model_->getDemiDupl()->getRate(chrStart));
             indices.push_back(i);
 
         }
@@ -543,7 +543,7 @@ bool ComputeChromosomeTransitionsExp::isMaxStateValid(int prevState) const{
         return valid;
     }
     // dupl
-    if ((model_->getConstDupl() != IgnoreParam) || (model_->getChangeRateDupl() != IgnoreParam)){
+    if (!(model_->isIgnoredDupl())){
         if (maxState == 2 * initState){
             valid = true;
             return valid;
@@ -551,7 +551,7 @@ bool ComputeChromosomeTransitionsExp::isMaxStateValid(int prevState) const{
 
     }
     // demi dupl
-    if (model_->getDemiDupl() != IgnoreParam){
+    if (!(model_->isIgnoredDemiDupl())){
         if (initState % 2 == 0){
             if ((int)(initState * 1.5) == maxState){
                 valid = true;
@@ -593,12 +593,12 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
     if (stateJumpTypeProb_.find(jumpStates) == stateJumpTypeProb_.end()){
         //gain
         if (chrStart + 1 == chrEnd){
-            if ((model_->getConstGain() != IgnoreParam) || (model_->getChangeRateGain() != IgnoreParam)){
+            if (!(model_->isIgnoredGain())){
                 if (chrStart > 3){
                     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::GAIN_T] = 1;
                     return;
                 }else{
-                    double gainRate = model_->getRate(chrStart, model_->getConstGain(), model_->getChangeRateGain());
+                    double gainRate = model_->getGain()->getRate(chrStart);
                     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::GAIN_T] = gainRate;
                     sumOfRates += gainRate;
                     legalMove = true;
@@ -608,7 +608,7 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
         }
         //loss
         if (chrStart - 1 == chrEnd){
-            if ((model_->getConstLoss() != IgnoreParam) || (model_->getChangeRateLoss() != IgnoreParam)){
+            if (!(model_->isIgnoredLoss())){
                 stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::LOSS_T] = 1;
                 return;
             }
@@ -619,37 +619,37 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
             if (chrEnd > chrStart){
                 if (((chrEnd - chrStart) % baseNumber == 0) && ((chrEnd - chrStart) <= (int)(model_->getMaxChrRange()))){
                     legalMove = true;
-                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::BASENUM_T] = model_->getBaseNumR();
-                    sumOfRates += model_->getBaseNumR();                                 
+                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::BASENUM_T] = model_->getBaseNumR()->getRate(chrStart);
+                    sumOfRates += model_->getBaseNumR()->getRate(chrStart);                              
                 }
             }        
         }
         //duplication
         if (chrEnd == 2 * chrStart){
-            if ((model_->getConstDupl() != IgnoreParam) || (model_->getChangeRateDupl() != IgnoreParam)){
+            if (!(model_->isIgnoredDupl())){
                 legalMove = true;
-                double duplRate = model_->getRate(chrStart, model_->getConstDupl(), model_->getChangeRateDupl());
+                double duplRate = model_->getDupl()->getRate(chrStart);
                 stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DUPL_T] = duplRate;
                 sumOfRates += duplRate;
             }
 
         }
         //demi-duplication
-        if (model_->getDemiDupl() != IgnoreParam){
+        if (!(model_->isIgnoredDemiDupl())){
             if (chrStart % 2 == 0){
                 if (chrEnd == chrStart * 1.5){
                     legalMove = true;
-                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = model_->getDemiDupl();
-                    sumOfRates += model_->getDemiDupl();
+                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = model_->getDemiDupl()->getRate(chrStart);
+                    sumOfRates += model_->getDemiDupl()->getRate(chrStart);
                 }
             }else{
                 if ((chrEnd == (int)ceil(chrStart * 1.5)) || (chrEnd == (int)floor(chrStart * 1.5))){
                     legalMove = true;
                     double demiDupRate;
                     if (chrStart == 1){
-                        demiDupRate =  model_->getDemiDupl();
+                        demiDupRate =  model_->getDemiDupl()->getRate(chrStart);
                     }else{
-                        demiDupRate = model_->getDemiDupl()/2;
+                        demiDupRate = model_->getDemiDupl()->getRate(chrStart)/2;
                     }
                     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = demiDupRate;
                     sumOfRates += demiDupRate;
@@ -850,9 +850,9 @@ void ComputeChromosomeTransitionsExp::updateBranchLengths(int initState, int ite
     if (iteration == 0){
         vector<double> rates;
         //dupl
-        rates.push_back(model_->getRate(initState, model_->getConstDupl(), model_->getChangeRateDupl()));
+        (model_->isIgnoredDupl()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model_->getDupl()->getRate(initState)));
         //demi-dupl
-        rates.push_back(model_->getDemiDupl());
+        (model_->isIgnoredDemiDupl()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model_->getDemiDupl()->getRate(initState)));
         //base number
         double baseNumRate = 0;
         int baseNumber = model_->getBaseNumber();
@@ -862,15 +862,15 @@ void ComputeChromosomeTransitionsExp::updateBranchLengths(int initState, int ite
                 if ((i - initState) > (int)(model_->getMaxChrRange())){
                     break;
                 }
-                baseNumRate += model_->getBaseNumR();
+                baseNumRate += model_->getBaseNumR()->getRate(initState);
 
             }
         }
-        (baseNumber == IgnoreParam) ? (rates.push_back(model_->getBaseNumR())) : (rates.push_back(baseNumRate));
+        (baseNumber == IgnoreParam) ? (rates.push_back(IgnoreParam)) : (rates.push_back(baseNumRate));
         //gain
-        rates.push_back(model_->getRate(initState, model_->getConstGain(), model_->getChangeRateGain()));
+        (model_->isIgnoredGain()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model_->getGain()->getRate(initState)));
         //loss
-        rates.push_back(model_->getRate(initState, model_->getConstLoss(), model_->getChangeRateLoss()));
+        rates.push_back(model_->getLoss()->getRate(initState));
         for (size_t i = 0; i < rates.size(); i++){
             if (rates[i] == IgnoreParam){
                 continue;

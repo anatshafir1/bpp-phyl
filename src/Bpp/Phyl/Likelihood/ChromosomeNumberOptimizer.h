@@ -107,7 +107,7 @@ namespace bpp
             bool standardOptimization_;
             int BrentBracketing_;
             vector <double> probsForMixedOptimization_;
-            vector<unsigned int> fixedParams_;
+            vector<int> fixedParams_;
 
         public:
             ChromosomeNumberOptimizer(
@@ -176,8 +176,8 @@ namespace bpp
             ChromosomeNumberOptimizer* clone() const { return new ChromosomeNumberOptimizer(*this); }
             virtual ~ChromosomeNumberOptimizer(){clearVectorOfLikelihoods(0);};
             //init models
-            void initModels(vector<double> modelParams, double parsimonyBound, ChromosomeSubstitutionModel::rateChangeFunc rateChange, int seed, unsigned int numberOfModels, const string& fixedRootFreqPath, vector<unsigned int>& fixedParams);
-            //initialize all the optimization specific members
+            void initModels(std::map<int, std::vector<double>> modelComplexParams, int baseNumber, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numberOfModels, const string& fixedRootFreqPath, vector<int>& fixedParams);
+        //     //initialize all the optimization specific members
             void initOptimizer(
                 vector<unsigned int> numOfPoints,
                 vector<unsigned int> numOfIterations,
@@ -199,17 +199,20 @@ namespace bpp
                 
 
             }
+            
             void optimize();
             vector<SingleProcessPhyloLikelihood*> getVectorOfLikelihoods(){return vectorOfLikelohoods_;}
             static vector <double> setFixedRootFrequencies(const std::string &path, std::shared_ptr<ChromosomeSubstitutionModel> chrModel);
 
 
         protected:
-            // for model initiation
+        //     // for model initiation
             SingleProcessPhyloLikelihood* getLikelihoodFunction(const PhyloTree* tree, const VectorSiteContainer* vsc, std::shared_ptr<ChromosomeSubstitutionModel> &chrModel, DiscreteDistribution* rdist, const string& fixedRootFreqPath);
             
             
-            // //functions of optimization
+        //     // //functions of optimization
+            void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName) const;
+            void updateMapsOfParamTypesAndNames(std::map<int, std::vector<string>> &typeWithParamNames, std::map<string, int> &paramNameAndType, SingleProcessPhyloLikelihood* tl) const;
             unsigned int optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector<unsigned int> &baseNumCandidates);//, unsigned int inwardBracketing, bool standardOptimization);
             unsigned int optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector<unsigned int> &baseNumCandidates, bool mixed = false, unsigned int currentIterNum = 0);
             unsigned int optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed = false, unsigned int currentIterNum = 0);
@@ -222,12 +225,12 @@ namespace bpp
             static bool compareLikValues(SingleProcessPhyloLikelihood* lik1, SingleProcessPhyloLikelihood* lik2);
 
             // // helper functions for optimization
-            vector <string> getNonFixedParams(vector <unsigned int> fixedParams, ParameterList &allParams) const;
+            void checkLegalUseOfGradientOptimization();
+            vector <string> getNonFixedParams(SingleProcessPhyloLikelihood* tl, ParameterList &allParams) const;
             void fillVectorOfBaseNumCandidates(vector <unsigned int> &baseNumCandidates, unsigned int lowerBound, unsigned int upperBound) const;
             void getAllPossibleChrRanges(vector <unsigned int> &baseNumCandidates) const;
-            string findParameterNameInModel(string fullParameterName) const;
-            void constructParamPairsMap(map<string, pair<string, bool>> &paramPairsMap);
-            void setNewBounds(const ParameterList params, Parameter &param, map<string, pair<string, bool>> &paramPairsMap, double* lowerBound, const ChromosomeSubstitutionModel* model);
+            //string findParameterNameInModel(string fullParameterName) const;
+            //void setNewBounds(const ParameterList params, Parameter &param, map<string, pair<string, bool>> &paramPairsMap, double* lowerBound, const ChromosomeSubstitutionModel* model);
 
             //print functions
             void printLikParameters(SingleProcessPhyloLikelihood* lik, unsigned int optimized, const string path = "none") const;

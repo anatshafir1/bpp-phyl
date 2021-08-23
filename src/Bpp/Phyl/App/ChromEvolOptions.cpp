@@ -10,15 +10,12 @@ int ChromEvolOptions::minChrNum_;
 double ChromEvolOptions::branchMul_;
 std::vector <unsigned int> ChromEvolOptions::OptPointsNum_;
 std::vector <unsigned int> ChromEvolOptions::OptIterNum_;
-double ChromEvolOptions::constGain_;
-double ChromEvolOptions::constLoss_;
-double ChromEvolOptions::constDupl_;
-double ChromEvolOptions::constDemiDupl_;
-double ChromEvolOptions::gainR_;
-double ChromEvolOptions::lossR_;
+vector<double> ChromEvolOptions::gain_;
+vector<double> ChromEvolOptions::loss_;
+vector<double> ChromEvolOptions::dupl_;
+vector<double> ChromEvolOptions::demiDupl_;
 int ChromEvolOptions::baseNum_;
-double ChromEvolOptions::baseNumR_;
-double ChromEvolOptions::duplR_;
+vector<double> ChromEvolOptions::baseNumR_;
 double ChromEvolOptions::tolerance_;
 unsigned int ChromEvolOptions::maxIterations_;
 bool ChromEvolOptions::maxParsimonyBound_;
@@ -31,10 +28,10 @@ int ChromEvolOptions::seed_;
 std::vector <double> ChromEvolOptions::probsForMixedOptimization_;
 string ChromEvolOptions::rootFreqs_;
 string ChromEvolOptions::fixedFrequenciesFilePath_;
-ChromosomeSubstitutionModel::rateChangeFunc ChromEvolOptions::rateChangeType_;
+std::vector<int> ChromEvolOptions::rateChangeType_;
 //bool ChromEvolOptions::optimizeBaseNumber_;
 string ChromEvolOptions::baseNumOptimizationMethod_;
-std::vector<unsigned int> ChromEvolOptions::fixedParams_;
+std::vector<int> ChromEvolOptions::fixedParams_;
 int ChromEvolOptions::NumOfSimulations_;
 int ChromEvolOptions::jumpTypeMethod_;
 bool ChromEvolOptions::simulateData_;
@@ -58,22 +55,13 @@ void ChromEvolOptions::initDefaultParameters(){
     maxIterations_ = 5;
     tolerance_ = 0.01;
     branchMul_ = 999;
-    constGain_ = IgnoreParam;
-    constLoss_ = IgnoreParam;
-    constDupl_ = IgnoreParam;
-    constDemiDupl_= IgnoreParam;
-    gainR_ = IgnoreParam;
-    lossR_ = IgnoreParam;
     baseNum_ = IgnoreParam;
-    baseNumR_ = IgnoreParam;
-    duplR_ = IgnoreParam;
     maxParsimonyBound_ = false;
     standardOptimization_ = false;
     BrentBracketing_ = 2;
     optimizationMethod_ = "Brent";
     seed_ = 0;
     rootFreqs_ = "weighted";
-    rateChangeType_ = ChromosomeSubstitutionModel::LINEAR;
     //optimizeBaseNumber_ = false;
     baseNumOptimizationMethod_ = "Brent";
     NumOfSimulations_ = 10000;
@@ -88,65 +76,87 @@ void ChromEvolOptions::initDefaultParameters(){
 
 }
 /*************************************************************************/
-void ChromEvolOptions::setFixedParams(std::vector<unsigned int> fixedParams){
-    
-    //if (optimizeBaseNumber_){
-    for (size_t i = 0; i < ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS; i++){
-        switch (i)
-        {
-        case ChromosomeSubstitutionModel::BASENUM:
-            if (baseNum_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::BASENUM]);      
-            }
-            break;
-        case ChromosomeSubstitutionModel::BASENUMR:
-            if (baseNumR_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::BASENUMR]);
-            }
-            break;
-        case ChromosomeSubstitutionModel::DUPL:
-            if (constDupl_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DUPL]);
-            }
-            break;
-        case ChromosomeSubstitutionModel::LOSS:
-            if (constLoss_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::LOSS]);
-            }
-            break;
-        case ChromosomeSubstitutionModel::GAIN:
-            if (constGain_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::GAIN]);
-            }
-            break;
-        case ChromosomeSubstitutionModel::LOSSR:
-            if (lossR_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::LOSSR]);
-            }
-            break;
-        case ChromosomeSubstitutionModel::GAINR:
-            if (gainR_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::GAINR]);
-            }
-            break;
-        case ChromosomeSubstitutionModel::DUPLR:
-            if (duplR_ != IgnoreParam){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DUPLR]);
-            }
-            break;
-        case ChromosomeSubstitutionModel::DEMIDUPL:
-            if ((constDemiDupl_ != IgnoreParam) && (constDemiDupl_ != DemiEqualDupl)){
-                fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DEMIDUPL]);
-            }
-            break;
-       
-        default:
-            throw Exception("ChromEvolOptions::setFixedParams(): Invalid rate type!");
-            break;
+std::vector<int> ChromEvolOptions::translateStringParamsToInt(std::vector<string> strParams){
+    std::vector <int> params;
+    for (size_t i = 0; i < strParams.size(); i++){
+        if (strParams[i] == "gain"){
+            params.push_back(static_cast<int>(ChromosomeSubstitutionModel::GAIN));   
+        }else if (strParams[i] == "loss"){
+            params.push_back(static_cast<int>(ChromosomeSubstitutionModel::LOSS));
+        }else if (strParams[i] == "dupl"){
+            params.push_back(static_cast<int>(ChromosomeSubstitutionModel::DUPL));
+        }else if (strParams[i] == "demiPloidyR"){
+            params.push_back(static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL));
+        }else if (strParams[i] == "baseNumR"){
+            params.push_back(static_cast<int>(ChromosomeSubstitutionModel::BASENUMR));
+        }else if (strParams[i] == "baseNum"){
+            params.push_back(static_cast<int>(ChromosomeSubstitutionModel::BASENUM));
+        }else{
+            throw Exception("ChromEvolOptions::translateStringParamsToInt(): No such parameter!!!");
         }
-
     }
+    return params;
 }
+/*************************************************************************/
+// void ChromEvolOptions::setFixedParams(std::vector<unsigned int> fixedParams){
+    
+//     //if (optimizeBaseNumber_){
+//     for (size_t i = 0; i < ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS; i++){
+//         switch (i)
+//         {
+//         case ChromosomeSubstitutionModel::BASENUM:
+//             if (baseNum_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::BASENUM]);      
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::BASENUMR:
+//             if (baseNumR_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::BASENUMR]);
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::DUPL:
+//             if (constDupl_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DUPL]);
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::LOSS:
+//             if (constLoss_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::LOSS]);
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::GAIN:
+//             if (constGain_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::GAIN]);
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::LOSSR:
+//             if (lossR_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::LOSSR]);
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::GAINR:
+//             if (gainR_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::GAINR]);
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::DUPLR:
+//             if (duplR_ != IgnoreParam){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DUPLR]);
+//             }
+//             break;
+//         case ChromosomeSubstitutionModel::DEMIDUPL:
+//             if ((constDemiDupl_ != IgnoreParam) && (constDemiDupl_ != DemiEqualDupl)){
+//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DEMIDUPL]);
+//             }
+//             break;
+       
+//         default:
+//             throw Exception("ChromEvolOptions::setFixedParams(): Invalid rate type!");
+//             break;
+//         }
+
+//     }
+// }
 /*************************************************************************/
 void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     maxChrNum_ = ApplicationTools::getIntParameter("_maxChrNum", ChromEvol.getParams(), maxChrNum_, "", true, 0);
@@ -162,15 +172,12 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     branchMul_ = ApplicationTools::getDoubleParameter("_branchMul", ChromEvol.getParams(), branchMul_, "", true, 0);
     maxIterations_ = (unsigned int)ApplicationTools::getIntParameter("_maxOptimizationItarations", ChromEvol.getParams(), maxIterations_, "", true, 0);
     tolerance_ = ApplicationTools::getDoubleParameter("_tolParamOptimization", ChromEvol.getParams(), tolerance_, "", true, 0);
-    constGain_ = ApplicationTools::getDoubleParameter("_gainConstR", ChromEvol.getParams(), constGain_, "", true, 0);
-    constLoss_ = ApplicationTools::getDoubleParameter("_lossConstR", ChromEvol.getParams(), constLoss_, "", true, 0);
-    constDupl_ = ApplicationTools::getDoubleParameter("_duplConstR", ChromEvol.getParams(), constDupl_, "", true, 0);
-    constDemiDupl_ = ApplicationTools::getDoubleParameter("_demiPloidyR", ChromEvol.getParams(), constDemiDupl_, "", true, 0);
-    gainR_ = ApplicationTools::getDoubleParameter("_gainR", ChromEvol.getParams(), gainR_, "", true, 0);
-    lossR_ = ApplicationTools::getDoubleParameter("_lossR", ChromEvol.getParams(), lossR_, "", true, 0);
+    gain_ = ApplicationTools::getVectorParameter<double>("_gain", ChromEvol.getParams(), ',', "", "", true, 0);
+    loss_ = ApplicationTools::getVectorParameter<double>("_loss", ChromEvol.getParams(), ',', "", "", true, 0);
+    dupl_ = ApplicationTools::getVectorParameter<double>("_dupl", ChromEvol.getParams(), ',', "", "", true, 0);
+    demiDupl_ = ApplicationTools::getVectorParameter<double>("_demiPloidyR", ChromEvol.getParams(), ',', "", "", true, 0);
     baseNum_ = ApplicationTools::getIntParameter("_baseNum", ChromEvol.getParams(), baseNum_, "", true, 0);
-    baseNumR_ = ApplicationTools::getDoubleParameter("_baseNumR", ChromEvol.getParams(), baseNumR_, "", true, 0);
-    duplR_ = ApplicationTools::getDoubleParameter("_duplR", ChromEvol.getParams(), duplR_, "", true, 0);
+    baseNumR_ = ApplicationTools::getVectorParameter<double>("_baseNumR", ChromEvol.getParams(),',', "",  "", true, 0);
     maxParsimonyBound_ = ApplicationTools::getBooleanParameter("_maxParsimonyBound", ChromEvol.getParams(), maxParsimonyBound_, "", true, 0);
     standardOptimization_ = ApplicationTools::getBooleanParameter("_standardOptimization", ChromEvol.getParams(), standardOptimization_, "", true, 0);
     BrentBracketing_ = ApplicationTools::getIntParameter("_BrentBracketing", ChromEvol.getParams(), BrentBracketing_, "", true, 0);
@@ -183,17 +190,20 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     probsForMixedOptimization_ = ApplicationTools::getVectorParameter<double>("_probsForMixedOptimization", ChromEvol.getParams(), ',', defaultValForProbsForMixedOpt, "", true, 0);
     fixedFrequenciesFilePath_ = ApplicationTools::getAFilePath("_fixedFrequenciesFilePath", ChromEvol.getParams(), false, true, "", true, "none", 0);
     rootFreqs_ = ApplicationTools::getStringParameter("_rootFreqs", ChromEvol.getParams(), rootFreqs_, "", true, 0);
-    int rateChangeType = ApplicationTools::getIntParameter("_rateChangeType", ChromEvol.getParams(), rateChangeType_, "", true, 0);
-    if (rateChangeType){
-        rateChangeType_ = ChromosomeSubstitutionModel::EXP;
-    }else{
-        rateChangeType_ = ChromosomeSubstitutionModel::LINEAR;
-    }
+    std::string gainFunc = ApplicationTools::getStringParameter("_gainFunc", ChromEvol.getParams(), "None", "", true, 0);
+    std::string lossFunc = ApplicationTools::getStringParameter("_lossFunc", ChromEvol.getParams(), "None", "", true, 0);
+    std::string duplFunc = ApplicationTools::getStringParameter("_duplFunc", ChromEvol.getParams(), "None", "", true, 0);
+    std::string demiDuplFunc = ApplicationTools::getStringParameter("_demiDuplFunc", ChromEvol.getParams(), "None", "", true, 0);
+    std::string baseNumRFunc = ApplicationTools::getStringParameter("_baseNumRFunc", ChromEvol.getParams(), "None", "", true, 0);
+    setFunctions(gainFunc, lossFunc, duplFunc, demiDuplFunc, baseNumRFunc);
     //optimizeBaseNumber_ = ApplicationTools::getBooleanParameter("_optimizeBaseNumber", ChromEvol.getParams(), optimizeBaseNumber_, "", true, 0);
     baseNumOptimizationMethod_ = ApplicationTools::getStringParameter("_baseNumOptimizationMethod", ChromEvol.getParams(), baseNumOptimizationMethod_, "", true, 0);
-    string defaultValForFixedParams = "0,0,0,0,0,0,0,0,0";
-    std::vector<unsigned int> fixedParams = ApplicationTools::getVectorParameter<unsigned int>("_fixedParams", ChromEvol.getParams(), ',', defaultValForFixedParams, "", true, 0);
-    setFixedParams(fixedParams);
+    std::vector<string> fixedParamsStr = ApplicationTools::getVectorParameter<string>("_fixedParams", ChromEvol.getParams(), ',', "", "", true, 0);
+    if (fixedParamsStr.size() > 0){
+        fixedParams_ = translateStringParamsToInt(fixedParamsStr);
+    }else{
+        fixedParams_ = std::vector<int>();
+    }
     NumOfSimulations_ = ApplicationTools::getIntParameter("_NumOfSimulations", ChromEvol.getParams(), NumOfSimulations_, "", true, 0);
     jumpTypeMethod_ = ApplicationTools::getIntParameter("_jumpTypeMethod", ChromEvol.getParams(), jumpTypeMethod_, "", true, 0);
     numOfDataToSimulate_ = ApplicationTools::getIntParameter("_numOfDataToSimulate", ChromEvol.getParams(), numOfDataToSimulate_, "", true, 0);
@@ -203,42 +213,104 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     maxNumOfTrials_ = ApplicationTools::getIntParameter("_maxNumOfTrials", ChromEvol.getParams(), maxNumOfTrials_, "", true, 0);
 
 }
-/*************************************************************************/
-void ChromEvolOptions::initVectorOfChrNumParameters(vector<double>& paramVector){
-    for (size_t i = 0; i < ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS; i++){
-        switch(i){
-            case ChromosomeSubstitutionModel::BASENUM:
-                paramVector.push_back(baseNum_);
-                break;
-            case ChromosomeSubstitutionModel::BASENUMR:
-                paramVector.push_back(baseNumR_);
-                break;
-            case ChromosomeSubstitutionModel::DUPL:
-                paramVector.push_back(constDupl_);
-                break;
-            case ChromosomeSubstitutionModel::LOSS:
-                paramVector.push_back(constLoss_);
-                break;
-            case ChromosomeSubstitutionModel::GAIN:
-                paramVector.push_back(constGain_);
-                break;
-            case ChromosomeSubstitutionModel::DEMIDUPL:
-                paramVector.push_back(constDemiDupl_);
-                break;
-            case ChromosomeSubstitutionModel::LOSSR:
-                paramVector.push_back(lossR_);
-                break;
-            case ChromosomeSubstitutionModel::GAINR:
-                paramVector.push_back(gainR_);
-                break;
-            case ChromosomeSubstitutionModel::DUPLR:
-                paramVector.push_back(duplR_);
-                break;
-            default:
-                throw Exception("ChromEvolOptions::initVectorOfChrNumParameters(): Invalid rate type!");
-                break;
+/************************************************************************/
+void ChromEvolOptions::setFunctions(std::string gainFunc, std::string lossFunc, std::string duplFunc, std::string demiDuplFunc, std::string baseNumRFunc){
+    for (size_t i = 0; i < compositeParameter::PARAMNAME_COUNT; i++){
+        switch (i)
+        {
+        case compositeParameter::GAIN:
+            rateChangeType_.push_back(getFunctionFromString(gainFunc));
+            break;
+        case compositeParameter::LOSS:
+            rateChangeType_.push_back(getFunctionFromString(lossFunc));
+            break;
+        case compositeParameter::DUPL:
+            rateChangeType_.push_back(getFunctionFromString(duplFunc));
+            break;
+        case compositeParameter::DEMI_DUPL:
+            rateChangeType_.push_back(getFunctionFromString(demiDuplFunc));
+            break;
+        case compositeParameter::BASENUMR:
+            rateChangeType_.push_back(getFunctionFromString(baseNumRFunc));
+            break;
+   
+        default:
+            throw Exception("ChromEvolOptions::setFunctions: parameter not found !!!");
         }
-
-    }   
+    }
 
 }
+/*************************************************************************/
+int ChromEvolOptions::getFunctionFromString(string funcStr){
+    int func;
+    if (funcStr == "CONST"){
+        func = static_cast<int>(compositeParameter::CONSTANT);
+        
+    }else if (funcStr == "LINEAR"){
+        func = static_cast<int>(compositeParameter::LINEAR);
+    }else if (funcStr == "LINEAR_BD"){
+        func = static_cast<int>(compositeParameter::LINEAR_BD);
+    }else if (funcStr == "EXP"){
+        func = static_cast<int> (compositeParameter::EXP);
+    }else if (funcStr == "POLYNOMIAL"){
+        func = static_cast<int> (compositeParameter::POLYNOMIAL);
+    }else if (funcStr == "LOGNORMAL"){
+        func = static_cast<int> (compositeParameter::LOGNORMAL);
+    }else if (funcStr == "REVERSE_SIGMOID"){
+        func = static_cast<int> (compositeParameter::REVERSE_SIGMOID);
+    }else if (funcStr == "None"){
+        func = static_cast<int> (compositeParameter::FUNC_COUNT);
+    }else{
+        throw Exception("ChromEvolOptions::getFunctionFromString(): No such function exists!!!");
+    }
+    return func;
+}
+/*************************************************************************/
+void ChromEvolOptions::getInitialValuesForComplexParams(std::map<int, std::vector<double>> &mapOfParams){
+    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain_;
+    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss_;
+    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl_;
+    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = demiDupl_;
+    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = baseNumR_;
+
+    
+}
+/*************************************************************************/
+// void ChromEvolOptions::initVectorOfChrNumParameters(vector<double>& paramVector){
+//     for (size_t i = 0; i < ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS; i++){
+//         switch(i){
+//             case ChromosomeSubstitutionModel::BASENUM:
+//                 paramVector.push_back(baseNum_);
+//                 break;
+//             case ChromosomeSubstitutionModel::BASENUMR:
+//                 paramVector.push_back(baseNumR_);
+//                 break;
+//             case ChromosomeSubstitutionModel::DUPL:
+//                 paramVector.push_back(constDupl_);
+//                 break;
+//             case ChromosomeSubstitutionModel::LOSS:
+//                 paramVector.push_back(constLoss_);
+//                 break;
+//             case ChromosomeSubstitutionModel::GAIN:
+//                 paramVector.push_back(constGain_);
+//                 break;
+//             case ChromosomeSubstitutionModel::DEMIDUPL:
+//                 paramVector.push_back(constDemiDupl_);
+//                 break;
+//             case ChromosomeSubstitutionModel::LOSSR:
+//                 paramVector.push_back(lossR_);
+//                 break;
+//             case ChromosomeSubstitutionModel::GAINR:
+//                 paramVector.push_back(gainR_);
+//                 break;
+//             case ChromosomeSubstitutionModel::DUPLR:
+//                 paramVector.push_back(duplR_);
+//                 break;
+//             default:
+//                 throw Exception("ChromEvolOptions::initVectorOfChrNumParameters(): Invalid rate type!");
+//                 break;
+//         }
+
+//     }   
+
+// }

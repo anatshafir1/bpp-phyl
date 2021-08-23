@@ -158,7 +158,7 @@ namespace bpp{
             void printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult) const;
             static string printTree(const PhyloTree& tree);
             static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
-            vector <double> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik) const;
+            std::map<int, vector <double>> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik) const;
             // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 

@@ -37,7 +37,8 @@ class ChromEvolOptions
 
 public:
     static void initAllParameters(BppApplication& ChromEvol);
-    static void initVectorOfChrNumParameters(vector<double>& paramVector);
+    static void getInitialValuesForComplexParams(std::map<int, std::vector<double>> &mapOfParams);
+    //static void initVectorOfChrNumParameters(vector<double>& paramVector);
     virtual ~ChromEvolOptions(){};
     
 public:
@@ -48,14 +49,12 @@ public:
     static double branchMul_;
     static std::vector <unsigned int> OptPointsNum_;
     static std::vector <unsigned int> OptIterNum_;
-    static double constGain_;
-    static double constLoss_;
-    static double constDupl_;
-    static double constDemiDupl_;
-    static double gainR_;
-    static double lossR_;
+    static std::vector<double> gain_;
+    static std::vector<double> loss_;
+    static std::vector<double> dupl_;
+    static std::vector<double> demiDupl_;
     static int baseNum_;
-    static double baseNumR_;
+    static std::vector<double> baseNumR_;
     static double duplR_;
     static double tolerance_;
     static unsigned int maxIterations_;
@@ -69,10 +68,10 @@ public:
     static std::vector <double> probsForMixedOptimization_;
     static string rootFreqs_;
     static string fixedFrequenciesFilePath_;
-    static ChromosomeSubstitutionModel::rateChangeFunc rateChangeType_;
+    static vector<int> rateChangeType_;
     //static bool optimizeBaseNumber_;
     static string baseNumOptimizationMethod_;
-    static std::vector<unsigned int> fixedParams_; //1 if parameter should be fixed. The order corresponds to the one in the model definition.
+    static std::vector<int> fixedParams_; //1 if parameter should be fixed. The order corresponds to the one in the model definition.
     static int NumOfSimulations_;
     static int jumpTypeMethod_;
     static bool simulateData_;
@@ -85,7 +84,10 @@ public:
 private:
     static void initDefaultParameters();
     static void initParametersFromFile(BppApplication& ChromEvol);
-    static void setFixedParams(std::vector<unsigned int> fixedParams);
+    //static void setFixedParams(std::vector<unsigned int> fixedParams);
+    static std::vector<int> translateStringParamsToInt(std::vector<string> strParams);
+    static void setFunctions(std::string gainFunc, std::string lossFunc, std::string duplFunc, std::string demiDuplFunc, std::string baseNumRFunc);
+    static int getFunctionFromString(string funcStr);
 
 };
 
