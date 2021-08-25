@@ -55,7 +55,6 @@ public:
     static std::vector<double> demiDupl_;
     static int baseNum_;
     static std::vector<double> baseNumR_;
-    static double duplR_;
     static double tolerance_;
     static unsigned int maxIterations_;
     static bool maxParsimonyBound_;

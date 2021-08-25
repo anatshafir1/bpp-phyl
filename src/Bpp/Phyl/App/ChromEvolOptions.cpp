@@ -215,22 +215,24 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
 }
 /************************************************************************/
 void ChromEvolOptions::setFunctions(std::string gainFunc, std::string lossFunc, std::string duplFunc, std::string demiDuplFunc, std::string baseNumRFunc){
-    for (size_t i = 0; i < compositeParameter::PARAMNAME_COUNT; i++){
+    for (size_t i = 0; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
         switch (i)
         {
-        case compositeParameter::GAIN:
+        case ChromosomeSubstitutionModel::BASENUM:
+            break;
+        case ChromosomeSubstitutionModel::GAIN:
             rateChangeType_.push_back(getFunctionFromString(gainFunc));
             break;
-        case compositeParameter::LOSS:
+        case ChromosomeSubstitutionModel::LOSS:
             rateChangeType_.push_back(getFunctionFromString(lossFunc));
             break;
-        case compositeParameter::DUPL:
+        case ChromosomeSubstitutionModel::DUPL:
             rateChangeType_.push_back(getFunctionFromString(duplFunc));
             break;
-        case compositeParameter::DEMI_DUPL:
+        case ChromosomeSubstitutionModel::DEMIDUPL:
             rateChangeType_.push_back(getFunctionFromString(demiDuplFunc));
             break;
-        case compositeParameter::BASENUMR:
+        case ChromosomeSubstitutionModel::BASENUMR:
             rateChangeType_.push_back(getFunctionFromString(baseNumRFunc));
             break;
    
@@ -258,8 +260,8 @@ int ChromEvolOptions::getFunctionFromString(string funcStr){
         func = static_cast<int> (compositeParameter::LOGNORMAL);
     }else if (funcStr == "REVERSE_SIGMOID"){
         func = static_cast<int> (compositeParameter::REVERSE_SIGMOID);
-    }else if (funcStr == "None"){
-        func = static_cast<int> (compositeParameter::FUNC_COUNT);
+    }else if (funcStr == "IGNORE"){ 
+        func = static_cast<int> (compositeParameter::IGNORE);
     }else{
         throw Exception("ChromEvolOptions::getFunctionFromString(): No such function exists!!!");
     }

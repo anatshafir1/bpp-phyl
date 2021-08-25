@@ -42,36 +42,36 @@ using namespace std;
 //   }
 // } 
 /******************************************************************************/
-void compositeParameter::getParamUpdateFunction(FunctionType funcType){
+// void compositeParameter::getParamUpdateFunction(FunctionType funcType){
 
-  switch(funcType){
-    case FunctionType::CONSTANT:
-      updateParamFunc_ = &compositeParameter::getConstBounds;
-      break;
-    case FunctionType::LINEAR:
-      updateParamFunc_ = &compositeParameter::getLinearBounds;
-      break;
-    case FunctionType::LINEAR_BD:
-      updateParamFunc_ = &compositeParameter::getLinearBDBounds;
-      break;
-    case FunctionType::EXP:
-      updateParamFunc_ = &compositeParameter::getExpBounds;
-      break;
-    case FunctionType::POLYNOMIAL:
-      updateParamFunc_ = &compositeParameter::getPolynomialBounds;
-      break;
-    case FunctionType::LOGNORMAL:
-      updateParamFunc_ = &compositeParameter::getLogNormalBounds;
-      break;
-    case FunctionType::REVERSE_SIGMOID:
-      updateParamFunc_ = &compositeParameter::getReverseSigmoidBounds;
-      break;
-    default:
-      throw Exception("compositeParameter::getParamUpdateFunction(): Invalid function type!");
-      break;
+//   switch(funcType){
+//     case FunctionType::CONSTANT:
+//       updateParamFunc_ = &compositeParameter::getConstBounds;
+//       break;
+//     case FunctionType::LINEAR:
+//       updateParamFunc_ = &compositeParameter::getLinearBounds;
+//       break;
+//     case FunctionType::LINEAR_BD:
+//       updateParamFunc_ = &compositeParameter::getLinearBDBounds;
+//       break;
+//     case FunctionType::EXP:
+//       updateParamFunc_ = &compositeParameter::getExpBounds;
+//       break;
+//     case FunctionType::POLYNOMIAL:
+//       updateParamFunc_ = &compositeParameter::getPolynomialBounds;
+//       break;
+//     case FunctionType::LOGNORMAL:
+//       updateParamFunc_ = &compositeParameter::getLogNormalBounds;
+//       break;
+//     case FunctionType::REVERSE_SIGMOID:
+//       updateParamFunc_ = &compositeParameter::getReverseSigmoidBounds;
+//       break;
+//     default:
+//       throw Exception("compositeParameter::getParamUpdateFunction(): Invalid function type!");
+//       break;
 
-  }
-}
+//   }
+// }
 /******************************************************************************/
 double compositeParameter::getRate(size_t state) const{
     switch(func_){
@@ -84,105 +84,112 @@ double compositeParameter::getRate(size_t state) const{
     case FunctionType::EXP:
       return params_[0]->getValue() * std::exp((double)(state-1)*params_[1]->getValue());
     case FunctionType::POLYNOMIAL:
-      throw Exception("Not implemented yet!");
-      break;
     case FunctionType::LOGNORMAL:
-      throw Exception("Not implemented yet!");
-      break;
     case FunctionType::REVERSE_SIGMOID:
       throw Exception("Not implemented yet!");
       break;
+
     default:
-      throw Exception("compositeParameter::createFunctionsMap(): Invalid function type!");
-      break;
+      throw Exception("compositeParameter::getRate(): Invalid function type!");
 
   }
 
 } 
 /******************************************************************************/
-void compositeParameter::getConstBounds(size_t index, double* lowerBound, double* upperBound){
-  if (index > 0){
-    throw Exception ("compositeParameter::getConstBounds(): Too many parameters!");
-  }
-  *lowerBound = lowerBoundOfRateParam;
-  *upperBound = upperBoundOfRateParam;
+// void compositeParameter::getConstBounds(size_t index, double* lowerBound, double* upperBound){
+//   if (index > 0){
+//     throw Exception ("compositeParameter::getConstBounds(): Too many parameters!");
+//   }
+//   *lowerBound = lowerBoundOfRateParam;
+//   *upperBound = upperBoundOfRateParam;
   
-}
-/******************************************************************************/
-void compositeParameter::getLinearBounds(size_t index, double* lowerBound, double* upperBound){
-  if (index > 1){
-    throw Exception("compositeParameter::getLinearBounds(): Too many parameters!!!");
-  }
-  if (index == 0){
-    *lowerBound = std::max(lowerBoundOfRateParam, -params_[index + 1]->getValue() * (maxChrNumber_-1));
-    *upperBound = upperBoundOfRateParam;
+// }
+// /******************************************************************************/
+// void compositeParameter::getLinearBounds(size_t index, double* lowerBound, double* upperBound){
+//   if (index > 1){
+//     throw Exception("compositeParameter::getLinearBounds(): Too many parameters!!!");
+//   }
+//   if (index == 0){
+//     *lowerBound = std::max(lowerBoundOfRateParam, -params_[index + 1]->getValue() * (maxChrNumber_-1));
+//     *upperBound = upperBoundOfRateParam;
 
-  }else if (index == 1){
-    *lowerBound = -params_[index - 1]->getValue()/(maxChrNumber_-1);
-    *upperBound = upperBoundLinearRateParam;
+//   }else if (index == 1){
+//     *lowerBound = -params_[index - 1]->getValue()/(maxChrNumber_-1);
+//     *upperBound = upperBoundLinearRateParam;
 
-  }else{
-    throw Exception("compositeParameter::updateLinear(): To many parameters!!");
+//   }else{
+//     throw Exception("compositeParameter::updateLinear(): To many parameters!!");
 
-  }
+//   }
   
-}
+// }
 /******************************************************************************/
-void compositeParameter::getExpBounds(size_t index, double* lowerBound, double* upperBound){
-  if (index > 1){
-    throw Exception("compositeParameter::getExpBounds(): Too many parameters!!!");
-  }
-  if (index == 0){
-    *lowerBound = lowerBoundOfRateParam;
-    *upperBound = upperBoundOfRateParam;
+// void compositeParameter::getExpBounds(size_t index, double* lowerBound, double* upperBound){
+//   if (index > 1){
+//     throw Exception("compositeParameter::getExpBounds(): Too many parameters!!!");
+//   }
+//   if (index == 0){
+//     *lowerBound = lowerBoundOfRateParam;
+//     *upperBound = upperBoundOfRateParam;
 
-  }else{
-    *lowerBound = lowerBoundOfExpParam;
-    *upperBound = upperBoundExpParam/(maxChrNumber_-1);
+//   }else{
+//     *lowerBound = lowerBoundOfExpParam;
+//     *upperBound = upperBoundExpParam/(maxChrNumber_-1);
 
-  }
+//   }
 
 
-}
+// }
 /******************************************************************************/
-void compositeParameter::getLinearBDBounds(size_t index, double* lowerBound, double* upperBound){
-  if (index > 0){
-    throw Exception("compositeParameter::getLinearBDBounds(): Too many parameters!!!");
-  }
-  *lowerBound = lowerBoundOfRateParam;
-  *upperBound = upperBoundOfRateParam;
-}
+// void compositeParameter::getLinearBDBounds(size_t index, double* lowerBound, double* upperBound){
+//   if (index > 0){
+//     throw Exception("compositeParameter::getLinearBDBounds(): Too many parameters!!!");
+//   }
+//   *lowerBound = lowerBoundOfRateParam;
+//   *upperBound = upperBoundOfRateParam;
+// }
 /******************************************************************************/
 size_t compositeParameter::getNumOfParameters(FunctionType func){
-  if (func == FunctionType::CONSTANT || func == FunctionType::LINEAR_BD){
-    return 1;
-  }else if (func == FunctionType::EXP || func == FunctionType::LINEAR){
-    return 2;
-  }else if (func == FunctionType::FUNC_COUNT){
-    return 0;
+  size_t numOfParams;
+  switch (func){
+    case FunctionType::LINEAR_BD:
+    case FunctionType::CONSTANT:
+      numOfParams = 1;
+      break;
+    case FunctionType::EXP:
+    case FunctionType::LINEAR:
+      numOfParams = 2;
+      break;
+    case FunctionType::IGNORE:
+      numOfParams = 0;
+      break;
+    default:
+      throw Exception ("compositeParameter::getNumOfParameters(): Unrecognized function!");
+      break;
+
   }
-  return 3;
+  return numOfParams;
 }
 /******************************************************************************/
-compositeParameter::ParamName compositeParameter::getCompositeRateType(int param){
-  switch (param)
-  {
-  case ChromosomeSubstitutionModel::GAIN:
-    return compositeParameter::GAIN;
-  case ChromosomeSubstitutionModel::LOSS:
-    return compositeParameter::LOSS;
-  case ChromosomeSubstitutionModel::DUPL:
-    return compositeParameter::DUPL;
-  case ChromosomeSubstitutionModel::DEMIDUPL:
-    return compositeParameter::DEMI_DUPL;
-  case ChromosomeSubstitutionModel::BASENUMR:
-    return compositeParameter::BASENUMR;
+// compositeParameter::ParamName compositeParameter::getCompositeRateType(int param){
+//   switch (param)
+//   {
+//   case ChromosomeSubstitutionModel::GAIN:
+//     return compositeParameter::GAIN;
+//   case ChromosomeSubstitutionModel::LOSS:
+//     return compositeParameter::LOSS;
+//   case ChromosomeSubstitutionModel::DUPL:
+//     return compositeParameter::DUPL;
+//   case ChromosomeSubstitutionModel::DEMIDUPL:
+//     return compositeParameter::DEMI_DUPL;
+//   case ChromosomeSubstitutionModel::BASENUMR:
+//     return compositeParameter::BASENUMR;
 
-  default:
-    throw Exception("compositeParameter::getCompositeRateType(): No such parameter exists!!!");
-    return compositeParameter::PARAMNAME_COUNT;
-  }
-}
+//   default:
+//     throw Exception("compositeParameter::getCompositeRateType(): No such parameter exists!!!");
+//     return compositeParameter::PARAMNAME_COUNT;
+//   }
+// }
 /******************************************************************************/
 void compositeParameter::updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, FunctionType funcType, int maxChrNum){
   // if param name is in the following form: gain1 for example
@@ -190,17 +197,14 @@ void compositeParameter::updateBounds(ParameterList& params, std::vector<string>
     std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(paramsNames[index]).getConstraint());
     *lowerBound = interval->getLowerBound();
     *upperBound = interval->getUpperBound();
-
     return;
   }
-
   std::vector<double> paramsValues;
   for (size_t i = 0; i < paramsNames.size(); i++){
     paramsValues.push_back(params.getParameter(paramsNames[i]).getValue());
-
   }
   std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(paramsNames[index]).getConstraint());
-
+  // 24_08 -> switch case instead if else.
   if (funcType == FunctionType::LINEAR){
     updateBoundsLinear(paramsValues, index, lowerBound, upperBound, maxChrNum);
     interval->setLowerBound(*lowerBound, interval->strictLowerBound());
@@ -210,7 +214,6 @@ void compositeParameter::updateBounds(ParameterList& params, std::vector<string>
     updateBoundsPolynomial(paramsValues, index, lowerBound, upperBound, maxChrNum);
   }else if (funcType == FunctionType::REVERSE_SIGMOID){
     updateBoundsReverseSigmoid(paramsValues, index, lowerBound, upperBound, maxChrNum);
-
   }else{
     throw Exception("compositeParameter::updateBounds(): no match for a given function!");
   }
@@ -399,7 +402,7 @@ void compositeParameter::updateBoundsLinear(std::vector<double> paramsValues, si
 /****************************************************************************/
 std::vector<double> compositeParameter::getParameterValues() const{
   std::vector<double> values;
-  for (size_t i = 0; i < size_; i++){
+  for (size_t i = 0; i < getSize(); i++){
     values.push_back(params_[i]->getValue());
   }
   return values;
@@ -453,23 +456,24 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
     baseNumRFunc_(),
     vPowExp_()
 {
-    for (size_t i = 0; i < rateChangeType.size(); i++){
+    size_t startNonComposite = getNumberOfNonCompositeParams();
+    for (size_t i = startNonComposite; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
       switch (i)
       {
-      case compositeParameter::GAIN:
-        gainFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+      case ChromosomeSubstitutionModel::GAIN:
+        gainFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
         break;
-      case compositeParameter::LOSS:
-        lossFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+      case ChromosomeSubstitutionModel::LOSS:
+        lossFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
         break;
-      case compositeParameter::DUPL:
-        duplFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+      case ChromosomeSubstitutionModel::DUPL:
+        duplFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
         break;
-      case compositeParameter::DEMI_DUPL:
-        demiFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+      case ChromosomeSubstitutionModel::DEMIDUPL:
+        demiFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
         break;
-      case compositeParameter::BASENUMR:
-        baseNumRFunc_ =  static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+      case ChromosomeSubstitutionModel::BASENUMR:
+        baseNumRFunc_ =  static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
         break;
       default:
         throw Exception("ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(): No such parameter!");
@@ -512,23 +516,24 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
     baseNumRFunc_(),
     vPowExp_()
 {
-  for (size_t i = 0; i < rateChangeType.size(); i++){
+  size_t startNonComposite = getNumberOfNonCompositeParams();
+  for (size_t i = startNonComposite; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
     switch (i)
     {
-    case compositeParameter::GAIN:
-      gainFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+    case ChromosomeSubstitutionModel::GAIN:
+      gainFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
       break;
-    case compositeParameter::LOSS:
-      lossFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+    case ChromosomeSubstitutionModel::LOSS:
+      lossFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
       break;
-    case compositeParameter::DUPL:
-      duplFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+    case ChromosomeSubstitutionModel::DUPL:
+      duplFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
       break;
-    case compositeParameter::DEMI_DUPL:
-      demiFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+    case ChromosomeSubstitutionModel::DEMIDUPL:
+      demiFunc_ = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
       break;
-    case compositeParameter::BASENUMR:
-      baseNumRFunc_ =  static_cast<compositeParameter::FunctionType>(rateChangeType[i]);
+    case ChromosomeSubstitutionModel::BASENUMR:
+      baseNumRFunc_ =  static_cast<compositeParameter::FunctionType>(rateChangeType[i-startNonComposite]);
       break;
     default:
       throw Exception("ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(): No such parameter!");
@@ -628,14 +633,8 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
 {
   std::map<int, vector<double>> mapRandomParams;
   int newBaseNumber = baseNumber;
+  size_t startCompositeParams = getNumberOfNonCompositeParams();
 
-  //double gain, loss, dupl, demiDupl, gainR, lossR, baseNumR, duplR;
-  //int baseNum;
-
-  //vector<double> randomParams;
-  //randomParams.reserve(NUM_OF_CHR_PARAMS);
-  //map<int, double> setOfFixedParameters;
-  //getSetOfFixedParameters(initParams, fixedParams, setOfFixedParameters);
   for (int i = 0; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
     if (std::find(fixedParams.begin(), fixedParams.end(), i) != fixedParams.end()){
       if (static_cast<ChromosomeSubstitutionModel::paramType>(i) != ChromosomeSubstitutionModel::BASENUM){
@@ -653,9 +652,9 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
         continue;
 
       }else{
-        int compositeParamType = compositeParameter::getCompositeRateType(i);
+        //int compositeParamType = compositeParameter::getCompositeRateType(i);
         if (initParams[i].size() != 0){
-          compositeParameter::FunctionType func = static_cast<compositeParameter::FunctionType>(rateChangeType[compositeParamType]);
+          compositeParameter::FunctionType func = static_cast<compositeParameter::FunctionType>(rateChangeType[i-startCompositeParams]);
           int numOfParameters = static_cast<int>(compositeParameter::getNumOfParameters(func));
           for (size_t j = 0; j < (size_t)numOfParameters; j++){
             compositeParameter::getBoundsForInitialParams(func, j, paramValues, &lowerBound, &upperBound, alpha->getMax(), true);
@@ -673,17 +672,6 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
 
     }
   }
-  // double upperBound = upperBoundOfRateParam;
-  // double upperBoundLinear = upperBoundLinearRateParam;
-  // double upperBoundExp = upperBoundExpParam/(alpha->getMax()-1);
-  // if (parsimonyBound > 0){
-  //   upperBound = std::min(upperBoundOfRateParam, parsimonyBound);
-  //   upperBoundLinear = std::min(upperBoundLinearRateParam, parsimonyBound);
-  //   upperBoundExp = std::min(upperBoundExpParam/(alpha->getMax()-1), parsimonyBound);
-  // }
-  // for (size_t i = 0; i < initParams.size(); i ++){
-  //   getRandomParameter(static_cast<paramType>(i), initParams[i], randomParams, upperBound, upperBoundLinear, upperBoundExp, rateChangeType, alpha->getMax(), chrRange, setOfFixedParameters);
-  // }
 
   ChromosomeSubstitutionModel* model = new ChromosomeSubstitutionModel(alpha, mapRandomParams, newBaseNumber, chrRange, rootFrequenciesType, rateChangeType);//, useExtendedFloat);
   return model;
@@ -790,7 +778,7 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
 /******************************************************************************/
 std::vector<Parameter*> ChromosomeSubstitutionModel::createCompositeParameter(compositeParameter::FunctionType &func, std::string paramName, vector<double> &vectorOfValues){
   std::vector<Parameter*> params;
-  if (func == compositeParameter::FunctionType::FUNC_COUNT){
+  if (func == compositeParameter::FunctionType::IGNORE){
     return params;
   }
   for (size_t i = 0; i < vectorOfValues.size(); i++){
@@ -812,6 +800,12 @@ std::vector<Parameter*> ChromosomeSubstitutionModel::createCompositeParameter(co
 
 
 }
+/******************************************************************************/
+void ChromosomeSubstitutionModel::addCompositeParameter(std::vector<Parameter*> parameters){
+  for (size_t i = 0; i < parameters.size(); i++){
+    addParameter_(parameters[i]);
+  }
+}
 
 /******************************************************************************/
 void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<double> &loss, vector<double> &dupl, vector<double> &demi, vector<double> &baseNumR){
@@ -822,67 +816,55 @@ void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<
   }
   std::vector<size_t> numOfParamsVector;
   auto baseNumParams = createCompositeParameter(baseNumRFunc_, "baseNumR", baseNumR);
-  numOfParamsVector.push_back(baseNumParams.size());
+  addCompositeParameter(baseNumParams);
+  //numOfParamsVector.push_back(baseNumParams.size());
   auto duplParams = createCompositeParameter(duplFunc_, "dupl", dupl);
-  numOfParamsVector.push_back(duplParams.size());
+  addCompositeParameter(duplParams);
+  //numOfParamsVector.push_back(duplParams.size());
   auto lossParams = createCompositeParameter(lossFunc_, "loss", loss);
-  numOfParamsVector.push_back(lossParams.size());
+  addCompositeParameter(lossParams);
+  //numOfParamsVector.push_back(lossParams.size());
   auto gainParams = createCompositeParameter(gainFunc_, "gain", gain);
-  numOfParamsVector.push_back(gainParams.size());
+  addCompositeParameter(gainParams);
+  //numOfParamsVector.push_back(gainParams.size());
   auto demiParams = createCompositeParameter(demiFunc_, "demi", demi);
-  numOfParamsVector.push_back(demiParams.size());
-  size_t maxSize = *max_element(numOfParamsVector.begin(), numOfParamsVector.end());
-  for (size_t i = 0; i < maxSize; i++){
-    if (i < baseNumParams.size()){
-      addParameter_(baseNumParams[i]);
-    }
-    if (i < duplParams.size()){
-      addParameter_(duplParams[i]);
-    }
-    if (i < lossParams.size()){
-      addParameter_(lossParams[i]);
-    }
-    if (i < gainParams.size()){
-      addParameter_(gainParams[i]);
-    }
-    if (i < demiParams.size()){
-      addParameter_(demiParams[i]);
-    }
-  }
-  if (gainFunc_ != compositeParameter::FunctionType::FUNC_COUNT){
-    gain_ = new compositeParameter(ChrMaxNum_, gainFunc_, "gain", gainParams);
+  addCompositeParameter(demiParams);
+  //numOfParamsVector.push_back(demiParams.size());
+  //size_t maxSize = *max_element(numOfParamsVector.begin(), numOfParamsVector.end());
+  // for (size_t i = 0; i < maxSize; i++){
+  //   if (i < baseNumParams.size()){
+  //     addParameter_(baseNumParams[i]);
+  //   }
+  //   if (i < duplParams.size()){
+  //     addParameter_(duplParams[i]);
+  //   }
+  //   if (i < lossParams.size()){
+  //     addParameter_(lossParams[i]);
+  //   }
+  //   if (i < gainParams.size()){
+  //     addParameter_(gainParams[i]);
+  //   }
+  //   if (i < demiParams.size()){
+  //     addParameter_(demiParams[i]);
+  //   }
+  // }
+  if (gainFunc_ != compositeParameter::FunctionType::IGNORE){
+    gain_ = new compositeParameter(gainFunc_, "gain", gainParams);
 
   }
-  if (lossFunc_ != compositeParameter::FunctionType::FUNC_COUNT){
-    loss_ = new compositeParameter(ChrMaxNum_, lossFunc_, "loss", lossParams);
+  if (lossFunc_ != compositeParameter::FunctionType::IGNORE){
+    loss_ = new compositeParameter(lossFunc_, "loss", lossParams);
   }
-  if (duplFunc_ != compositeParameter::FunctionType::FUNC_COUNT){
-    dupl_ = new compositeParameter(ChrMaxNum_, duplFunc_, "dupl", duplParams);
+  if (duplFunc_ != compositeParameter::FunctionType::IGNORE){
+    dupl_ = new compositeParameter(duplFunc_, "dupl", duplParams);
   }
-  if (demiFunc_ != compositeParameter::FunctionType::FUNC_COUNT){
-    demiploidy_ = new compositeParameter(ChrMaxNum_, demiFunc_, "demi", demiParams);
+  if (demiFunc_ != compositeParameter::FunctionType::IGNORE){
+    demiploidy_ = new compositeParameter(demiFunc_, "demi", demiParams);
   }
-  if (baseNumRFunc_ != compositeParameter::FunctionType::FUNC_COUNT){
-    baseNumR_ = new compositeParameter(ChrMaxNum_, baseNumRFunc_, "baseNumR", baseNumParams);
+  if (baseNumRFunc_ != compositeParameter::FunctionType::IGNORE){
+    baseNumR_ = new compositeParameter(baseNumRFunc_, "baseNumR", baseNumParams);
   }
 
-    // std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
-    // if ((baseNum_ != IgnoreParam) && (baseNumR_ != IgnoreParam)){
-    //   updateBaseNumParameters(interval); 
-    // }
-    // updateConstRateParameter(dupl_, duplR_, "Chromosome.dupl", interval);
-    // updateConstRateParameter(loss_, lossR_, "Chromosome.loss", interval);
-    // updateConstRateParameter(gain_, gainR_, "Chromosome.gain", interval);
- 
-    // if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-    //   updateLinearParameters();
-    // }else if (rateChangeFuncType_ == rateChangeFunc::EXP){
-    //   updateExpParameters();
-    // }
-    // if ((demiploidy_ != IgnoreParam) & (demiploidy_!= DemiEqualDupl)){
-    //   addParameter_(new Parameter("Chromosome.demi", demiploidy_, interval));
-          
-    // }
 
 }
 /******************************************************************************/

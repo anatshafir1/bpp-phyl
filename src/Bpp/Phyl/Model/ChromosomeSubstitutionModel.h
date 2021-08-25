@@ -31,38 +31,61 @@ class ChromosomeSubstitutionModel;
 
 class compositeParameter{
   public:
-    enum FunctionType {CONSTANT, LINEAR, LINEAR_BD, EXP, POLYNOMIAL, LOGNORMAL, REVERSE_SIGMOID, FUNC_COUNT};
-    enum ParamName {BASENUMR, LOSS, GAIN, DUPL, DEMI_DUPL, PARAMNAME_COUNT};
-    typedef void (compositeParameter::*functionOp)(size_t, double*, double*);
+    enum FunctionType {CONSTANT, LINEAR, LINEAR_BD, EXP, POLYNOMIAL, LOGNORMAL, REVERSE_SIGMOID, IGNORE};
+    //enum ParamName {BASENUMR, LOSS, GAIN, DUPL, DEMI_DUPL, PARAMNAME_COUNT}; // 24_08 ->use only the substitution model 
+    //typedef void (compositeParameter::*functionOp)(size_t, double*, double*);
 
   private:
-    std::vector<Parameter*> params_;
-    FunctionType func_;
-    std::string name_;
-    functionOp updateParamFunc_;
-    size_t size_;
-    int maxChrNumber_;
+    std::vector<Parameter*> params_; // a vector of ChromosomeSubstitutionModel parameters that correspond to a given parameter type
+    FunctionType func_; // A function which is used to calculate the bounds and the rate of the composite parameter
+    std::string name_;  // The name of the rate parameter. For exampe, "gain" for a paremter that contains gain0, gain1, etc.
+    //functionOp updateParamFunc_;
+    //size_t size_; // the number of parameters that the composite parameter contains 
+    //int maxChrNumber_; // max chromosome number. Used to set the bounds.
     //vector<double> values_;
     
 
   public:
+    // get the values of the composite parameter parameters
     std::vector<double> getParameterValues() const;
+
+    // Returns true if the parameter is ignored
     static bool isIgnored(compositeParameter* param){return param == 0;}
-    void getBounds(size_t index, double* lowerBound, double* upperBound){return (this->*updateParamFunc_)(index, lowerBound, upperBound);}
+
+    // get the function of the composite parameter
     const FunctionType getFuncType() const {return func_;}
-    //vector <double>& getValues(size_t index); 
+
+    // get the name of the general name for the composite parameter
+    // for example, if the parameter is gain, name_ = "gain", and contains actual parameters gain0, gain1, etc.
     const std::string getName() const {return name_;}
-    const size_t getSize() const {return size_;}
-    static size_t getNumOfParameters(FunctionType funcType);
-    //const Parameter& getParameter(size_t index){return *(params_[index]);}
-    //void setNameStr(ParamName paramName);
-    void getParamUpdateFunction(FunctionType funcType);
+
+    // get the number of parameters
+    const size_t getSize() const {return params_.size();}
+
+    // given a function type returns the number of parameters
+    static size_t getNumOfParameters(FunctionType funcType); 
+
+    // Returns the value of the overall independent/dependent rate on the number of chromosomes (for any function)
     double getRate(size_t state) const;
-    //not relevant for const, linearBD, and Exp
-    static compositeParameter::ParamName getCompositeRateType(int param);
+
+    // switches from the enum of ChromosomeSubstitutionModel parameter types to the matching ones in compositeParameter
+    //static compositeParameter::ParamName getCompositeRateType(int param);
+
+    // A general function that updates upperBound and lowerBound according to the function to prevent from negative values in the Q matrix.
+    // params = the reference to the parameters which include the parameter that should be updated
+    // paramNames = the names of the parameters whose values are need in order to set the bounds
+    // index = the index of the parameter within the composite parameter that should be updated
+    // lowerBound = a pointer towards the lower bound that should be updated
+    // upperBound = a pointer towards the upper bound that should be updated
+    // funcType = the type of function
+    // maxChrNum =  the max chromosome number
     static void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, FunctionType funcType, int maxChrNum);
-    //static void updateBounds(Function* f, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, FunctionType funcType, int maxChrNum);
+
+    // A general function that updates upperBound and lowerBound according to the function to prevent from negative values in the Q matrix.
+    // Unlike the previous function, this function operates directly on the likelihood instance to ensure matching bounds
     static void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound, FunctionType funcType);
+
+    // Functions used by the updateBounds() functions
     static void updateBoundsLinear(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false);
     static void updateBoundsExp(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum);
     static void updateBoundsPolynomial(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
@@ -74,21 +97,35 @@ class compositeParameter{
     static void updateBoundsReverseSigmoid(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
       throw Exception("Not implemented yet!");
     }
+
+    // get initial bounds for the random sampling of the parameter values
     static void getBoundsForInitialParams(FunctionType func, size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber, bool random = false);
+
+    // set the lowest and the highest possible bounds to the model parameters. This important,
+    // because the parameters of the substitution model remain constant throughout optimization,
+    // and there could be an issue with values set out of bounds in case of the likelihood parameters.
     static void getAbsoluteBounds(FunctionType func, size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
 
     static std::vector<std::string> getRelatedParameterNames(ParameterList &params, std::string pattern);
+    //const Parameter& getParameter(size_t index){return *(params_[index]);}
+    //void setNameStr(ParamName paramName);
+    //void getParamUpdateFunction(FunctionType funcType);
+    //vector <double>& getValues(size_t index);
+    //static void updateBounds(Function* f, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, FunctionType funcType, int maxChrNum);
+    //void getBounds(size_t index, double* lowerBound, double* upperBound){return (this->*updateParamFunc_)(index, lowerBound, upperBound);}
+
+
 
   
 
 
-    compositeParameter(int &maxChromosomeNum, FunctionType func, std::string paramName, vector<Parameter*> &params):
-      params_(), func_(func), name_(paramName), updateParamFunc_(0), size_(params.size()), maxChrNumber_(maxChromosomeNum)
+    compositeParameter(FunctionType func, std::string paramName, vector<Parameter*> &params):
+      params_(), func_(func), name_(paramName)
     {
       for (size_t i = 0; i < params.size(); i++){
         params_.push_back(params[i]);
       }
-      getParamUpdateFunction(func);
+      //getParamUpdateFunction(func);
     }
 
 
@@ -98,7 +135,7 @@ class compositeParameter{
 
   protected:
     //Parameter* getParameter_(size_t index){return (params_[index]);}
-    void setName(ParamName name){name_ = name;}
+    void setName(std::string name){name_ = name;}
     void setFunction(FunctionType func){func_ = func;}
     std::vector<Parameter*>& getParams(){return params_;}
     void setParams(std::vector<Parameter*> params){params_ = params;}
@@ -106,21 +143,21 @@ class compositeParameter{
     
 
     // functions to update the parameters and their respective intervals
-    void getConstBounds(size_t index, double* lowerBound, double* upperBound);
-    void getLinearBounds(size_t index, double* lowerBound, double* upperBound);
-    void getLinearBDBounds(size_t index, double* lowerBound, double* upperBound);
-    void getExpBounds(size_t index, double* lowerBound, double* upperBound);
+    //void getConstBounds(size_t index, double* lowerBound, double* upperBound);
+    //void getLinearBounds(size_t index, double* lowerBound, double* upperBound);
+    //void getLinearBDBounds(size_t index, double* lowerBound, double* upperBound);
+    //void getExpBounds(size_t index, double* lowerBound, double* upperBound);
    
 
-    void getPolynomialBounds(size_t index, double* lowerBound, double* upperBound){
-      throw Exception("Not implemented yet!");
-    }
-    void getLogNormalBounds(size_t index, double* lowerBound, double* upperBound){
-      throw Exception("Not implemented yet!");
-    }
-    void getReverseSigmoidBounds(size_t index, double* lowerBound, double* upperBound){
-      throw Exception("Not implemented yet!");
-    }
+    // void getPolynomialBounds(size_t index, double* lowerBound, double* upperBound){
+    //   throw Exception("Not implemented yet!");
+    // }
+    // void getLogNormalBounds(size_t index, double* lowerBound, double* upperBound){
+    //   throw Exception("Not implemented yet!");
+    // }
+    // void getReverseSigmoidBounds(size_t index, double* lowerBound, double* upperBound){
+    //   throw Exception("Not implemented yet!");
+    // }
     friend ChromosomeSubstitutionModel;  
 };
 
@@ -132,6 +169,7 @@ public:
   enum rootFreqType {UNIFORM, ROOT_LL, STATIONARY, FIXED};
   enum rateChangeFunc {LINEAR = 0, EXP = 1};
   enum typeOfTransition {GAIN_T = 0, LOSS_T = 1, DUPL_T = 2, DEMIDUPL_T = 3, BASENUM_T = 4, MAXCHR_T = 5, NUMTYPES = 6, ILLEGAL = 7};
+  // All the non-composite parameters should come before the composite ones!!! For example, BASENUM is the first one
   enum paramType {BASENUM = 0, BASENUMR = 1, DUPL = 2, LOSS = 3, GAIN = 4, DEMIDUPL = 5, NUM_OF_CHR_PARAMS = 6};
 
 private:
@@ -187,11 +225,21 @@ public:
   //   rateChangeFunc rateChangeType);
 
   virtual ~ChromosomeSubstitutionModel() {
-    delete gain_;
-    delete loss_;
-    delete dupl_;
-    delete demiploidy_;
-    delete baseNumR_;
+    if (gain_ != 0){
+      delete gain_;
+    }
+    if (loss_ != 0){
+      delete loss_;
+    }
+    if (dupl_ != 0){
+      delete dupl_;
+    }
+    if (demiploidy_ != 0){
+      delete demiploidy_;
+    }
+    if (baseNumR_ != 0){
+      delete baseNumR_;
+    }
   }
   ChromosomeSubstitutionModel(const ChromosomeSubstitutionModel& model):
     AbstractParameterAliasable(model),
@@ -217,7 +265,7 @@ public:
   {
     std::vector<compositeParameter**> newModelParams = {&gain_, &loss_, &dupl_, &demiploidy_, &baseNumR_};
     std::vector<compositeParameter*> originalModelParams = {model.gain_, model.loss_, model.dupl_, model.demiploidy_, model.baseNumR_};
-    for (size_t i = 0; i < compositeParameter::PARAMNAME_COUNT; i++){
+    for (size_t i = 0; i < originalModelParams.size(); i++){
       if (originalModelParams[i] == 0){
         continue;
       }
@@ -229,7 +277,7 @@ public:
         newParams.push_back(&(getParameter_(noPrefixName)));
       }
 
-      *(newModelParams[i]) = new compositeParameter(ChrMaxNum_, originalModelParams[i]->getFuncType(), originalModelParams[i]->getName(), newParams);
+      *(newModelParams[i]) = new compositeParameter(originalModelParams[i]->getFuncType(), originalModelParams[i]->getName(), newParams);
 
     }
 
@@ -263,6 +311,7 @@ public:
   const Matrix<double>& getPijt_test(double d) const;
   const Matrix<double>& getPij_t_func3(double d) const;
   const Matrix<double>& getPij_t_func4(double d) const;
+  static size_t getNumberOfNonCompositeParams(){return 1;} // currently only base number
 
 
   std::string getName() const { return "Chromosome"; }
@@ -301,6 +350,7 @@ public:
 
 
 protected:
+  void addCompositeParameter(std::vector<Parameter*> parameters);
   void getCompositeParametersValues(std::string paramName, compositeParameter* param);
   void calculatePijtUsingEigenValues(double t) const;
   //static void getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, double upperBoundExp, rateChangeFunc rateFunc, int maxChrNum, unsigned int chrRange, map<int, double>& setOfFixedParameters);
