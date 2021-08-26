@@ -246,22 +246,22 @@ void ChromEvolOptions::setFunctions(std::string gainFunc, std::string lossFunc, 
 int ChromEvolOptions::getFunctionFromString(string funcStr){
     int func;
     if (funcStr == "CONST"){
-        func = static_cast<int>(compositeParameter::CONSTANT);
+        func = static_cast<int>(ChromosomeNumberDependencyFunction::CONSTANT);
         
     }else if (funcStr == "LINEAR"){
-        func = static_cast<int>(compositeParameter::LINEAR);
+        func = static_cast<int>(ChromosomeNumberDependencyFunction::LINEAR);
     }else if (funcStr == "LINEAR_BD"){
-        func = static_cast<int>(compositeParameter::LINEAR_BD);
+        func = static_cast<int>(ChromosomeNumberDependencyFunction::LINEAR_BD);
     }else if (funcStr == "EXP"){
-        func = static_cast<int> (compositeParameter::EXP);
+        func = static_cast<int> (ChromosomeNumberDependencyFunction::EXP);
     }else if (funcStr == "POLYNOMIAL"){
-        func = static_cast<int> (compositeParameter::POLYNOMIAL);
+        func = static_cast<int> (ChromosomeNumberDependencyFunction::POLYNOMIAL);
     }else if (funcStr == "LOGNORMAL"){
-        func = static_cast<int> (compositeParameter::LOGNORMAL);
+        func = static_cast<int> (ChromosomeNumberDependencyFunction::LOGNORMAL);
     }else if (funcStr == "REVERSE_SIGMOID"){
-        func = static_cast<int> (compositeParameter::REVERSE_SIGMOID);
+        func = static_cast<int> (ChromosomeNumberDependencyFunction::REVERSE_SIGMOID);
     }else if (funcStr == "IGNORE"){ 
-        func = static_cast<int> (compositeParameter::IGNORE);
+        func = static_cast<int> (ChromosomeNumberDependencyFunction::IGNORE);
     }else{
         throw Exception("ChromEvolOptions::getFunctionFromString(): No such function exists!!!");
     }

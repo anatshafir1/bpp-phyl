@@ -359,11 +359,11 @@ void ChromosomeNumberOptimizer::checkLegalUseOfGradientOptimization(){
     // Only base num is not a composite parameter
     size_t startForComposite = ChromosomeSubstitutionModel::getNumberOfNonCompositeParams();
     for (size_t k = startForComposite; k < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; k++){
-        if (ChromEvolOptions::rateChangeType_[k-startForComposite] == compositeParameter::CONSTANT){
+        if (ChromEvolOptions::rateChangeType_[k-startForComposite] == ChromosomeNumberDependencyFunction::CONSTANT){
             continue;
-        }else if (ChromEvolOptions::rateChangeType_[k-startForComposite] == compositeParameter::IGNORE){
+        }else if (ChromEvolOptions::rateChangeType_[k-startForComposite] == ChromosomeNumberDependencyFunction::IGNORE){
             continue;
-        }else if (ChromEvolOptions::rateChangeType_[k-startForComposite] == compositeParameter::EXP){
+        }else if (ChromEvolOptions::rateChangeType_[k-startForComposite] == ChromosomeNumberDependencyFunction::EXP){
             continue;
         }else{
             throw Exception ("ChromosomeNumberOptimizer::checkLegalUseOfGradientOptimization: Cannot use a gradient descent optimization! Use only Brent!!!");
@@ -520,12 +520,22 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
             size_t index = it - paramsNames.begin();
             if (rateParamType != static_cast<int>(ChromosomeSubstitutionModel::BASENUM)){
                 //rateCompositeParamType = compositeParameter::getCompositeRateType(rateParamType);
-                compositeParameter::FunctionType func = static_cast<compositeParameter::FunctionType>(ChromEvolOptions::rateChangeType_[rateParamType-startCompositeParams]);
-                compositeParameter::updateBounds(params, paramsNames, index, &lowerBound, &upperBound, func, alphabet_->getMax());// 24_08 chck if I can remove this function
-                compositeParameter::updateBounds(f, nameOfParam, lowerBound, upperBound, func);
-                std::shared_ptr<IntervalConstraint> intervalFuncUpdated = dynamic_pointer_cast<IntervalConstraint>(tl->getParameter(nameOfParam).getConstraint());
+                ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(ChromEvolOptions::rateChangeType_[rateParamType-startCompositeParams]);
+                ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+                functionOp->updateBounds(params, paramsNames, index, &lowerBound, &upperBound, alphabet_->getMax());
+                functionOp->updateBounds(f, nameOfParam, lowerBound, upperBound);
+                delete functionOp;
+
+                // compositeParameter::updateBounds(params, paramsNames, index, &lowerBound, &upperBound, func, alphabet_->getMax());// 24_08 chck if I can remove this function
+                // compositeParameter::updateBounds(f, nameOfParam, lowerBound, upperBound, func);
+                std::shared_ptr<IntervalConstraint> intervalFuncUpdated = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(nameOfParam).getConstraint());
                 double updated_lowerBound = intervalFuncUpdated->getLowerBound();
-                std::cout << "*** ***" << nameOfParam << ": Updated lower bound: " << updated_lowerBound << std::endl;  
+                std::cout << "*** ***" << nameOfParam << ": Updated lower bound: " << updated_lowerBound << std::endl;
+
+
+                std::shared_ptr<IntervalConstraint> intervalFuncUpdatedTL = dynamic_pointer_cast<IntervalConstraint>(tl->getParameter(nameOfParam).getConstraint());
+                double updated_lowerBoundTL = intervalFuncUpdatedTL->getLowerBound();
+                std::cout << "*** ***" << nameOfParam << ": Updated lower bound TL: " << updated_lowerBoundTL << std::endl;  
 
             }else{
                 // baseNumber parameter

@@ -26,18 +26,149 @@
 using namespace std;
 namespace bpp
 {
+class ChromosomeNumberDependencyFunction{
+  public:
+    enum FunctionType {CONSTANT, LINEAR, LINEAR_BD, EXP, POLYNOMIAL, LOGNORMAL, REVERSE_SIGMOID, IGNORE};
+    ChromosomeNumberDependencyFunction(){}
+    virtual ~ChromosomeNumberDependencyFunction(){}
+
+    virtual FunctionType getName() const = 0;
+    virtual double getRate(std::vector<Parameter*> params, size_t state) const = 0;
+    virtual size_t getNumOfParameters() const = 0;
+
+    virtual void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){
+      std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(paramsNames[index]).getConstraint());
+      *lowerBound = interval->getLowerBound();
+      *upperBound = interval->getUpperBound();
+    }
+    virtual void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){return;};
+    virtual void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+      *lowerBound = lowerBoundOfRateParam;
+      *upperBound = upperBoundOfRateParam;
+    }
+    virtual void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+      *lowerBound = lowerBoundOfRateParam;
+      *upperBound = upperBoundOfRateParam;
+    }
+    
+
+};
+class ConstantDependencyFunction :
+  public virtual ChromosomeNumberDependencyFunction
+{
+  public:
+    ConstantDependencyFunction():ChromosomeNumberDependencyFunction(){}
+    virtual ~ConstantDependencyFunction(){}
+
+    FunctionType getName() const{return FunctionType::CONSTANT;}
+    double getRate(std::vector<Parameter*> params, size_t state) const;
+    size_t getNumOfParameters() const{return 1;}
+
+};
+class LinearDependencyFunction:
+  public virtual ChromosomeNumberDependencyFunction
+{
+  public:
+
+    LinearDependencyFunction():ChromosomeNumberDependencyFunction(){}
+    virtual ~LinearDependencyFunction(){}
+
+    FunctionType getName() const{return FunctionType::LINEAR;}
+    double getRate(std::vector<Parameter*> params, size_t state) const;
+    size_t getNumOfParameters() const{return 2;}
+    void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum);
+    void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound);
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
+
+};
+class LinearBDDependencyFunction:
+  public virtual ChromosomeNumberDependencyFunction
+{
+  public:
+    LinearBDDependencyFunction():ChromosomeNumberDependencyFunction(){}
+    virtual ~LinearBDDependencyFunction(){}
+
+    FunctionType getName() const{return FunctionType::LINEAR_BD;}
+    double getRate(std::vector<Parameter*> params, size_t state) const;
+    size_t getNumOfParameters() const{return 1;}
+
+};
+class ExponentailDependencyFunction:
+  public virtual ChromosomeNumberDependencyFunction
+{
+  public:
+    ExponentailDependencyFunction():ChromosomeNumberDependencyFunction(){}
+    virtual ~ExponentailDependencyFunction(){}
+
+    FunctionType getName() const {return FunctionType::EXP;}
+    double getRate(std::vector<Parameter*> params, size_t state) const;
+    size_t getNumOfParameters() const{return 2;}
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
+
+};
+class PolynomialDependencyFunction:
+  public virtual ChromosomeNumberDependencyFunction
+{
+  public:
+    PolynomialDependencyFunction():ChromosomeNumberDependencyFunction(){}
+    virtual ~PolynomialDependencyFunction(){}
+
+    FunctionType getName() const{return FunctionType::POLYNOMIAL;}
+    double getRate(std::vector<Parameter*> params, size_t state) const;
+    size_t getNumOfParameters() const{return 3;}
+    void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){throw Exception("Not implemented yet!");}
+    void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){throw Exception("Not implemented yet!");}
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+
+};
+class LognormalDependencyFunction:
+  public virtual ChromosomeNumberDependencyFunction
+{
+  public:
+    LognormalDependencyFunction():ChromosomeNumberDependencyFunction(){}
+    virtual ~LognormalDependencyFunction(){}
+
+    FunctionType getName() const {return FunctionType::LOGNORMAL;}
+    double getRate(std::vector<Parameter*> params, size_t state) const;
+    size_t getNumOfParameters() const{return 3;}
+    void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){throw Exception("Not implemented yet!");}
+    void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){throw Exception("Not implemented yet!");}
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+
+};
+class RevSigmoidDependencyFunction:
+  public virtual ChromosomeNumberDependencyFunction
+{
+  public:
+    RevSigmoidDependencyFunction():ChromosomeNumberDependencyFunction(){}
+    virtual ~RevSigmoidDependencyFunction(){}
+
+    FunctionType getName() const {return FunctionType::REVERSE_SIGMOID;}
+    double getRate(std::vector<Parameter*> params, size_t state) const;
+    size_t getNumOfParameters() const{return 3;}
+    void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){throw Exception("Not implemented yet!");}
+    void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){throw Exception("Not implemented yet!");}
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+
+};
+
 class ChromosomeSubstitutionModel;
 
 
 class compositeParameter{
-  public:
-    enum FunctionType {CONSTANT, LINEAR, LINEAR_BD, EXP, POLYNOMIAL, LOGNORMAL, REVERSE_SIGMOID, IGNORE};
+  //public:
+    //enum FunctionType {CONSTANT, LINEAR, LINEAR_BD, EXP, POLYNOMIAL, LOGNORMAL, REVERSE_SIGMOID, IGNORE};
     //enum ParamName {BASENUMR, LOSS, GAIN, DUPL, DEMI_DUPL, PARAMNAME_COUNT}; // 24_08 ->use only the substitution model 
     //typedef void (compositeParameter::*functionOp)(size_t, double*, double*);
 
   private:
     std::vector<Parameter*> params_; // a vector of ChromosomeSubstitutionModel parameters that correspond to a given parameter type
-    FunctionType func_; // A function which is used to calculate the bounds and the rate of the composite parameter
+    ChromosomeNumberDependencyFunction* func_; // A function which is used to calculate the bounds and the rate of the composite parameter
     std::string name_;  // The name of the rate parameter. For exampe, "gain" for a paremter that contains gain0, gain1, etc.
     //functionOp updateParamFunc_;
     //size_t size_; // the number of parameters that the composite parameter contains 
@@ -48,12 +179,13 @@ class compositeParameter{
   public:
     // get the values of the composite parameter parameters
     std::vector<double> getParameterValues() const;
+    const ChromosomeNumberDependencyFunction* getFunction() const{return func_;}
 
     // Returns true if the parameter is ignored
     static bool isIgnored(compositeParameter* param){return param == 0;}
 
     // get the function of the composite parameter
-    const FunctionType getFuncType() const {return func_;}
+    const ChromosomeNumberDependencyFunction::FunctionType getFuncType() const {return func_->getName();}
 
     // get the name of the general name for the composite parameter
     // for example, if the parameter is gain, name_ = "gain", and contains actual parameters gain0, gain1, etc.
@@ -63,10 +195,13 @@ class compositeParameter{
     const size_t getSize() const {return params_.size();}
 
     // given a function type returns the number of parameters
-    static size_t getNumOfParameters(FunctionType funcType); 
+    //static size_t getNumOfParameters(ChromosomeNumberDependencyFunction* func){return func->getNumOfParameters();} 
 
     // Returns the value of the overall independent/dependent rate on the number of chromosomes (for any function)
     double getRate(size_t state) const;
+    static ChromosomeNumberDependencyFunction* setDependencyFunction(ChromosomeNumberDependencyFunction::FunctionType funcType);
+    
+
 
     // switches from the enum of ChromosomeSubstitutionModel parameter types to the matching ones in compositeParameter
     //static compositeParameter::ParamName getCompositeRateType(int param);
@@ -79,32 +214,32 @@ class compositeParameter{
     // upperBound = a pointer towards the upper bound that should be updated
     // funcType = the type of function
     // maxChrNum =  the max chromosome number
-    static void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, FunctionType funcType, int maxChrNum);
+    //static void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, FunctionType funcType, int maxChrNum);
 
     // A general function that updates upperBound and lowerBound according to the function to prevent from negative values in the Q matrix.
     // Unlike the previous function, this function operates directly on the likelihood instance to ensure matching bounds
-    static void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound, FunctionType funcType);
+    //static void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound, FunctionType funcType);
 
     // Functions used by the updateBounds() functions
-    static void updateBoundsLinear(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false);
-    static void updateBoundsExp(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum);
-    static void updateBoundsPolynomial(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
-      throw Exception("Not impelemented yet!");
-    }
-    static void updateBoundsLogNormal(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
-      throw Exception("Not implemented yet!");
-    }
-    static void updateBoundsReverseSigmoid(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
-      throw Exception("Not implemented yet!");
-    }
+    //static void updateBoundsLinear(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false);
+    //static void updateBoundsExp(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum);
+    // static void updateBoundsPolynomial(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
+    //   throw Exception("Not impelemented yet!");
+    // }
+    // static void updateBoundsLogNormal(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
+    //   throw Exception("Not implemented yet!");
+    // }
+    // static void updateBoundsReverseSigmoid(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random = false){
+    //   throw Exception("Not implemented yet!");
+    // }
 
     // get initial bounds for the random sampling of the parameter values
-    static void getBoundsForInitialParams(FunctionType func, size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber, bool random = false);
+    //static void getBoundsForInitialParams(FunctionType func, size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber, bool random = false);
 
     // set the lowest and the highest possible bounds to the model parameters. This important,
     // because the parameters of the substitution model remain constant throughout optimization,
     // and there could be an issue with values set out of bounds in case of the likelihood parameters.
-    static void getAbsoluteBounds(FunctionType func, size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
+    //static void getAbsoluteBounds(FunctionType func, size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
 
     static std::vector<std::string> getRelatedParameterNames(ParameterList &params, std::string pattern);
     //const Parameter& getParameter(size_t index){return *(params_[index]);}
@@ -119,24 +254,25 @@ class compositeParameter{
   
 
 
-    compositeParameter(FunctionType func, std::string paramName, vector<Parameter*> &params):
-      params_(), func_(func), name_(paramName)
+    compositeParameter(ChromosomeNumberDependencyFunction::FunctionType func, std::string paramName, vector<Parameter*> &params):
+      params_(), func_(0), name_(paramName)
     {
       for (size_t i = 0; i < params.size(); i++){
         params_.push_back(params[i]);
       }
       //getParamUpdateFunction(func);
+      func_ = setDependencyFunction(func);
     }
 
 
-    virtual ~compositeParameter(){}
+    virtual ~compositeParameter(){ delete func_;}
 
 
 
   protected:
     //Parameter* getParameter_(size_t index){return (params_[index]);}
     void setName(std::string name){name_ = name;}
-    void setFunction(FunctionType func){func_ = func;}
+    //void setFunction(FunctionType func){func_ = func;}
     std::vector<Parameter*>& getParams(){return params_;}
     void setParams(std::vector<Parameter*> params){params_ = params;}
     
@@ -185,11 +321,11 @@ private:
   int ChrMaxNum_;
   double firstNormQ_;
   mutable bool pijtCalledFromDeriv_;
-  compositeParameter::FunctionType gainFunc_;
-  compositeParameter::FunctionType lossFunc_;
-  compositeParameter::FunctionType duplFunc_;
-  compositeParameter::FunctionType demiFunc_;
-  compositeParameter::FunctionType baseNumRFunc_;
+  ChromosomeNumberDependencyFunction::FunctionType gainFunc_;
+  ChromosomeNumberDependencyFunction::FunctionType lossFunc_;
+  ChromosomeNumberDependencyFunction::FunctionType duplFunc_;
+  ChromosomeNumberDependencyFunction::FunctionType demiFunc_;
+  ChromosomeNumberDependencyFunction::FunctionType baseNumRFunc_;
  
 
 
@@ -374,7 +510,7 @@ protected:
   //void updateConstRateParameter(double paramValueConst, double paramValueChange, string parameterName, std::shared_ptr<IntervalConstraint> interval);
   //void updateLinearChangeParameter(double paramValueConst, double paramValueChange, string parameterName);
   //void setNewBoundsForLinearParameters(double &constRate, double &changeRate, string paramNameConst, string paramNameLinear);
-  std::vector<Parameter*> createCompositeParameter(compositeParameter::FunctionType &func, std::string paramName, vector<double> &vectorOfValues);
+  std::vector<Parameter*> createCompositeParameter(ChromosomeNumberDependencyFunction::FunctionType &func, std::string paramName, vector<double> &vectorOfValues);
   friend class compositeParameter;
 };
 } // end of namespace bpp.
