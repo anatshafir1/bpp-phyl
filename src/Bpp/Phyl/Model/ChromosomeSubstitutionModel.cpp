@@ -154,201 +154,6 @@ ChromosomeNumberDependencyFunction* compositeParameter::setDependencyFunction(Ch
     throw Exception("compositeParameter::getDependencyFunction(): No such function!!");
   }
 }
-/******************************************************************************/
-// size_t compositeParameter::getNumOfParameters(FunctionType func){
-//   size_t numOfParams;
-//   switch (func){
-//     case FunctionType::LINEAR_BD:
-//     case FunctionType::CONSTANT:
-//       numOfParams = 1;
-//       break;
-//     case FunctionType::EXP:
-//     case FunctionType::LINEAR:
-//       numOfParams = 2;
-//       break;
-//     case FunctionType::IGNORE:
-//       numOfParams = 0;
-//       break;
-//     default:
-//       throw Exception ("compositeParameter::getNumOfParameters(): Unrecognized function!");
-//       break;
-
-//   }
-//   return numOfParams;
-// }
-
-/******************************************************************************/
-// void compositeParameter::updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, FunctionType funcType, int maxChrNum){
-//   // if param name is in the following form: gain1 for example
-//   if ((funcType == FunctionType::CONSTANT || funcType == FunctionType::LINEAR_BD) || (funcType == FunctionType::EXP)){
-//     std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(paramsNames[index]).getConstraint());
-//     *lowerBound = interval->getLowerBound();
-//     *upperBound = interval->getUpperBound();
-//     return;
-//   }
-//   std::vector<double> paramsValues;
-//   for (size_t i = 0; i < paramsNames.size(); i++){
-//     paramsValues.push_back(params.getParameter(paramsNames[i]).getValue());
-//   }
-//   std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(paramsNames[index]).getConstraint());
-//   // 24_08 -> switch case instead if else.
-//   if (funcType == FunctionType::LINEAR){
-//     updateBoundsLinear(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//     interval->setLowerBound(*lowerBound, interval->strictLowerBound());
-//   }else if (funcType == FunctionType::LOGNORMAL){
-//     updateBoundsLogNormal(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//   }else if (funcType == FunctionType::POLYNOMIAL){
-//     updateBoundsPolynomial(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//   }else if (funcType == FunctionType::REVERSE_SIGMOID){
-//     updateBoundsReverseSigmoid(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//   }else{
-//     throw Exception("compositeParameter::updateBounds(): no match for a given function!");
-//   }
-//   *lowerBound = interval->getLowerBound();
-//   *upperBound = interval->getUpperBound();
-
-// }
-
-// /******************************************************************************/
-// void compositeParameter::updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound, FunctionType funcType){
-//   // if param name is in the following form: gain1 for example
-  
-//   if ((funcType == FunctionType::CONSTANT || funcType == FunctionType::LINEAR_BD) || (funcType == FunctionType::EXP)){
-//     return;
-//   }
-  
-//   std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>((&(f->getParameter(paramName)))->getConstraint());
-
-//   if (funcType == FunctionType::LINEAR){
-//     interval->setLowerBound(lowerBound, interval->strictLowerBound());
-//   }else if (funcType == FunctionType::LOGNORMAL){
-//     throw Exception("compositeParameter::updateBounds(): Not implemented yet!");
-//   }else if (funcType == FunctionType::POLYNOMIAL){
-//     throw Exception("compositeParameter::updateBounds(): Not implemented yet!");
-//   }else if (funcType == FunctionType::REVERSE_SIGMOID){
-//     throw Exception("compositeParameter::updateBounds(): Not implemented yet!");
-
-//   }else{
-//     throw Exception("compositeParameter::updateBounds(): no match for a given function!");
-//   }
-
-// }
-/******************************************************************************/
-// void compositeParameter::getBoundsForInitialParams(FunctionType funcType, size_t index, vector<double> paramsValues, double* lowerBound, double* upperBound, int maxChrNum, bool random){
-//   switch(funcType){
-//     case FunctionType::CONSTANT:
-//       *lowerBound = lowerBoundOfRateParam;
-//       *upperBound = upperBoundOfRateParam;
-
-//       break;
-//     case FunctionType::LINEAR:
-//       updateBoundsLinear(paramsValues, index, lowerBound, upperBound, maxChrNum, random);
-//       break;
-//     case FunctionType::LINEAR_BD:
-//       *lowerBound = lowerBoundOfRateParam;
-//       *upperBound = upperBoundOfRateParam;
-//       break;
-//     case FunctionType::EXP:
-//       updateBoundsExp(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//       break;
-//     case FunctionType::POLYNOMIAL:
-//       updateBoundsPolynomial(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//       break;
-//     case FunctionType::LOGNORMAL:
-//       updateBoundsLogNormal(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//       break;
-//     case FunctionType::REVERSE_SIGMOID:
-//       updateBoundsReverseSigmoid(paramsValues, index, lowerBound, upperBound, maxChrNum);
-//       break;
-//     default:
-//       throw Exception("compositeParameter::getBoundsForInitialParams(): Invalid function type!");
-//       break;
-
-//   }
-
-// }
-// /***************************************************************************************/
-// void compositeParameter::getAbsoluteBounds(FunctionType func, size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
-//   switch(func){
-//     case FunctionType::CONSTANT:
-//       *lowerBound = lowerBoundOfRateParam;
-//       *upperBound = upperBoundOfRateParam;
-//       break;
-//     case FunctionType::LINEAR:
-//       if (index == 0){
-//         *lowerBound = -upperBoundLinearRateParam*(maxChrNumber - 1);
-//         *upperBound = upperBoundOfRateParam;
-//       }else{
-//         *lowerBound = -upperBoundOfRateParam/(maxChrNumber -1);
-//         *upperBound = upperBoundLinearRateParam;
-//       }
-      
-//       break;
-//     case FunctionType::LINEAR_BD:
-//       *lowerBound = lowerBoundOfRateParam;
-//       *upperBound = upperBoundOfRateParam;
-//       break;
-//     case FunctionType::EXP:
-//       if (index == 0){
-//         *lowerBound = lowerBoundOfRateParam;
-//         *upperBound = upperBoundOfRateParam;
-
-//       }else{
-//         *lowerBound = lowerBoundOfExpParam;
-//         *upperBound = upperBoundExpParam/(maxChrNumber-1);
-
-//       }
-//       break;
-//     case FunctionType::POLYNOMIAL:
-//       throw Exception("compositeParameter::getAbsoluteBounds(): Not implemented yet!!");
-//       break;
-//     case FunctionType::LOGNORMAL:
-//       throw Exception("compositeParameter::getAbsoluteBounds(): Not implemented yet!!");
-//       break;
-//     case FunctionType::REVERSE_SIGMOID:
-//       throw Exception("compositeParameter::getAbsoluteBounds(): Not implemented yet!!");
-//       break;
-//     default:
-//       throw Exception("compositeParameter::getAbsoluteBounds(): Invalid function type!");
-//       break;
-
-//   }
-
-// }
-// /***************************************************************************************/
-// void compositeParameter::updateBoundsExp(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum){
-//   if (index > 1){
-//     throw Exception("compositeParameter::getExpBounds(): Too many parameters!!!");
-//   }
-//   if (index == 0){
-//     *lowerBound = lowerBoundOfRateParam;
-//     *upperBound = upperBoundOfRateParam;
-
-//   }else if (index == 1){
-//     *lowerBound = lowerBoundOfExpParam;
-//     *upperBound = upperBoundExpParam/(maxChrNum-1);
-
-//   }
-
-
-// }
-/******************************************************************************/
-// void compositeParameter::updateBoundsLinear(std::vector<double> paramsValues, size_t index, double* lowerBound, double* upperBound, int &maxChrNum, bool random){
-//   if (index == 0){
-//     if (random){
-//       *lowerBound = lowerBoundOfRateParam;
-//     }else{
-//       *lowerBound = std::max(lowerBoundOfRateParam, -paramsValues[1]*(maxChrNum-1));
-//     }
-//     *upperBound = upperBoundOfRateParam;
-    
-//   }else{
-//     *lowerBound = -paramsValues[0]/(maxChrNum-1);
-//     *upperBound = upperBoundLinearRateParam;
-        
-//   }
-
-// }
 
 /****************************************************************************/
 std::vector<double> compositeParameter::getParameterValues() const{
@@ -610,38 +415,39 @@ void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<
   }
   std::vector<size_t> numOfParamsVector;
   auto baseNumParams = createCompositeParameter(baseNumRFunc_, "baseNumR", baseNumR);
-  addCompositeParameter(baseNumParams);
-  //numOfParamsVector.push_back(baseNumParams.size());
+  //addCompositeParameter(baseNumParams);
+  numOfParamsVector.push_back(baseNumParams.size());
   auto duplParams = createCompositeParameter(duplFunc_, "dupl", dupl);
-  addCompositeParameter(duplParams);
-  //numOfParamsVector.push_back(duplParams.size());
+  //addCompositeParameter(duplParams);
+  numOfParamsVector.push_back(duplParams.size());
   auto lossParams = createCompositeParameter(lossFunc_, "loss", loss);
-  addCompositeParameter(lossParams);
-  //numOfParamsVector.push_back(lossParams.size());
+  //addCompositeParameter(lossParams);
+  numOfParamsVector.push_back(lossParams.size());
   auto gainParams = createCompositeParameter(gainFunc_, "gain", gain);
-  addCompositeParameter(gainParams);
-  //numOfParamsVector.push_back(gainParams.size());
+  //addCompositeParameter(gainParams);
+  numOfParamsVector.push_back(gainParams.size());
   auto demiParams = createCompositeParameter(demiFunc_, "demi", demi);
-  addCompositeParameter(demiParams);
+  //addCompositeParameter(demiParams);
   //numOfParamsVector.push_back(demiParams.size());
-  //size_t maxSize = *max_element(numOfParamsVector.begin(), numOfParamsVector.end());
-  // for (size_t i = 0; i < maxSize; i++){
-  //   if (i < baseNumParams.size()){
-  //     addParameter_(baseNumParams[i]);
-  //   }
-  //   if (i < duplParams.size()){
-  //     addParameter_(duplParams[i]);
-  //   }
-  //   if (i < lossParams.size()){
-  //     addParameter_(lossParams[i]);
-  //   }
-  //   if (i < gainParams.size()){
-  //     addParameter_(gainParams[i]);
-  //   }
-  //   if (i < demiParams.size()){
-  //     addParameter_(demiParams[i]);
-  //   }
-  // }
+  size_t maxSize = *max_element(numOfParamsVector.begin(), numOfParamsVector.end());
+  for (size_t i = 0; i < maxSize; i++){
+    if (i < baseNumParams.size()){
+      addParameter_(baseNumParams[i]);
+    }
+    if (i < duplParams.size()){
+      addParameter_(duplParams[i]);
+    }
+    if (i < lossParams.size()){
+      addParameter_(lossParams[i]);
+    }
+    if (i < gainParams.size()){
+      addParameter_(gainParams[i]);
+    }
+
+  }
+  for (size_t i = 0; i < demiParams.size(); i++){
+    addParameter_(demiParams[i]);
+  }
   if (gainFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
     gain_ = new compositeParameter(gainFunc_, "gain", gainParams);
 

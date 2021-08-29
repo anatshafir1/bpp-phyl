@@ -1218,18 +1218,22 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
       matOfJointProbFatherNode[i].resize(nbState);
 
       for (size_t j = 0; j < nbState; j++){
-        auto sonLik_i = sonLik.float_part()(i, site);
-        auto p_ji = transitionMatrix->getTargetValue()(j,i);
-        auto fatherCondSonPartLik_float = fatherCondSonPartLik.float_part()(j, site);
+        auto sonLik_i = ExtendedFloat{sonLik.float_part()(i, site)};
+        auto p_ji = ExtendedFloat{transitionMatrix->getTargetValue()(j,i)};
+        auto fatherCondSonPartLik_float = ExtendedFloat{fatherCondSonPartLik.float_part()(j, site)};
         auto fatherCondSonPartLik_exp = fatherCondSonPartLik.exponent_part();
         auto sonLik_i_exp = sonLik.exponent_part();
+        fatherCondSonPartLik_float.normalize();
+        sonLik_i.normalize();
+        likelihood.normalize();
+        p_ji.normalize();
 
         auto mul_cond_sonLik = fatherCondSonPartLik_float * sonLik_i;
-        ExtendedFloat ef{mul_cond_sonLik};
-        ef *= ExtendedFloat{constexpr_power<double>(ExtendedFloat::radix, sonLik_i_exp + fatherCondSonPartLik_exp)};
-        ef *= p_ji;
-        ef /= likelihood;
-        matOfJointProbFatherNode[i][j] = (convert(ef));
+        //ExtendedFloat ef{mul_cond_sonLik};
+        mul_cond_sonLik *= ExtendedFloat{constexpr_power<double>(ExtendedFloat::radix, sonLik_i_exp + fatherCondSonPartLik_exp)};
+        mul_cond_sonLik *= p_ji;
+        mul_cond_sonLik /= likelihood;
+        matOfJointProbFatherNode[i][j] = (convert(mul_cond_sonLik));
 
 
     //     //auto fatherStateCondLik = condLikAtFatherNode.row(j);

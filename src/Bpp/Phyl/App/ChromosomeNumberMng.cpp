@@ -625,6 +625,7 @@ void ChromosomeNumberMng::printSimulatedDataAndAncestors(SiteSimulationResult* s
 /*****************************************************************************************************/
 
 void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOptimizer, int numOfSimulations) const{
+    std::cout << "Strating the computation of expectations ...." << std::endl;
     vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = chrOptimizer->getVectorOfLikelihoods();
     // get the best likelihood
     SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
@@ -643,6 +644,8 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
         singleLikProcess->makeJointLikelihoodFatherNode_(nodeId, jointProbabilitiesFatherSon[nodeId][0], 0, 0);
       
     }
+    std::cout << "Finished with the calculation of joint likelihoods of father and son..."<< std::endl;
+    std::cout << "Starting running simulations ... " << std::endl;
     //creating the model with MLE parameters
     map<int, vector <double>> modelCompositeParams = getVectorToSetModelParams(lik);
     int baseNumber;
@@ -652,7 +655,9 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
     //initializing the expectation instance
     ComputeChromosomeTransitionsExp* expCalculator = new ComputeChromosomeTransitionsExp(chrModel, tree_, alphabet_, jointProbabilitiesFatherSon, ChromEvolOptions::jumpTypeMethod_);
     expCalculator->runSimulations(numOfSimulations);
+    std::cout << "Simulations are done. Now strating with the conputation of expectation per type..." << std::endl;
     expCalculator->computeExpectationPerType();
+    std::cout << "Computation is done ... Printing results ... " << std::endl;
     if (ChromEvolOptions::resultsPathDir_ == "none"){
         expCalculator->printResults();
     }else{
@@ -661,10 +666,14 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
         const string outFilePathHeuristics = ChromEvolOptions::resultsPathDir_+"//"+ "expectations_second_round.txt";
         const string outTreePath = ChromEvolOptions::resultsPathDir_+"//"+ "exp.tree";
         expCalculator->printResults(outFilePath);
+        std::cout << "Run heuristics if needed ..." << std::endl;
         expCalculator->runHeuristics();
+        std::cout << "Printing heuristics results ... " << std::endl;
         expCalculator->printResults(outFilePathHeuristics);
+        std::cout << "Printing the tree of expectations ... " << std::endl;
         PhyloTree* expTree = expCalculator->getResultTree();
         string tree_str = printTree(*expTree);
+        std::cout << "Done! Deleting all unneeded objects!" << std::endl;
         delete expTree;
         ofstream treeFile;
         treeFile.open(outTreePath);

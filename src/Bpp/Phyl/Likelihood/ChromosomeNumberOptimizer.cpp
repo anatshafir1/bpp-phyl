@@ -373,12 +373,19 @@ void ChromosomeNumberOptimizer::checkLegalUseOfGradientOptimization(){
 }
 // /****************************************************************************************/
 unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, bool mixed, unsigned int currentIterNum){
+    /*
+    ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(ChromEvolOptions::rateChangeType_[rateParamType-startCompositeParams]);
+    ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+    functionOp->updateBounds(params, paramsNames, index, &lowerBound, &upperBound, alphabet_->getMax());
+    functionOp->updateBounds(f, nameOfParam, lowerBound, upperBound);
+    delete functionOp;
+    */
     DerivableSecondOrder* f = tl;
+    ParameterList tmp = tl->getSubstitutionModelParameters();
     unique_ptr<AbstractNumericalDerivative> fnum;
     fnum.reset(new TwoPointsNumericalDerivative(f));
     fnum->setInterval(0.0000001);
     ConjugateGradientMultiDimensions* optimizer = new ConjugateGradientMultiDimensions(fnum.get());
-    ParameterList tmp = tl->getSubstitutionModelParameters();
     fnum->setParametersToDerivate(tmp.getParameterNames());
     optimizer->setVerbose(1);
     optimizer->setProfiler(0);
@@ -386,6 +393,10 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
     optimizer->setConstraintPolicy(AutoParameter::CONSTRAINTS_AUTO);
     optimizer->getStopCondition()->setTolerance(tol* 0.1);
     optimizer->setMaximumNumberOfEvaluations(1000);
+    std::map<int, std::vector<string>> typeWithParamNames;
+    std::map<string, int> paramNameAndType;
+    updateMapsOfParamTypesAndNames(typeWithParamNames, paramNameAndType, tl);
+    size_t startCompositeParams = ChromosomeSubstitutionModel::getNumberOfNonCompositeParams();
 
     unsigned int numOfEvaluations = 0;
     double currentLikelihood = tl->getValue();
@@ -399,11 +410,34 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
         }
         
         ParameterList paramsFull = tl->getSubstitutionModelParameters();
-        std::vector <string> paramsNames = getNonFixedParams(tl, paramsFull);
-        ParameterList params = tl->getParameters().createSubList(paramsNames);
-        std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam + 0.0000000001, upperBoundOfRateParam, true, true);
+        std::vector <string> nonFixedparamsNames = getNonFixedParams(tl, paramsFull);
+        ParameterList params = tl->getParameters().createSubList(nonFixedparamsNames);
+        int rateParamType;
+        double lowerBound;
+        double upperBound;
+        
         for (size_t j = 0; j < params.size(); j++){
-            params[j].setConstraint(interval);
+            std::string nameOfParam = params[j].getName();
+            rateParamType = paramNameAndType[nameOfParam];
+            /////////////////////////////////////////////////////
+            std::vector<string> paramsNames = typeWithParamNames[rateParamType];
+            auto it = std::find(paramsNames.begin(), paramsNames.end(), nameOfParam);
+            if (it == paramsNames.end()){
+                throw Exception("ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(): index out of range!");
+            }
+            size_t index = it - paramsNames.begin();
+            ////////////////////////////////////////////////////////
+            if (rateParamType != ChromosomeSubstitutionModel::BASENUM){
+                ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(ChromEvolOptions::rateChangeType_[rateParamType-startCompositeParams]);
+                ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+                functionOp->updateBounds(params, paramsNames, index, &lowerBound, &upperBound, alphabet_->getMax());
+                std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(nameOfParam).getConstraint());
+                interval->setLowerBound(lowerBound, interval->strictLowerBound());
+                functionOp->updateBounds(f, nameOfParam, lowerBound, upperBound);
+                delete functionOp;
+
+            }    
+
         }
         prevLikelihood = currentLikelihood;
         optimizer->init(params);
