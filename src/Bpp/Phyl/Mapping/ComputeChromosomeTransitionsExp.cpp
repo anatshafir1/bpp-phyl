@@ -418,24 +418,24 @@ PhyloTree* ComputeChromosomeTransitionsExp::getResultTree(){
 }
 // //****************************************************************************************/
 void ComputeChromosomeTransitionsExp::init(){
-    jumpProbs_.reserve(alphabet_->getSize());
+    //jumpProbs_.reserve(alphabet_->getSize());
     vector<shared_ptr<PhyloNode> > nodes = tree_->getAllNodes();
     size_t nbNodes = nodes.size();
-    //uint nodeId = tree_->getNodeIndex(nodes[n]);
+    // //uint nodeId = tree_->getNodeIndex(nodes[n]);
     
-    for (size_t i = 0; i < alphabet_->getSize(); i++){
-        vector <double> stateTransitionsProbs;
-        stateTransitionsProbs.reserve(alphabet_->getSize());
-        waitingTimes_.push_back(-1 * (model_->Qij(i, i)));
-        for (size_t j = 0; j < alphabet_->getSize(); j++){
-            if (i == j){
-                stateTransitionsProbs.push_back(0);
-            }else{
-                stateTransitionsProbs.push_back(model_->Qij(i,j)/waitingTimes_[i]);
-            }            
-        }
-        jumpProbs_.push_back(stateTransitionsProbs);
-    }
+    // for (size_t i = 0; i < alphabet_->getSize(); i++){
+    //     vector <double> stateTransitionsProbs;
+    //     stateTransitionsProbs.reserve(alphabet_->getSize());
+    //     //waitingTimes_.push_back(-1 * (model_->Qij(i, i)));
+    //     for (size_t j = 0; j < alphabet_->getSize(); j++){
+    //         if (i == j){
+    //             stateTransitionsProbs.push_back(0);
+    //         }else{
+    //             stateTransitionsProbs.push_back(model_->Qij(i,j)/(-1 * (model_->Qij(i, i)))); //waitingTimes_[i]);
+    //         }            
+    //     }
+    //     jumpProbs_.push_back(stateTransitionsProbs);
+    // }
     for (size_t n = 0; n < nbNodes; n++){
         uint nodeId = tree_->getNodeIndex(nodes[n]);
         if (nodeId == tree_->getRootIndex()){
@@ -452,9 +452,11 @@ void ComputeChromosomeTransitionsExp::init(){
                 std::pair<int,int> ancestralTerminals;
                 ancestralTerminals.first = (int)i;
                 ancestralTerminals.second = (int)j;
-                ancestralTerminalsCounts_[nodeId][ancestralTerminals] = 0;
+                //ancestralTerminalsCounts_[nodeId][ancestralTerminals] = 0;
+                branchTransitionsExp_[nodeId][ancestralTerminals].first = 0;
                 for (size_t k = 0; k < ChromosomeSubstitutionModel::NUMTYPES; k++){
-                    branchTransitionsExp_[nodeId][ancestralTerminals].push_back(0);
+                    //branchTransitionsExp_[nodeId][ancestralTerminals].push_back(0);
+                    branchTransitionsExp_[nodeId][ancestralTerminals].second.push_back(0);
 
                 }
 
@@ -496,7 +498,7 @@ void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <uint, ve
     vector <std::pair<int,int>> jumpsUntilNow;
     int indexOfSmallestNotUpdatedBranch = 0;
     while (totalTimeTillJump < maxBranch){
-        double averageWaitingTime = 1 / waitingTimes_[currentState];
+        double averageWaitingTime = 1 / (-1 * (model_->Qij(currentState, currentState)));//waitingTimes_[currentState];
         totalTimeTillJump +=  RandomTools::randExponential(averageWaitingTime);
         for (size_t i = indexOfSmallestNotUpdatedBranch; i < branchOrder_.size(); i++){
             double branchLength = branchOrder_[i].second.getLength();
@@ -515,7 +517,8 @@ void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <uint, ve
 
             }
 
-            ancestralTerminalsCounts_[branchNodeId][ancestralTerminals] += 1;
+            //ancestralTerminalsCounts_[branchNodeId][ancestralTerminals] += 1;
+            branchTransitionsExp_[branchNodeId][ancestralTerminals].first += 1;
             for (size_t j = 0; j < jumpsUntilNow.size(); j++){
                 updateExpectationsPerBranch(branchNodeId, ancestralTerminals, jumpsUntilNow[j]);
 
@@ -705,7 +708,7 @@ void ComputeChromosomeTransitionsExp::updateExpectationsPerBranch(uint nodeId, p
     while (it != stateJumpTypeProb_[jumpStates].end()){
         int typeOfJump = it->first;
         double prob = stateJumpTypeProb_[jumpStates][typeOfJump];
-        branchTransitionsExp_[nodeId][ancestralTerminals][typeOfJump] += prob;
+        (branchTransitionsExp_[nodeId][ancestralTerminals].second)[typeOfJump] += prob;
         it ++;
     }
     
@@ -717,7 +720,9 @@ int ComputeChromosomeTransitionsExp::getRandomState(int currentState){
     double cumulativeProb = 0;
     int nextState = currentState;
     for (size_t i = 0; i < alphabet_->getSize(); i++){
-        cumulativeProb += jumpProbs_[currentState][(int)i];
+        double transitionRate;
+        ((int)i == currentState) ? (transitionRate = 0) : (transitionRate = model_->Qij(currentState,(int)i));
+        cumulativeProb += transitionRate/(-1 * (model_->Qij(currentState, currentState))); //jumpProbs_[currentState][(int)i];
         if (prob < cumulativeProb){
             nextState = (int)i;
             return nextState;
@@ -729,10 +734,10 @@ int ComputeChromosomeTransitionsExp::getRandomState(int currentState){
 // /*************************************************************************************/
 double ComputeChromosomeTransitionsExp::getCumulativeProbability(uint nodeId, vector <pair<int, int>>* terminalsToAccount){
     double cumulativeProb  = 0;
-    std::map<std::pair<int, int>, int> :: iterator iterTerminalStates = ancestralTerminalsCounts_[nodeId].begin();
-    while(iterTerminalStates != ancestralTerminalsCounts_[nodeId].end()){
+    std::map<std::pair<int, int>, std::pair<int, Vdouble>> :: iterator iterTerminalStates = branchTransitionsExp_[nodeId].begin();
+    while(iterTerminalStates != branchTransitionsExp_[nodeId].end()){
         std::pair <int, int> currentPairOfAncestralTerminals = iterTerminalStates->first;
-        int countForPairOfTerminals = ancestralTerminalsCounts_[nodeId][currentPairOfAncestralTerminals];
+        int countForPairOfTerminals = branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals].first;
         if (countForPairOfTerminals == 0){
             iterTerminalStates ++;
             if (terminalsToAccount){
@@ -932,12 +937,12 @@ void ComputeChromosomeTransitionsExp::getPosteriorAndExpForNonAccountedFor(map <
         uint nodeId = it->first;
         for (size_t i = 0; i < nonAccountedForBranchesFromFirstRun[nodeId].size(); i++){
             std::pair <int, int> currentPairOfAncestralTerminals = nonAccountedForBranchesFromFirstRun[nodeId][i];
-            int countForPairOfTerminals = ancestralTerminalsCounts_[nodeId][currentPairOfAncestralTerminals];
+            int countForPairOfTerminals = branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals].first;
             if (countForPairOfTerminals == 0){
                 continue;
             }
             for (size_t j = 0; j < ChromosomeSubstitutionModel::NUMTYPES; j++){
-                branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals][j] /= ancestralTerminalsCounts_[nodeId][currentPairOfAncestralTerminals];
+                (branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals].second)[j] /= branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals].first;
             }
 
         }
@@ -948,19 +953,19 @@ void ComputeChromosomeTransitionsExp::getPosteriorAndExpForNonAccountedFor(map <
 
 // /*************************************************************************************/
 void ComputeChromosomeTransitionsExp::computeExpectationAndPosterior(){
-    std::map <uint, std::map<std::pair<int, int>, int>>::iterator it = ancestralTerminalsCounts_.begin();
-    while (it != ancestralTerminalsCounts_.end()){
+    std::map <uint, std::map<std::pair<int, int>, pair<int, Vdouble>>>::iterator it = branchTransitionsExp_.begin();
+    while (it != branchTransitionsExp_.end()){
         uint nodeId = it->first;
-        std::map<std::pair<int, int>, int> :: iterator iterTerminalStates = ancestralTerminalsCounts_[nodeId].begin();
-        while(iterTerminalStates != ancestralTerminalsCounts_[nodeId].end()){
+        std::map<std::pair<int, int>, pair<int, Vdouble>> :: iterator iterTerminalStates = branchTransitionsExp_[nodeId].begin();
+        while(iterTerminalStates != branchTransitionsExp_[nodeId].end()){
             std::pair <int, int> currentPairOfAncestralTerminals = iterTerminalStates->first;
-            int countForPairOfTerminals = ancestralTerminalsCounts_[nodeId][currentPairOfAncestralTerminals];
+            int countForPairOfTerminals = branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals].first;
             if (countForPairOfTerminals == 0){
                 iterTerminalStates ++;
                 continue;
             }
             for (size_t i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i++){
-                branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals][i] /= ancestralTerminalsCounts_[nodeId][currentPairOfAncestralTerminals];
+                (branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals].second)[i] /= branchTransitionsExp_[nodeId][currentPairOfAncestralTerminals].first;
             }
 
             iterTerminalStates ++;
@@ -973,7 +978,7 @@ double ComputeChromosomeTransitionsExp::getExpectation(uint nodeId, int startAnc
     std::pair <int, int> ancestralTerminals;
     ancestralTerminals.first = startAncestral;
     ancestralTerminals.second = endAncestral;
-    return branchTransitionsExp_[nodeId][ancestralTerminals][typeOfChange];
+    return (branchTransitionsExp_[nodeId][ancestralTerminals].second)[typeOfChange];
 
 }
 

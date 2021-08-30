@@ -74,11 +74,11 @@ namespace bpp
             const PhyloTree* tree_;
             const ChromosomeSubstitutionModel* model_;
             const ChromosomeAlphabet* alphabet_;
-            vector<double> waitingTimes_;
-            VVdouble jumpProbs_;  // probability to transit from state i to state j Qij/sum{Qij}
+            //vector<double> waitingTimes_;
+            //VVdouble jumpProbs_;  // probability to transit from state i to state j Qij/sum{Qij}
             vector<Branch> branchOrder_;
-            map <uint, map<pair<int, int>, int>> ancestralTerminalsCounts_;  // for each node Id, map <<firstState, LastState>, occurence>
-            map <uint, map <pair<int, int>, Vdouble>> branchTransitionsExp_; //for each node, for each possible pair of terminals-> Vdouble: the index is the type of transition. The double is the expectation
+            //map <uint, map<pair<int, int>, int>> ancestralTerminalsCounts_;  // for each node Id, map <<firstState, LastState>, occurence>
+            map <uint, map <pair<int, int>, std::pair<int, Vdouble>>> branchTransitionsExp_; //for each node, for each possible pair of terminals-> Vdouble: the index is the type of transition. The double is the expectation
             map <uint, map <int, double>> expNumOfChangesPerBranch_;   // node -> jump type (gain, loss, dupl, demi-dupl, baseNum, maxChr) -> expecation
             map <uint, double> expNumOfChanges_;    //node->expectation per branch induced by the node
             int jumpTypeMethod_;    // which function to use for type classification- 0 if deterministic, 1 if probabilistic
@@ -95,17 +95,20 @@ namespace bpp
         public:
             ComputeChromosomeTransitionsExp(const std::shared_ptr<ChromosomeSubstitutionModel> model,  const PhyloTree* tree, const ChromosomeAlphabet* alphabet, map<uint, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
             :jointProbabilitiesFatherSon_(jointProbabilitiesFatherSon), tree_(tree), model_(model.get()), alphabet_(alphabet),
-            waitingTimes_(), jumpProbs_(), branchOrder_(), ancestralTerminalsCounts_(), branchTransitionsExp_(), expNumOfChangesPerBranch_(), expNumOfChanges_(), jumpTypeMethod_(method), stateJumpTypeProb_(){}
+            //waitingTimes_(), jumpProbs_(), 
+            branchOrder_(), 
+            //ancestralTerminalsCounts_(), 
+            branchTransitionsExp_(), expNumOfChangesPerBranch_(), expNumOfChanges_(), jumpTypeMethod_(method), stateJumpTypeProb_(){}
 
             ComputeChromosomeTransitionsExp(const ComputeChromosomeTransitionsExp& exp):
                 jointProbabilitiesFatherSon_(exp.jointProbabilitiesFatherSon_),
                 tree_ (exp.tree_),
                 model_ (exp.model_),
                 alphabet_(exp.alphabet_),
-                waitingTimes_(exp.waitingTimes_),
-                jumpProbs_(exp.jumpProbs_),
+                //waitingTimes_(exp.waitingTimes_),
+                //jumpProbs_(exp.jumpProbs_),
                 branchOrder_(exp.branchOrder_),
-                ancestralTerminalsCounts_(exp.ancestralTerminalsCounts_),
+                //ancestralTerminalsCounts_(exp.ancestralTerminalsCounts_),
                 branchTransitionsExp_(exp.branchTransitionsExp_),
                 expNumOfChangesPerBranch_ (exp.expNumOfChangesPerBranch_),
                 expNumOfChanges_ (exp.expNumOfChanges_),
@@ -118,10 +121,10 @@ namespace bpp
                 tree_ = exp.tree_;
                 model_ = exp.model_;
                 alphabet_ = exp.alphabet_;
-                waitingTimes_ = exp.waitingTimes_;
-                jumpProbs_ = exp.jumpProbs_;
+                //waitingTimes_ = exp.waitingTimes_;
+                //jumpProbs_ = exp.jumpProbs_;
                 branchOrder_ = exp.branchOrder_;
-                ancestralTerminalsCounts_ = exp.ancestralTerminalsCounts_;
+                //ancestralTerminalsCounts_ = exp.ancestralTerminalsCounts_;
                 branchTransitionsExp_ = exp.branchTransitionsExp_;
                 expNumOfChangesPerBranch_ = exp.expNumOfChangesPerBranch_;
                 expNumOfChanges_ = exp.expNumOfChanges_;
