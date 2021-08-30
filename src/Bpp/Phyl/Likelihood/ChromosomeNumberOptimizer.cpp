@@ -186,6 +186,10 @@ void ChromosomeNumberOptimizer::clearVectorOfLikelihoods(size_t new_size){
         //deleteTreeLikAssociatedAttributes(vectorOfLikelohoods_[vectorOfLikelohoods_.size()-1]);
         SingleProcessPhyloLikelihood* lik_to_del = vectorOfLikelohoods_.back(); 
         vectorOfLikelohoods_.pop_back();
+        auto sequenceData = lik_to_del->getData();
+        auto process = &(lik_to_del->getSubstitutionProcess());
+        delete process;
+        delete sequenceData;
         delete lik_to_del;
     }
 }

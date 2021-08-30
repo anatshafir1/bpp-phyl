@@ -477,12 +477,15 @@ bool ComputeChromosomeTransitionsExp::compareBranches(Branch& edge1, Branch& edg
 /************************************************************************************/
 
 void ComputeChromosomeTransitionsExp::runSimulations(int numOfSimulations){
+    std::cout << "Initializing expectation instance ..." << std::endl;
     init();
+    std::cout << "Run iterations (simulations) ..." << std::endl;
     for (size_t i = 0; i < alphabet_->getSize(); i++){
         for (size_t j = 0; j < (size_t)numOfSimulations; j++){
             runIteration((int)i);
         }
     }
+    std::cout << "Compute expectations based on simulations ..." << std::endl;
     computeExpectationAndPosterior();
 }
 // /*************************************************************************************/

@@ -216,8 +216,9 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOpti
     auto subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone(), shared_ptr<FrequencySet>(rootFrequencies->clone()));
     //subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
     SubstitutionProcess* subProcess = subProSim->clone();
+    auto sequenceData = vsc_->clone();
     Context context;
-    auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *subProcess, rootFreqs);
+    auto likAncestralRec = std::make_shared<LikelihoodCalculationSingleProcess>(context, *sequenceData, *subProcess, rootFreqs);
     ParameterList paramsUpdated = likAncestralRec->getParameters();
     likAncestralRec->makeJointMLAncestralReconstruction();
     JointMLAncestralReconstruction* ancr = new JointMLAncestralReconstruction(likAncestralRec);
@@ -253,6 +254,8 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOpti
     std::cout << "********************************************\n";
     //std::cout << "Ancestral reconstruction best for root is : " << likVal << endl;
     delete subProSim;
+    delete subProcess;
+    delete sequenceData;
 }
 /***********************************************************************************/
 std::map<int, vector<double>> ChromosomeNumberMng::getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik) const{
@@ -319,8 +322,9 @@ void ChromosomeNumberMng::runChromEvol(){
     getMarginalAncestralReconstruction(chrOptimizer, outFilePath);   
     //compute expectations
     computeExpectations(chrOptimizer, ChromEvolOptions::NumOfSimulations_);
+    //The optimizer is deleted inside the computeExpectations object!
 
-    delete chrOptimizer;
+    //delete chrOptimizer;
 
 
 }
@@ -652,6 +656,8 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
     (ChromEvolOptions::baseNum_ == IgnoreParam) ? (baseNumber = IgnoreParam) : (baseNumber = static_cast<int>(lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.baseNum_1").getValue()));
     unsigned int maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
     std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, modelCompositeParams, baseNumber, maxBaseNumTransition, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+    //the optimizer object in no longer needed
+    delete chrOptimizer;
     //initializing the expectation instance
     ComputeChromosomeTransitionsExp* expCalculator = new ComputeChromosomeTransitionsExp(chrModel, tree_, alphabet_, jointProbabilitiesFatherSon, ChromEvolOptions::jumpTypeMethod_);
     expCalculator->runSimulations(numOfSimulations);
