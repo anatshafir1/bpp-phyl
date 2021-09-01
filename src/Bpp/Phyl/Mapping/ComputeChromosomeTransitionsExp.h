@@ -70,22 +70,54 @@ namespace bpp
         // transtion along the tree or per branch
         typedef pair<uint, PhyloBranch> Branch;
         private:
+            // stores the joint probabilities of father and son for each branch.
+            // key = node (the son of the branch). Value is a matrix represented by 
+            // vector of double vectors. The first dimension refers to the son, and the second
+            // to the father
             map<uint, map<size_t, VVdouble>> jointProbabilitiesFatherSon_;
+
             const PhyloTree* tree_;
             const ChromosomeSubstitutionModel* model_;
             const ChromosomeAlphabet* alphabet_;
-            //vector<double> waitingTimes_;
-            //VVdouble jumpProbs_;  // probability to transit from state i to state j Qij/sum{Qij}
+            // The branches on which the chromsome number changes are simulated
             vector<Branch> branchOrder_;
-            //map <uint, map<pair<int, int>, int>> ancestralTerminalsCounts_;  // for each node Id, map <<firstState, LastState>, occurence>
-            map <uint, map <pair<int, int>, std::pair<int, Vdouble>>> branchTransitionsExp_; //for each node, for each possible pair of terminals-> Vdouble: the index is the type of transition. The double is the expectation
-            map <uint, map <int, double>> expNumOfChangesPerBranch_;   // node -> jump type (gain, loss, dupl, demi-dupl, baseNum, maxChr) -> expecation
-            map <uint, double> expNumOfChanges_;    //node->expectation per branch induced by the node
+
+            // A map which stores for each node the simulated ancestral terminals, such that
+            // each pair of ancestral terminals also serves as a key, where the value is a pair,
+            // where the first element is the number of occurences of a given pair of ancestral terminals,
+            // and the second element is a vector of expectations per each type of transition (the index represents a type).
+            map <uint, map <pair<int, int>, std::pair<int, Vdouble>>> branchTransitionsExp_;
+
+            // A map which stores for each node a map where the key is the type of chnage, and the value is the expectation of this type of change taking
+            // into account all the encountered terminals. 
+            map <uint, map <int, double>> expNumOfChangesPerBranch_;
+
+            // A map where the key is a node id, and the value is the exected number of changes over all types and ancestral terminals.
+            map <uint, double> expNumOfChanges_;
+
             int jumpTypeMethod_;    // which function to use for type classification- 0 if deterministic, 1 if probabilistic
-            map <pair<int, int>, map<int, double>> stateJumpTypeProb_; // key = jump states i->j. value = map of change type and probability
-            double isNeededHeuristics(uint nodeId, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals); // check if we need to run heuristics (in case there are not enough transitions)
+
+            // A map where the key represents the transitions from state i to j, and the value is a map,
+            // where the key is the type of transition, and the value is the probability that the given transition corresponds to that
+            // type of transition.
+            map <pair<int, int>, map<int, double>> stateJumpTypeProb_;
+
+            /***********************************/
+            // Internal functions
+            /**********************************/ 
+
+            // After the standard procedure of expextations computations, check if there any branches with not enough simulated chnages
+            // i.e., the accounted ancestral terminals cover at least 95% of the possible ancestral pairs.
+            // The function updates the already accounted ancestral terminals, so that they will be not taken into 
+            // consideration in the second round of simulations.
+            // Returns the probability covered by the accounted for ancestral terminals.
+            double isNeededHeuristics(uint nodeId, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals);
+
+            // Returns the cumulative probability of the accounted changes, and updates terminalsToAccount with the accounted for ancestral terminals if provided.
             double getCumulativeProbability(uint nodeId, vector <pair<int, int>>* terminalsToAccount = 0);
-            vector <int> setVectorOfInitStatesForHeuristics(map <uint, vector<pair<int,int>>>& unAccountedNodesAndTerminals) const; // get the init states for which we have to rerun the simulation
+            //vector <int> setVectorOfInitStatesForHeuristics(map <uint, vector<pair<int,int>>>& unAccountedNodesAndTerminals) const;
+            
+             
             void updateNumNonAccountedBranches(map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, const string FilePath);
             void updateBranchLengths(int initState, int iteration, map <int, double>* ratesPerState);
             void getPosteriorAndExpForNonAccountedFor(map <uint, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
