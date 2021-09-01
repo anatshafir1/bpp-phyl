@@ -1189,9 +1189,16 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
   }else{
     likelihood = getSiteLikelihoodsForAClass(cat).col(site).sum();
   }
-  auto rateCat = vRateCatTrees_[cat];
   size_t nbState = getStateMap().getNumberOfModelStates();
   size_t nbDistSite = getNumberOfDistinctSites();
+  DataLik epsilon = ExtendedFloat{constexpr_power<double>(ExtendedFloat::radix, -1000)};
+  auto epsilonDataLikNode = NumericConstant<DataLik>::create(getContext_(), epsilon);
+  Eigen::MatrixXd ones = Eigen::MatrixXd::Ones(nbState, nbDistSite);
+  auto onesDouble = NumericConstant<Eigen::MatrixXd>::create(getContext_(), ones);
+  auto onesEf = Convert<MatrixLik, Eigen::MatrixXd>::create(getContext_(), {onesDouble}, conditionalLikelihoodDimension (nbState, nbDistSite));
+  auto epsilonNode = CWiseMul<MatrixLik, std::tuple<DataLik, MatrixLik>>::create(getContext_(), {epsilonDataLikNode, onesEf}, conditionalLikelihoodDimension (nbState, nbDistSite));
+
+  auto rateCat = vRateCatTrees_[cat];
   matOfJointProbFatherNode.resize (nbState);
   std::vector<std::shared_ptr<Node_DF>> vJointLik;
   auto& dagIndexes = rateCat.flt->getDAGNodesIndexes(speciesId);
@@ -1201,7 +1208,12 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
   }
   for (const auto& index : dagIndexes){
     auto edgeIndex =  rateCat.flt->getIncomingEdges(index)[0]; // to specific ?
-    auto edgeForward = rateCat.flt->getEdge(edgeIndex);
+    // Apparently contains zeros... :(
+    
+
+    auto edgeForwardOri = rateCat.flt->getEdge(edgeIndex);
+    auto edgeForward = CWiseAdd<MatrixLik, std::tuple<MatrixLik, MatrixLik>>::create(getContext_(), {edgeForwardOri, epsilonNode}, conditionalLikelihoodDimension (nbState, nbDistSite));
+
     auto fatherIndex = rateCat.flt->getFatherOfEdge(edgeIndex);
     auto condLikAtFatherNode = rateCat.clt->getNode(fatherIndex);
     auto LikNodeForward = rateCat.flt->getForwardLikelihoodArray(index);
@@ -1220,6 +1232,17 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
       for (size_t j = 0; j < nbState; j++){
         auto sonLik_i = ExtendedFloat{sonLik.float_part()(i, site)};
         auto p_ji = ExtendedFloat{transitionMatrix->getTargetValue()(j,i)};
+        auto fatherCondSonPartMat = inverseEdgeForward->getTargetValue().float_part();
+        if ((speciesId == 86) && (j == 26)){
+          auto ncols = (size_t)(fatherCondSonPartMat.cols());
+          auto nrows = (size_t)(fatherCondSonPartMat.rows());
+          for (size_t k = 0; k < nrows; k++){
+            for (size_t l = 0; l < ncols; l++){
+              auto elemDebug = fatherCondSonPartMat(k, l);
+              std::cout << elemDebug << std::endl;
+            }
+          }
+        }
         auto fatherCondSonPartLik_float = ExtendedFloat{fatherCondSonPartLik.float_part()(j, site)};
         auto fatherCondSonPartLik_exp = fatherCondSonPartLik.exponent_part();
         auto sonLik_i_exp = sonLik.exponent_part();
