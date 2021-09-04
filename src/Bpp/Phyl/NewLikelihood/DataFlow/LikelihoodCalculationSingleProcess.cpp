@@ -1209,9 +1209,6 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
   }
   for (const auto& index : dagIndexes){
     auto edgeIndex =  rateCat.flt->getIncomingEdges(index)[0]; // to specific ?
-    // Apparently contains zeros... :(
-    
-
     auto edgeForwardOri = rateCat.flt->getEdge(edgeIndex);
     auto edgeForward = CWiseAdd<MatrixLik, std::tuple<MatrixLik, MatrixLik>>::create(getContext_(), {edgeForwardOri, epsilonNode}, conditionalLikelihoodDimension (nbState, nbDistSite));
 
@@ -1225,14 +1222,6 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
     // actual values
     auto sonLik = LikNodeForward->getTargetValue();
     auto fatherCondSonPartLik = productCondFatherSonPartLik->getTargetValue();
-    if (speciesId == 28){
-      std::cout << "condLikAtFatherNode = " << condLikAtFatherNode->getTargetValue() << std::endl;
-      std::cout << "inverseEdgeForward = " << inverseEdgeForward->getTargetValue() << std::endl;
-      std::cout << "fatherCondSonPartLik = " << fatherCondSonPartLik << std::endl;
-      std::cout << "sonLik = " << sonLik << std::endl;
-
-    }
-
 
     for (size_t i = 0; i < nbState; i++){
 
@@ -1251,48 +1240,14 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
         p_ji.normalize();
 
         auto mul_cond_sonLik = fatherCondSonPartLik_float * sonLik_i;
-        if (speciesId == 28){
-          std::cout << "*** *** *** son state: " << i << " father state: " << j << std::endl;
-          std::cout << " sonLik_i float = " << sonLik_i << " Exponent = " << sonLik_i_exp << std::endl;
-          std::cout << " likelihood  = " << likelihood << std::endl;
-          std::cout << " pji = " << p_ji << std::endl;
-          std::cout << " fatherCondSonPartLik_float = " << fatherCondSonPartLik_float << " Exponent = " << fatherCondSonPartLik_exp << std::endl;
-          std::cout << " mul_cond_sonLik = " <<  mul_cond_sonLik << std::endl;
-          
-        }
-        //ExtendedFloat ef{mul_cond_sonLik};
         mul_cond_sonLik *= ExtendedFloat{constexpr_power<double>(ExtendedFloat::radix, sonLik_i_exp + fatherCondSonPartLik_exp)};
-        if (speciesId == 28){
-          std::cout << " mul_cond_sonLik *exponents = " << mul_cond_sonLik << std::endl;
-        }
         mul_cond_sonLik *= p_ji;
-        if (speciesId == 28){
-          std::cout << " mul_cond_sonLik *pji = " << mul_cond_sonLik << std::endl;
-        }
         mul_cond_sonLik /= likelihood;
-        if (speciesId == 28){
-          std::cout << " mul_cond_sonLik / likelihood = " << mul_cond_sonLik << std::endl;
-        }
         auto jointProbExponent = mul_cond_sonLik.get_exponent_part();
         if ((mul_cond_sonLik.get_float_part() == 0) && (jointProbExponent > 1022)){
           mul_cond_sonLik = ExtendedFloat{0};
         }
         matOfJointProbFatherNode[i][j] = (convert(mul_cond_sonLik));
-        if (speciesId == 28){
-          std::cout << " matOfJointProbFatherNode[i][j] = " << matOfJointProbFatherNode[i][j] << std::endl;
-        }
-
-
-    //     //auto fatherStateCondLik = condLikAtFatherNode.row(j);
-    //     //auto sonOfLikFather_j = edgeForward.row(j); //sigma_k(py->k * L(N=k))
-    //     //auto p_j = transitionMatrix.row(j); //p_ji
-    //     //Vdouble p_j_float;
-    //     //auto convertedPijt = copyEigenToBpp(p_j, p_j_float);
-    //     auto jointLikFatherSon = fatherStateCondLik * sonLik_i;
-    //     jointLikFatherSon.float_part() /=  sonOfLikFather_j.float_part();
-    //     jointLikFatherSon.exponent_part() -=  sonOfLikFather_j.exponent_part();
-
-    //     matOfJointProbFatherNode[i][j] = (convert(jointLikFatherSon).sum()) * convertedPijt;
 
       }
     }
