@@ -119,6 +119,9 @@ namespace bpp {
 
     const FloatType & float_part () const noexcept { return f_; }
     const ExtType & exponent_part () const noexcept { return exp_; }
+    
+    const FloatType & get_float_part() const { return f_;}
+    const ExtType & get_exponent_part() const { return exp_;}
 
     bool normalize_big () noexcept {
       if (std::isfinite (f_)) {

@@ -1273,6 +1273,10 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
         if (speciesId == 28){
           std::cout << " mul_cond_sonLik / likelihood = " << mul_cond_sonLik << std::endl;
         }
+        auto jointProbExponent = mul_cond_sonLik.get_exponent_part();
+        if ((mul_cond_sonLik.get_float_part() == 0) && (jointProbExponent > 1022)){
+          mul_cond_sonLik = ExtendedFloat{0};
+        }
         matOfJointProbFatherNode[i][j] = (convert(mul_cond_sonLik));
         if (speciesId == 28){
           std::cout << " matOfJointProbFatherNode[i][j] = " << matOfJointProbFatherNode[i][j] << std::endl;
