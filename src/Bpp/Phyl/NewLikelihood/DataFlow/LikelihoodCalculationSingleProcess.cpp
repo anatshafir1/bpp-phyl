@@ -1222,69 +1222,28 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
     // actual values
     auto sonLik = LikNodeForward->getTargetValue();
     auto fatherCondSonPartLik = productCondFatherSonPartLik->getTargetValue();
-    if (speciesId == 520){
-      std::cout << "edgeForward = " << edgeForward->getTargetValue() << std::endl;
-      std::cout << "LikNodeForward = " << LikNodeForward->getTargetValue() << std::endl;
-      std::cout << "condLikAtFatherNode = " << condLikAtFatherNode->getTargetValue() << std::endl;
-      std::cout << "transitionMatrix = " << transitionMatrix->getTargetValue() << std::endl;
-      std::cout << "inverseEdgeForward = " << inverseEdgeForward->getTargetValue() << std::endl;
-      std::cout << "productCondFatherSonPartLik = " << productCondFatherSonPartLik->getTargetValue() << std::endl;
-    }
 
     for (size_t i = 0; i < nbState; i++){
 
       matOfJointProbFatherNode[i].resize(nbState);
 
       for (size_t j = 0; j < nbState; j++){
-        //auto sonLik_i = ExtendedFloat{sonLik.float_part()(i, site)};
         auto sonLik_i = ExtendedFloat(sonLik.float_part()(i, site), sonLik.exponent_part());
         auto p_ji = ExtendedFloat{transitionMatrix->getTargetValue()(j,i)};
-        //auto fatherCondSonPartMat = inverseEdgeForward->getTargetValue().float_part();
         auto fatherCondSonPartLik_j = ExtendedFloat(fatherCondSonPartLik.float_part()(j, site), fatherCondSonPartLik.exponent_part());
-        //auto fatherCondSonPartLik_float = ExtendedFloat{fatherCondSonPartLik.float_part()(j, site)};
-        //auto fatherCondSonPartLik_exp = fatherCondSonPartLik.exponent_part();
-        //auto sonLik_i_exp = sonLik.exponent_part();
-        //fatherCondSonPartLik_float.normalize();
         fatherCondSonPartLik_j.normalize();
         sonLik_i.normalize();
         likelihood.normalize();
         p_ji.normalize();
-        if (speciesId == 520){
-          std::cout << "****************************" << std::endl;
-          std::cout << "son = " << i << " father = " << j << std::endl;
-          //std::cout << "sonLik_i float = " << sonLik_i <<  " exponent = " << sonLik_i_exp << std::endl;
-          std::cout << "sonLik_i  = " << sonLik_i << std::endl;
-          std::cout << "p_ji = " << p_ji << std::endl;
-          //std::cout << "fatherCondSonPartLik_float = " << fatherCondSonPartLik_float << " exponent = " << fatherCondSonPartLik_exp << std::endl;
-          std::cout << "fatherCondSonPartLik_j = " << fatherCondSonPartLik_j << std::endl;
-          std::cout << "likelihood = " << likelihood << std::endl;
-        }
 
-        //auto mul_cond_sonLik = fatherCondSonPartLik_float * sonLik_i;
         auto mul_cond_sonLik = fatherCondSonPartLik_j * sonLik_i;
-        if (speciesId == 520){
-          std::cout << "mul_cond_sonLik = fatherCondSonPartLik_float * sonLik_i = " << mul_cond_sonLik << std::endl;
-        }
-        //mul_cond_sonLik *= ExtendedFloat{constexpr_power<double>(ExtendedFloat::radix, sonLik_i_exp + fatherCondSonPartLik_exp)};
-        // if (speciesId == 520){
-        //   std::cout << "mul_cond_sonLik = mul_cond_sonLik * exponent = " << mul_cond_sonLik << std::endl;
-        // }
         mul_cond_sonLik *= p_ji;
-        if (speciesId == 520){
-          std::cout << "mul_cond_sonLik = mul_cond_sonLik * pijt = " << mul_cond_sonLik << std::endl;
-        }
         mul_cond_sonLik /= likelihood;
-        if (speciesId == 520){
-          std::cout << "mul_cond_sonLik / likelihood = " << mul_cond_sonLik << std::endl;
-        }
         auto jointProbExponent = mul_cond_sonLik.get_exponent_part();
         if ((mul_cond_sonLik.get_float_part() == 0) && (jointProbExponent > 1022)){
           mul_cond_sonLik = ExtendedFloat{0};
         }
         matOfJointProbFatherNode[i][j] = (convert(mul_cond_sonLik));
-        if (speciesId == 520){
-          std::cout << "matOfJointProbFatherNode[i][j] = " << matOfJointProbFatherNode[i][j] << std::endl;
-        }
 
       }
     }
