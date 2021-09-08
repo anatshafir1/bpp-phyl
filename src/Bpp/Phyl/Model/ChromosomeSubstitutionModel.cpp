@@ -918,11 +918,11 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t(double t) const
   {
     MatrixTools::getId(size_, pijt_);
   }
-  // else if (isNonSingular_)
-  // {
-  //   calculatePijtUsingEigenValues(t);
+  else if (isNonSingular_)
+  {
+    calculatePijtUsingEigenValues(t);
     
-  // }
+  }
   else
   {
     RowMatrix<double> pijt_temp;
