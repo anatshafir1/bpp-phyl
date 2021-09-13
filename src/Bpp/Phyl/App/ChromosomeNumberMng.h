@@ -135,6 +135,13 @@ namespace bpp{
             static void setMinChrNum(unsigned int minNumberOfChr);
             void getTree(const string &path, double treeLength = 0);
 
+            // getters for testers
+            const ChromosomeAlphabet* getAlphabet() const {return alphabet_;}
+            const VectorSiteContainer* getSeqData() const {return vsc_;}
+            const uint getChromosomeRange() const {return chrRange_;}
+            const PhyloTree* getPhyloTree() const {return tree_;}
+
+
             //core functions of ChromEvol
             //void runTest();
             void runChromEvol();
