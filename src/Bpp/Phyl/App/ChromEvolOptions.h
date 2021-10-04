@@ -37,7 +37,7 @@ class ChromEvolOptions
 
 public:
     static void initAllParameters(BppApplication& ChromEvol);
-    static void getInitialValuesForComplexParams(std::map<int, std::vector<double>> &mapOfParams);
+    static void getInitialValuesForComplexParams(std::map<uint, std::pair<int, std::map<int, vector<double>>>> &mapOfParams);
     //static void initVectorOfChrNumParameters(vector<double>& paramVector);
     virtual ~ChromEvolOptions(){};
     
@@ -46,15 +46,16 @@ public:
     static string characterFilePath_;
     static int maxChrNum_;
     static int minChrNum_;
+    static int numOfModels_;
     static double branchMul_;
     static std::vector <unsigned int> OptPointsNum_;
     static std::vector <unsigned int> OptIterNum_;
-    static std::vector<double> gain_;
-    static std::vector<double> loss_;
-    static std::vector<double> dupl_;
-    static std::vector<double> demiDupl_;
-    static int baseNum_;
-    static std::vector<double> baseNumR_;
+    static std::map<uint, std::vector<double>> gain_;
+    static std::map<uint, std::vector<double>> loss_;
+    static std::map<uint, std::vector<double>> dupl_;
+    static std::map<uint, std::vector<double>> demiDupl_;
+    static std::map<uint, int> baseNum_;
+    static std::map<uint, std::vector<double>> baseNumR_;
     static double tolerance_;
     static unsigned int maxIterations_;
     static bool maxParsimonyBound_;
@@ -70,15 +71,25 @@ public:
     static vector<int> rateChangeType_;
     //static bool optimizeBaseNumber_;
     static string baseNumOptimizationMethod_;
-    static std::vector<int> fixedParams_; //1 if parameter should be fixed. The order corresponds to the one in the model definition.
+    static std::map<uint, std::vector<int>> fixedParams_; //1 if parameter should be fixed. The order corresponds to the one in the model definition.
     static int NumOfSimulations_;
     static int jumpTypeMethod_;
     static bool simulateData_;
     static int numOfDataToSimulate_;
     static string resultsPathDir_;
-    static int maxBaseNumTransition_; // needed for the simulator, since there is no data to infer it!
+    static std::map<uint,uint> maxBaseNumTransition_; // needed for the simulator, since there is no data to infer it!
     static double treeLength_;
     static int maxNumOfTrials_; // to test the severity of the underflow problems
+    // for heterogeneous model
+    static int minCladeSize_;
+    static int maxNumOfModels_;
+    static std::map<uint, std::vector<uint>> mapOfNodeIdsPerModel_;
+    static std::map<int, vector<uint>> sharedParameters_;
+    static bool heterogeneousModel_;
+    static double deltaAICcThreshold_;
+    static std::map<uint, std::vector<uint>> mapModelNodesIds_;
+    static string nodeIdsFilePath_;
+    static std::vector<uint> initialModelNodes_;
 
 private:
     static void initDefaultParameters();
@@ -87,6 +98,10 @@ private:
     static std::vector<int> translateStringParamsToInt(std::vector<string> strParams);
     static void setFunctions(std::string gainFunc, std::string lossFunc, std::string duplFunc, std::string demiDuplFunc, std::string baseNumRFunc);
     static int getFunctionFromString(string funcStr);
+    static void setModelParameters(BppApplication& ChromEvol);
+    static void setSharedParameters(std::map<uint, std::map<int, std::pair<int, vector<double>>>> mapModelTypeValues, std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal);
+    static void setFixedParameters(BppApplication& ChromEvol);
+    static void updateModelParameter(uint model, int type, vector<double> paramValues);
 
 };
 

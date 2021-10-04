@@ -25,167 +25,167 @@ void ComputeChromosomeTransitionsExp::computeExpectationOfChangePerBranch(uint n
 
 }
 // /**********************************************************************************************/
-ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::getTypeOfTransition(int startState, int endState){
-    // convert from state index to real chromsome number
-    int chrStart = startState + alphabet_->getMin();
-    int chrEnd = endState + alphabet_->getMin();
-    //baseNumber transitions
-    int baseNumber = model_->getBaseNumber();
-    if (baseNumber != IgnoreParam){
-        if (chrEnd > chrStart){
-            if ((chrEnd - chrStart) % baseNumber == 0){
-                if (chrEnd != 2 * chrStart){
-                    return ChromosomeSubstitutionModel::BASENUM_T;
-                }
-            }
-        }        
-    }
-    //gain
-    if (chrStart + 1 == chrEnd){
-        if (!(model_->isIgnoredGain())){
-            return ChromosomeSubstitutionModel::GAIN_T;
-        }
+// ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::getTypeOfTransition(int startState, int endState){
+//     // convert from state index to real chromsome number
+//     int chrStart = startState + alphabet_->getMin();
+//     int chrEnd = endState + alphabet_->getMin();
+//     //baseNumber transitions
+//     int baseNumber = model_->getBaseNumber();
+//     if (baseNumber != IgnoreParam){
+//         if (chrEnd > chrStart){
+//             if ((chrEnd - chrStart) % baseNumber == 0){
+//                 if (chrEnd != 2 * chrStart){
+//                     return ChromosomeSubstitutionModel::BASENUM_T;
+//                 }
+//             }
+//         }        
+//     }
+//     //gain
+//     if (chrStart + 1 == chrEnd){
+//         if (!(model_->isIgnoredGain())){
+//             return ChromosomeSubstitutionModel::GAIN_T;
+//         }
         
-    //loss
-    }else if (chrStart == chrEnd + 1){
-        if (!(model_->isIgnoredLoss())){
-            return ChromosomeSubstitutionModel::LOSS_T;
-        }
+//     //loss
+//     }else if (chrStart == chrEnd + 1){
+//         if (!(model_->isIgnoredLoss())){
+//             return ChromosomeSubstitutionModel::LOSS_T;
+//         }
         
-    //dupl
-    }else if (chrStart * 2 == chrEnd){
-        if (!(model_->isIgnoredDupl())){
-            return ChromosomeSubstitutionModel::DUPL_T;
-        }
+//     //dupl
+//     }else if (chrStart * 2 == chrEnd){
+//         if (!(model_->isIgnoredDupl())){
+//             return ChromosomeSubstitutionModel::DUPL_T;
+//         }
         
-    //demi dupl
-    }else if (!(model_->isIgnoredDemiDupl())){
-        if ((chrStart % 2 == 0) && (chrEnd == chrStart * 1.5)){
-            return ChromosomeSubstitutionModel::DEMIDUPL_T;
-        }else if ((chrStart % 2 != 0) && (chrEnd == (int)ceil(chrStart * 1.5))){
-            return ChromosomeSubstitutionModel::DEMIDUPL_T;
-        }else if ((chrStart % 2 != 0) && (chrEnd == (int)floor(chrStart * 1.5))){
-            return ChromosomeSubstitutionModel::DEMIDUPL_T;
-        }
+//     //demi dupl
+//     }else if (!(model_->isIgnoredDemiDupl())){
+//         if ((chrStart % 2 == 0) && (chrEnd == chrStart * 1.5)){
+//             return ChromosomeSubstitutionModel::DEMIDUPL_T;
+//         }else if ((chrStart % 2 != 0) && (chrEnd == (int)ceil(chrStart * 1.5))){
+//             return ChromosomeSubstitutionModel::DEMIDUPL_T;
+//         }else if ((chrStart % 2 != 0) && (chrEnd == (int)floor(chrStart * 1.5))){
+//             return ChromosomeSubstitutionModel::DEMIDUPL_T;
+//         }
 
-    }
+//     }
 
-    else if (chrEnd == alphabet_->getMax()){
-        return ChromosomeSubstitutionModel::MAXCHR_T;
-    }
-    return ChromosomeSubstitutionModel::ILLEGAL;
+//     else if (chrEnd == alphabet_->getMax()){
+//         return ChromosomeSubstitutionModel::MAXCHR_T;
+//     }
+//     return ChromosomeSubstitutionModel::ILLEGAL;
 
-}
+// }
 
 // /**************************************************************************************/
-ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::getTypeOfTransitionWithProb(int startState, int endState){
-    std::vector<ChromosomeSubstitutionModel::typeOfTransition> jumpType;
-    bool legalMove = false;
-    // convert from state index to real chromsome number
-    int chrStart = startState + alphabet_->getMin();
-    int chrEnd = endState + alphabet_->getMin();
-    pair <int, int> jumpStates;
-    jumpStates.first = chrStart;
-    jumpStates.second = chrEnd;
+// ChromosomeSubstitutionModel::typeOfTransition ComputeChromosomeTransitionsExp::getTypeOfTransitionWithProb(int startState, int endState){
+//     std::vector<ChromosomeSubstitutionModel::typeOfTransition> jumpType;
+//     bool legalMove = false;
+//     // convert from state index to real chromsome number
+//     int chrStart = startState + alphabet_->getMin();
+//     int chrEnd = endState + alphabet_->getMin();
+//     pair <int, int> jumpStates;
+//     jumpStates.first = chrStart;
+//     jumpStates.second = chrEnd;
 
-    if (stateJumpTypeProb_.find(jumpStates) != stateJumpTypeProb_.end()){
+//     if (stateJumpTypeProb_.find(jumpStates) != stateJumpTypeProb_.end()){
 
-    }
-    //gain
-    if (chrStart + 1 == chrEnd){
-        if (!(model_->isIgnoredGain())){
-            return ChromosomeSubstitutionModel::GAIN_T;
-        }
-    }
-    //loss
-    if (chrStart - 1 == chrEnd){
-        if (!(model_->isIgnoredLoss())){
-            return ChromosomeSubstitutionModel::LOSS_T;
-        }
-    }
-    //baseNumber transitions
-    int baseNumber = model_->getBaseNumber();
-    if (baseNumber != IgnoreParam){
-        if (chrEnd > chrStart){
-            if ((chrEnd - chrStart) % baseNumber == 0){
-                legalMove = true;
-                jumpType.push_back(ChromosomeSubstitutionModel::BASENUM_T);                
-            }
-        }        
-    }
-    // duplication
-    if (chrEnd == 2 * chrStart){
-        if (!(model_->isIgnoredDupl())){
-            legalMove = true;
-            jumpType.push_back(ChromosomeSubstitutionModel::DUPL_T);
-        }
+//     }
+//     //gain
+//     if (chrStart + 1 == chrEnd){
+//         if (!(model_->isIgnoredGain())){
+//             return ChromosomeSubstitutionModel::GAIN_T;
+//         }
+//     }
+//     //loss
+//     if (chrStart - 1 == chrEnd){
+//         if (!(model_->isIgnoredLoss())){
+//             return ChromosomeSubstitutionModel::LOSS_T;
+//         }
+//     }
+//     //baseNumber transitions
+//     int baseNumber = model_->getBaseNumber();
+//     if (baseNumber != IgnoreParam){
+//         if (chrEnd > chrStart){
+//             if ((chrEnd - chrStart) % baseNumber == 0){
+//                 legalMove = true;
+//                 jumpType.push_back(ChromosomeSubstitutionModel::BASENUM_T);                
+//             }
+//         }        
+//     }
+//     // duplication
+//     if (chrEnd == 2 * chrStart){
+//         if (!(model_->isIgnoredDupl())){
+//             legalMove = true;
+//             jumpType.push_back(ChromosomeSubstitutionModel::DUPL_T);
+//         }
 
-    }
-    //Demi-duplication
-    if (!(model_->isIgnoredDemiDupl())){
-        if (chrStart % 2 == 0){
-            if (chrEnd == chrStart * 1.5){
-                legalMove = true;
-                jumpType.push_back(ChromosomeSubstitutionModel::DEMIDUPL_T);
-            }
-        }else{
-            if ((chrEnd == (int)ceil(chrStart * 1.5)) || (chrEnd == (int)floor(chrStart * 1.5))){
-                legalMove = true;
-                jumpType.push_back(ChromosomeSubstitutionModel::DEMIDUPL_T);
-            }
-        }
+//     }
+//     //Demi-duplication
+//     if (!(model_->isIgnoredDemiDupl())){
+//         if (chrStart % 2 == 0){
+//             if (chrEnd == chrStart * 1.5){
+//                 legalMove = true;
+//                 jumpType.push_back(ChromosomeSubstitutionModel::DEMIDUPL_T);
+//             }
+//         }else{
+//             if ((chrEnd == (int)ceil(chrStart * 1.5)) || (chrEnd == (int)floor(chrStart * 1.5))){
+//                 legalMove = true;
+//                 jumpType.push_back(ChromosomeSubstitutionModel::DEMIDUPL_T);
+//             }
+//         }
             
-    }
+//     }
 
-    // maxChr not assigned to any of the possible transitions
-    if ((chrEnd  == alphabet_->getMax()) && (!legalMove)){
-        legalMove = true;
-        return ChromosomeSubstitutionModel::MAXCHR_T;
-    }if(!legalMove){
-        return ChromosomeSubstitutionModel::ILLEGAL;
-    }
-    // choose the most probable transition
-     if (jumpType.size() == 1)
-        return jumpType[0];
+//     // maxChr not assigned to any of the possible transitions
+//     if ((chrEnd  == alphabet_->getMax()) && (!legalMove)){
+//         legalMove = true;
+//         return ChromosomeSubstitutionModel::MAXCHR_T;
+//     }if(!legalMove){
+//         return ChromosomeSubstitutionModel::ILLEGAL;
+//     }
+//     // choose the most probable transition
+//      if (jumpType.size() == 1)
+//         return jumpType[0];
     
-    std::vector<double> weights;
-    std::vector<size_t> indices;
-    std::vector<size_t> result;
-    result.push_back(0);
-    double sumOfRates = 0;
+//     std::vector<double> weights;
+//     std::vector<size_t> indices;
+//     std::vector<size_t> result;
+//     result.push_back(0);
+//     double sumOfRates = 0;
    
     
-    //sample the jump type according randomely according to probabilities
+//     //sample the jump type according randomely according to probabilities
     
-    for (size_t i = 0; i < jumpType.size(); i++){
-        if (jumpType[i] == ChromosomeSubstitutionModel::BASENUM_T){
-            sumOfRates += model_->getBaseNumR()->getRate(chrStart);
-            weights.push_back(model_->getBaseNumR()->getRate(chrStart));
-            indices.push_back(i);
-        }else if(jumpType[i] == ChromosomeSubstitutionModel::DUPL_T){
-            double rate =  model_->getDupl()->getRate(chrStart);
-            sumOfRates += rate;
-            weights.push_back(rate);
-            indices.push_back(i);
-        }else if (jumpType[i] == ChromosomeSubstitutionModel::DEMIDUPL_T){
-            sumOfRates += model_->getDemiDupl()->getRate(chrStart);
-            weights.push_back(model_->getDemiDupl()->getRate(chrStart));
-            indices.push_back(i);
+//     for (size_t i = 0; i < jumpType.size(); i++){
+//         if (jumpType[i] == ChromosomeSubstitutionModel::BASENUM_T){
+//             sumOfRates += model_->getBaseNumR()->getRate(chrStart);
+//             weights.push_back(model_->getBaseNumR()->getRate(chrStart));
+//             indices.push_back(i);
+//         }else if(jumpType[i] == ChromosomeSubstitutionModel::DUPL_T){
+//             double rate =  model_->getDupl()->getRate(chrStart);
+//             sumOfRates += rate;
+//             weights.push_back(rate);
+//             indices.push_back(i);
+//         }else if (jumpType[i] == ChromosomeSubstitutionModel::DEMIDUPL_T){
+//             sumOfRates += model_->getDemiDupl()->getRate(chrStart);
+//             weights.push_back(model_->getDemiDupl()->getRate(chrStart));
+//             indices.push_back(i);
 
-        }
-        // add also gain 1->2
+//         }
+//         // add also gain 1->2
 
-    }
-    for (size_t j = 0; j < weights.size(); j++){
-        weights[j] /= sumOfRates;
-    }
+//     }
+//     for (size_t j = 0; j < weights.size(); j++){
+//         weights[j] /= sumOfRates;
+//     }
     
-    RandomTools::getSample(indices, weights, result);
+//     RandomTools::getSample(indices, weights, result);
     
         
     
-    return jumpType[result[0]];    
-}
+//     return jumpType[result[0]];    
+// }
 // /**********************************************************************************/
 void ComputeChromosomeTransitionsExp::computeExpPerTypeHeuristics(map <uint, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun){
     map <uint, vector<pair<int, int>>>::iterator it = nonAccountedForBranchesFromFirstRun.begin();
@@ -447,61 +447,91 @@ PhyloTree* ComputeChromosomeTransitionsExp::getResultTree(){
 }
 // //****************************************************************************************/
 void ComputeChromosomeTransitionsExp::init(){
-    //jumpProbs_.reserve(alphabet_->getSize());
-    vector<shared_ptr<PhyloNode> > nodes = tree_->getAllNodes();
-    size_t nbNodes = nodes.size();
-    // //uint nodeId = tree_->getNodeIndex(nodes[n]);
-    
-    // for (size_t i = 0; i < alphabet_->getSize(); i++){
-    //     vector <double> stateTransitionsProbs;
-    //     stateTransitionsProbs.reserve(alphabet_->getSize());
-    //     //waitingTimes_.push_back(-1 * (model_->Qij(i, i)));
-    //     for (size_t j = 0; j < alphabet_->getSize(); j++){
-    //         if (i == j){
-    //             stateTransitionsProbs.push_back(0);
-    //         }else{
-    //             stateTransitionsProbs.push_back(model_->Qij(i,j)/(-1 * (model_->Qij(i, i)))); //waitingTimes_[i]);
-    //         }            
-    //     }
-    //     jumpProbs_.push_back(stateTransitionsProbs);
-    // }
-    for (size_t n = 0; n < nbNodes; n++){
-        uint nodeId = tree_->getNodeIndex(nodes[n]);
-        if (nodeId == tree_->getRootIndex()){
-            continue;
+    size_t numOfModels = model_->getNumberOfModels();
+    uint rootId = tree_->getRootIndex();
+    vector<uint> rootSons = tree_->getSons(rootId);
+    for (size_t m = 0; m < numOfModels; m++){
+        std::vector<Branch> branchesPerModel;
+        vector<std::shared_ptr<PhyloNode>> modelNodes; 
+        std::vector<uint> nodeIds = model_->getNodesWithModel(m+1);
+        PhyloTree* tree = tree_->clone();
+        for (size_t j = 0; j < nodeIds.size(); j++){
+            modelNodes.push_back(tree->getNode(nodeIds[j]));
+            
         }
-        auto node = tree_->getNode(nodeId);
-        auto branchPtr = tree_->getIncomingEdges(node)[0];
-        PhyloBranch branch = *(branchPtr);
-        uint branchIndex = tree_->getEdgeIndex(branchPtr);
-        Branch edgeInfo(branchIndex, branch);
-        branchOrder_.push_back(edgeInfo);
-        //std::map<pair<int, int>, pair<int, Vdouble>> terminalsMap();
-        branchTransitionsExp_[nodeId] = std::map<pair<int, int>, pair<int, Vdouble>>();
+        auto mrca = tree->MRCA(modelNodes);
+        if (tree->getNodeIndex(mrca) == tree->getRootIndex()){
+            for (size_t k = 0; k < rootSons.size(); k++){
+                auto node = tree_->getNode(rootSons[k]);
+                auto branchPtr = tree_->getIncomingEdges(node)[0];
+                PhyloBranch branch = *branchPtr;
+                uint branchIndex = tree_->getEdgeIndex(branchPtr);
+                Branch edgeInfo(branchIndex, branch);
+                branchesPerModel.push_back(edgeInfo);
+                branchTransitionsExp_[rootSons[k]] = std::map<pair<int, int>, pair<int, Vdouble>>();
 
-        // for (size_t i = 0; i < alphabet_->getSize(); i++){
-        //     for (size_t j = 0; j < alphabet_->getSize(); j ++){
-        //         std::pair<int,int> ancestralTerminals;
-        //         ancestralTerminals.first = (int)i;
-        //         ancestralTerminals.second = (int)j;
-        //         //ancestralTerminalsCounts_[nodeId][ancestralTerminals] = 0;
-        //         branchTransitionsExp_[nodeId][ancestralTerminals].first = 0;
-        //         for (size_t k = 0; k < ChromosomeSubstitutionModel::NUMTYPES; k++){
-        //             //branchTransitionsExp_[nodeId][ancestralTerminals].push_back(0);
-        //             branchTransitionsExp_[nodeId][ancestralTerminals].second.push_back(0);
+                for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i ++){
+                    expNumOfChangesPerBranch_[rootSons[k]][i] = 0;
+                }
 
-        //         }
-
-        //     }
-        // }
-        for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i ++){
-            expNumOfChangesPerBranch_[nodeId][i] = 0;
+            }
         }
+        delete tree;
+        
+        for (size_t n = 0; n < nodeIds.size(); n++){
+            uint nodeId = nodeIds[n];
+            if (nodeId == tree_->getRootIndex()){
+                continue;
+            }
+            if (tree_->isLeaf(nodeId)){
+                continue;
+            }
+            auto node = tree_->getNode(nodeId);
+            auto branchPtrs = tree_->getOutgoingEdges(node);
+            for (size_t k = 0; k < branchPtrs.size(); k++){
+                PhyloBranch branch = *(branchPtrs[k]);
+                uint branchIndex = tree_->getEdgeIndex(branchPtrs[k]);
+                uint sonId = tree_->getSon(branchIndex);
+                Branch edgeInfo(branchIndex, branch);
+                branchesPerModel.push_back(edgeInfo);
+                
+                //std::map<pair<int, int>, pair<int, Vdouble>> terminalsMap();
+                branchTransitionsExp_[sonId] = std::map<pair<int, int>, pair<int, Vdouble>>();
+
+                for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i ++){
+                    expNumOfChangesPerBranch_[sonId][i] = 0;
+                }
+
+            }
+
+
+        }
+        branchOrder_.push_back(branchesPerModel);
+        sort(branchOrder_[m].begin(), branchOrder_[m].end(), compareBranches);
     }
+
+    // for (size_t n = 0; n < nbNodes; n++){
+    //     uint nodeId = tree_->getNodeIndex(nodes[n]);
+    //     if (nodeId == tree_->getRootIndex()){
+    //         continue;
+    //     }
+    //     auto node = tree_->getNode(nodeId);
+    //     auto branchPtr = tree_->getIncomingEdges(node)[0];
+    //     PhyloBranch branch = *(branchPtr);
+    //     uint branchIndex = tree_->getEdgeIndex(branchPtr);
+    //     Branch edgeInfo(branchIndex, branch);
+    //     branchOrder_.push_back(edgeInfo);
+    //     branchTransitionsExp_[nodeId] = std::map<pair<int, int>, pair<int, Vdouble>>();
+
+
+    //     for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i ++){
+    //         expNumOfChangesPerBranch_[nodeId][i] = 0;
+    //     }
+    // }
     for (int i = 0; i < ChromosomeSubstitutionModel::NUMTYPES; i ++){
         expNumOfChanges_[i] = 0;
     }
-    sort(branchOrder_.begin(), branchOrder_.end(), compareBranches);
+    
 }
 
 /************************************************************************************/
@@ -514,26 +544,31 @@ void ComputeChromosomeTransitionsExp::runSimulations(int numOfSimulations){
     std::cout << "Initializing expectation instance ..." << std::endl;
     init();
     std::cout << "Run iterations (simulations) ..." << std::endl;
-    for (size_t i = 0; i < alphabet_->getSize(); i++){
-        for (size_t j = 0; j < (size_t)numOfSimulations; j++){
-            runIteration((int)i);
+    for (size_t k = 0; k < branchOrder_.size(); k++){
+        for (size_t i = 0; i < alphabet_->getSize(); i++){
+            for (size_t j = 0; j < (size_t)numOfSimulations; j++){
+                runIteration((int)i, k);
+            }
         }
+
     }
     std::cout << "Compute expectations based on simulations ..." << std::endl;
     computeExpectationAndPosterior();
 }
 // /*************************************************************************************/
-void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals){
+void ComputeChromosomeTransitionsExp::runIteration(int beginState, size_t modelIndex, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals){
+    const ChromosomeSubstitutionModel* model = dynamic_cast<const ChromosomeSubstitutionModel*>(model_->getModel(modelIndex+1));
     double totalTimeTillJump = 0;
-    double maxBranch = branchOrder_[branchOrder_.size()-1].second.getLength();
+    double maxBranch = branchOrder_[modelIndex][branchOrder_[modelIndex].size()-1].second.getLength();
     int currentState = beginState;
     vector <std::pair<int,int>> jumpsUntilNow;
+    // getFatherOfEdge
     int indexOfSmallestNotUpdatedBranch = 0;
     while (totalTimeTillJump < maxBranch){
-        double averageWaitingTime = 1 / (-1 * (model_->Qij(currentState, currentState)));//waitingTimes_[currentState];
+        double averageWaitingTime = 1 / (-1 * (model->Qij(currentState, currentState)));//waitingTimes_[currentState];
         totalTimeTillJump +=  RandomTools::randExponential(averageWaitingTime);
-        for (size_t i = indexOfSmallestNotUpdatedBranch; i < branchOrder_.size(); i++){
-            double branchLength = branchOrder_[i].second.getLength();
+        for (size_t i = indexOfSmallestNotUpdatedBranch; i < branchOrder_[modelIndex].size(); i++){
+            double branchLength = branchOrder_[modelIndex][i].second.getLength();
             if (branchLength > totalTimeTillJump){
                 indexOfSmallestNotUpdatedBranch = (int)i;
                 break;
@@ -541,7 +576,7 @@ void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <uint, ve
             std::pair<int, int> ancestralTerminals;
             ancestralTerminals.first = beginState;
             ancestralTerminals.second = currentState;
-            uint branchNodeId = tree_->getSon(branchOrder_[i].first);
+            uint branchNodeId = tree_->getSon(branchOrder_[modelIndex][i].first);
             if (unAccountedNodesAndTerminals){
                 // unaccountedNodeAndTerminal contain the unaccounted node with their already accounted terminal
                 // Therefore, if these terminals are found, we continue       
@@ -566,31 +601,31 @@ void ComputeChromosomeTransitionsExp::runIteration(int beginState, map <uint, ve
             }
         }
 
-        int nextState = getRandomState(currentState);
-        if ((nextState == (int)alphabet_->getSize()-1) && (!isMaxStateValid(currentState))){
+        int nextState = getRandomState(currentState, model);
+        if ((nextState == (int)alphabet_->getSize()-1) && (!isMaxStateValid(currentState, model))){
             break;
         }
         std::pair<int,int> combOcurredStates;
         combOcurredStates.first = currentState;
         combOcurredStates.second = nextState;
         jumpsUntilNow.push_back(combOcurredStates);
-        updateMapOfJumps(currentState, nextState);
+        updateMapOfJumps(currentState, nextState, model);
         currentState = nextState;
     }
 
 }
 // /********************************************************************************/
-bool ComputeChromosomeTransitionsExp::isMaxStateValid(int prevState) const{
+bool ComputeChromosomeTransitionsExp::isMaxStateValid(int prevState, const ChromosomeSubstitutionModel* model) const{
     int valid = false;
-    int maxState = model_->getMax();
-    int initState = model_->getMin() + prevState;
+    int maxState = model->getMax();
+    int initState = model->getMin() + prevState;
     // gain
     if (maxState == initState + 1){
         valid = true;
         return valid;
     }
     // dupl
-    if (!(model_->isIgnoredDupl())){
+    if (!(model->isIgnoredDupl())){
         if (maxState == 2 * initState){
             valid = true;
             return valid;
@@ -598,7 +633,7 @@ bool ComputeChromosomeTransitionsExp::isMaxStateValid(int prevState) const{
 
     }
     // demi dupl
-    if (!(model_->isIgnoredDemiDupl())){
+    if (!(model->isIgnoredDemiDupl())){
         if (initState % 2 == 0){
             if ((int)(initState * 1.5) == maxState){
                 valid = true;
@@ -613,10 +648,10 @@ bool ComputeChromosomeTransitionsExp::isMaxStateValid(int prevState) const{
         }
     }
     // base number
-    int baseNumber = model_->getBaseNumber();
+    int baseNumber = model->getBaseNumber();
     if (baseNumber != IgnoreParam){
         if (maxState > initState){
-            if (((maxState - initState) % baseNumber == 0) && ((maxState - initState) <= (int)(model_->getMaxChrRange()))){
+            if (((maxState - initState) % baseNumber == 0) && ((maxState - initState) <= (int)(model->getMaxChrRange()))){
                 valid = true;
                 return valid;
             }
@@ -626,7 +661,7 @@ bool ComputeChromosomeTransitionsExp::isMaxStateValid(int prevState) const{
     
 }
 // /********************************************************************************/
-void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endState){
+void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endState, const ChromosomeSubstitutionModel* model){
     bool legalMove = false;
     pair <int, int> jumpStates;
     jumpStates.first = startState;
@@ -640,12 +675,12 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
     if (stateJumpTypeProb_.find(jumpStates) == stateJumpTypeProb_.end()){
         //gain
         if (chrStart + 1 == chrEnd){
-            if (!(model_->isIgnoredGain())){
+            if (!(model->isIgnoredGain())){
                 if (chrStart > 3){
                     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::GAIN_T] = 1;
                     return;
                 }else{
-                    double gainRate = model_->getGain()->getRate(chrStart);
+                    double gainRate = model->getGain()->getRate(chrStart);
                     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::GAIN_T] = gainRate;
                     sumOfRates += gainRate;
                     legalMove = true;
@@ -655,48 +690,48 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
         }
         //loss
         if (chrStart - 1 == chrEnd){
-            if (!(model_->isIgnoredLoss())){
+            if (!(model->isIgnoredLoss())){
                 stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::LOSS_T] = 1;
                 return;
             }
         }
         //baseNumber transitions
-        int baseNumber = model_->getBaseNumber();
+        int baseNumber = model->getBaseNumber();
         if (baseNumber != IgnoreParam){
             if (chrEnd > chrStart){
-                if (((chrEnd - chrStart) % baseNumber == 0) && ((chrEnd - chrStart) <= (int)(model_->getMaxChrRange()))){
+                if (((chrEnd - chrStart) % baseNumber == 0) && ((chrEnd - chrStart) <= (int)(model->getMaxChrRange()))){
                     legalMove = true;
-                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::BASENUM_T] = model_->getBaseNumR()->getRate(chrStart);
-                    sumOfRates += model_->getBaseNumR()->getRate(chrStart);                              
+                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::BASENUM_T] = model->getBaseNumR()->getRate(chrStart);
+                    sumOfRates += model->getBaseNumR()->getRate(chrStart);                              
                 }
             }        
         }
         //duplication
         if (chrEnd == 2 * chrStart){
-            if (!(model_->isIgnoredDupl())){
+            if (!(model->isIgnoredDupl())){
                 legalMove = true;
-                double duplRate = model_->getDupl()->getRate(chrStart);
+                double duplRate = model->getDupl()->getRate(chrStart);
                 stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DUPL_T] = duplRate;
                 sumOfRates += duplRate;
             }
 
         }
         //demi-duplication
-        if (!(model_->isIgnoredDemiDupl())){
+        if (!(model->isIgnoredDemiDupl())){
             if (chrStart % 2 == 0){
                 if (chrEnd == chrStart * 1.5){
                     legalMove = true;
-                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = model_->getDemiDupl()->getRate(chrStart);
-                    sumOfRates += model_->getDemiDupl()->getRate(chrStart);
+                    stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = model->getDemiDupl()->getRate(chrStart);
+                    sumOfRates += model->getDemiDupl()->getRate(chrStart);
                 }
             }else{
                 if ((chrEnd == (int)ceil(chrStart * 1.5)) || (chrEnd == (int)floor(chrStart * 1.5))){
                     legalMove = true;
                     double demiDupRate;
                     if (chrStart == 1){
-                        demiDupRate =  model_->getDemiDupl()->getRate(chrStart);
+                        demiDupRate =  model->getDemiDupl()->getRate(chrStart);
                     }else{
-                        demiDupRate = model_->getDemiDupl()->getRate(chrStart)/2;
+                        demiDupRate = model->getDemiDupl()->getRate(chrStart)/2;
                     }
                     stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::DEMIDUPL_T] = demiDupRate;
                     sumOfRates += demiDupRate;
@@ -714,7 +749,7 @@ void ComputeChromosomeTransitionsExp::updateMapOfJumps(int startState, int endSt
         if (chrEnd  == alphabet_->getMax()){
             legalMove = true;
             //stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::MAXCHR_T] = 1;
-            double toMaxRate = model_->Qij(startState, endState)-sumOfRates;
+            double toMaxRate = model->Qij(startState, endState)-sumOfRates;
             stateJumpTypeProb_[jumpStates][ChromosomeSubstitutionModel::MAXCHR_T] = toMaxRate;
             sumOfRates += toMaxRate;
             //return;
@@ -756,14 +791,14 @@ void ComputeChromosomeTransitionsExp::updateExpectationsPerBranch(uint nodeId, p
 }
 
 // /********************************************************************************/
-int ComputeChromosomeTransitionsExp::getRandomState(int currentState){
+int ComputeChromosomeTransitionsExp::getRandomState(int currentState, const ChromosomeSubstitutionModel* model){
     double prob = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
     double cumulativeProb = 0;
     int nextState = currentState;
     for (size_t i = 0; i < alphabet_->getSize(); i++){
         double transitionRate;
-        ((int)i == currentState) ? (transitionRate = 0) : (transitionRate = model_->Qij(currentState,(int)i));
-        cumulativeProb += transitionRate/(-1 * (model_->Qij(currentState, currentState))); //jumpProbs_[currentState][(int)i];
+        ((int)i == currentState) ? (transitionRate = 0) : (transitionRate = model->Qij(currentState,(int)i));
+        cumulativeProb += transitionRate/(-1 * (model->Qij(currentState, currentState))); //jumpProbs_[currentState][(int)i];
         if (prob < cumulativeProb){
             nextState = (int)i;
             return nextState;
@@ -818,11 +853,11 @@ double ComputeChromosomeTransitionsExp::isNeededHeuristics(uint nodeId, map <uin
 
 }
 // /*************************************************************************************/
-void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, const string filePath){
+void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, size_t modelIndex, const string filePath){
     vector <double> cumulativeProbs;
     vector<Branch> branches;
-    for (size_t n = 0; n < branchOrder_.size(); n++){
-        Branch branchEdge(branchOrder_[n].first, branchOrder_[n].second);
+    for (size_t n = 0; n < branchOrder_[modelIndex].size(); n++){
+        Branch branchEdge(branchOrder_[modelIndex][n].first, branchOrder_[modelIndex][n].second);
         branches.push_back(branchEdge);
     }
    
@@ -831,8 +866,8 @@ void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <uint, v
         double thresholdHeuristics = isNeededHeuristics(nodeId, unAccountedNodesAndTerminals);
         if (thresholdHeuristics >= THRESHOLD_HEURISTIC){
             Branch branchToRemove = branches[i];
-            auto removed = remove_if(branchOrder_.begin(), branchOrder_.end(), [branchToRemove](const Branch& x) { return x.first == branchToRemove.first;});
-            branchOrder_.erase(removed, branchOrder_.end());
+            auto removed = remove_if(branchOrder_[modelIndex].begin(), branchOrder_[modelIndex].end(), [branchToRemove](const Branch& x) { return x.first == branchToRemove.first;});
+            branchOrder_[modelIndex].erase(removed, branchOrder_[modelIndex].end());
 
 
         }else{
@@ -854,7 +889,7 @@ void ComputeChromosomeTransitionsExp::updateNumNonAccountedBranches(map <uint, v
         outFile << "Non Accounted for transitions:"<<endl;
         for (size_t k = 0; k < cumulativeProbs.size(); k++){
             string nodeName;
-            uint nodeId = tree_->getSon(branchOrder_[k].first);
+            uint nodeId = tree_->getSon(branchOrder_[modelIndex][k].first);
             //int nodeId = branchOrder_[k].getId();
             if (tree_->isLeaf(nodeId)){
                 nodeName = (tree_->getNode(nodeId))->getName();
@@ -878,54 +913,59 @@ void ComputeChromosomeTransitionsExp::runHeuristics(const string FilePath){
     //map <int, double> branchMultiplier;
     map <uint, vector<pair<int,int>>> unAccountedNodesAndTerminals;
     map <int, double> ratesPerState;
-    for (int i = 0; i < MAX_ITER_HEURISTICS; i++){
-        updateNumNonAccountedBranches(&unAccountedNodesAndTerminals, i, FilePath);
-        if (i == 0){
-            nonAccountedForBranchesFromFirstRun = unAccountedNodesAndTerminals;
-        }
-        if (branchOrder_.size() == 0){
-            break;
-        }
-       // vector<int> initStates = setVectorOfInitStatesForHeuristics(unAccountedNodesAndTerminals);
-      //size_t i = 0; i < alphabet_->getSize(); i++
-        for (int k = 0; k < (int)(alphabet_->getSize()); k++){
-            updateBranchLengths(k, i, &ratesPerState);
-            for (int j = 0; j < MAX_SIM_HEURISTICS; j++){
-                runIteration(k, &unAccountedNodesAndTerminals);
+    for (size_t m = 0; m < branchOrder_.size(); m ++){
+        for (int i = 0; i < MAX_ITER_HEURISTICS; i++){
+            updateNumNonAccountedBranches(&unAccountedNodesAndTerminals, i, m, FilePath);
+            if (i == 0){
+                nonAccountedForBranchesFromFirstRun = unAccountedNodesAndTerminals;
             }
+            if (branchOrder_[m].size() == 0){
+                break;
+            }
+        // vector<int> initStates = setVectorOfInitStatesForHeuristics(unAccountedNodesAndTerminals);
+         //size_t i = 0; i < alphabet_->getSize(); i++
+            for (int k = 0; k < (int)(alphabet_->getSize()); k++){
+                updateBranchLengths(k, i, m, &ratesPerState);
+                for (int j = 0; j < MAX_SIM_HEURISTICS; j++){
+                    runIteration(k, m, &unAccountedNodesAndTerminals);
+                }
+            }
+
         }
 
     }
+
     getPosteriorAndExpForNonAccountedFor(nonAccountedForBranchesFromFirstRun); 
     computeExpPerTypeHeuristics(nonAccountedForBranchesFromFirstRun);
 }
 // /*************************************************************************************/
-void ComputeChromosomeTransitionsExp::updateBranchLengths(int initState, int iteration, map <int, double>* ratesPerState){
+void ComputeChromosomeTransitionsExp::updateBranchLengths(int initState, int iteration, size_t modelIndex, map <int, double>* ratesPerState){
+    const ChromosomeSubstitutionModel* model = dynamic_cast<const ChromosomeSubstitutionModel*>(model_->getModel(modelIndex+1));
     double sumOfRates = 0;
     if (iteration == 0){
         vector<double> rates;
         //dupl
-        (model_->isIgnoredDupl()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model_->getDupl()->getRate(initState)));
+        (model->isIgnoredDupl()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model->getDupl()->getRate(initState)));
         //demi-dupl
-        (model_->isIgnoredDemiDupl()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model_->getDemiDupl()->getRate(initState)));
+        (model->isIgnoredDemiDupl()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model->getDemiDupl()->getRate(initState)));
         //base number
         double baseNumRate = 0;
-        int baseNumber = model_->getBaseNumber();
+        int baseNumber = model->getBaseNumber();
         // we would like to take into consideration the overall rate for a base number transition from the current state
         if (baseNumber != IgnoreParam){
-            for (int i = initState + baseNumber; i < model_->getMax()-model_->getMin(); i+=baseNumber){
-                if ((i - initState) > (int)(model_->getMaxChrRange())){
+            for (int i = initState + baseNumber; i < model->getMax()-model->getMin(); i+=baseNumber){
+                if ((i - initState) > (int)(model->getMaxChrRange())){
                     break;
                 }
-                baseNumRate += model_->getBaseNumR()->getRate(initState);
+                baseNumRate += model->getBaseNumR()->getRate(initState);
 
             }
         }
         (baseNumber == IgnoreParam) ? (rates.push_back(IgnoreParam)) : (rates.push_back(baseNumRate));
         //gain
-        (model_->isIgnoredGain()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model_->getGain()->getRate(initState)));
+        (model->isIgnoredGain()) ? (rates.push_back(IgnoreParam)) : (rates.push_back(model->getGain()->getRate(initState)));
         //loss
-        rates.push_back(model_->getLoss()->getRate(initState));
+        rates.push_back(model->getLoss()->getRate(initState));
         for (size_t i = 0; i < rates.size(); i++){
             if (rates[i] == IgnoreParam){
                 continue;
@@ -939,28 +979,28 @@ void ComputeChromosomeTransitionsExp::updateBranchLengths(int initState, int ite
 
 
     //multiplying by factor
-    for (size_t k = 0; k < branchOrder_.size(); k++){
+    for (size_t k = 0; k < branchOrder_[modelIndex].size(); k++){
         if (iteration == 0){
             // the branch is too small, and the expected number of transitions is less than 1
             // Therefore, the branch length is scaled to be larger, so that the expected number of changes
             // will be at least 1
-            if ((*ratesPerState)[initState] * branchOrder_[k].second.getLength() < 1){
-                branchOrder_[k].second.setLength(1/(*ratesPerState)[initState]);
+            if ((*ratesPerState)[initState] * branchOrder_[modelIndex][k].second.getLength() < 1){
+                branchOrder_[modelIndex][k].second.setLength(1/(*ratesPerState)[initState]);
             }
         }else{
             // in each iteration, the extension factor is increased to increase the chance for transitions to occur
-            if (tree_->getEdge(branchOrder_[k].first)->getLength() * (*ratesPerState)[initState] >= 1){
-                branchOrder_[k].second.setLength(tree_->getEdge(branchOrder_[k].first)->getLength() * BRANCH_MULTIPLIER_FACTOR * iteration);
+            if (tree_->getEdge(branchOrder_[modelIndex][k].first)->getLength() * (*ratesPerState)[initState] >= 1){
+                branchOrder_[modelIndex][k].second.setLength(tree_->getEdge(branchOrder_[modelIndex][k].first)->getLength() * BRANCH_MULTIPLIER_FACTOR * iteration);
 
             }else{
-                branchOrder_[k].second.setLength((1/(*ratesPerState)[initState]) * (BRANCH_MULTIPLIER_FACTOR * iteration));
+                branchOrder_[modelIndex][k].second.setLength((1/(*ratesPerState)[initState]) * (BRANCH_MULTIPLIER_FACTOR * iteration));
             }
             
         }
          
 
     }
-    sort(branchOrder_.begin(), branchOrder_.end(), compareBranches);
+    sort(branchOrder_[modelIndex].begin(), branchOrder_[modelIndex].end(), compareBranches);
 
 }
 // /*************************************************************************************/

@@ -102,14 +102,14 @@ namespace bpp{
             PhyloTree* tree_;
             ChromosomeAlphabet* alphabet_;
             VectorSiteContainer* vsc_;
-            unsigned int chrRange_; //maxObserved-minObserved chromosome number
+            std::map<uint, uint> chrRange_; //maxObserved-minObserved chromosome number
             unsigned int numberOfUniqueStates_; // number of unique states (number of chromosomes)
 
 
 
         public:
             //constructor
-            ChromosomeNumberMng(): tree_(0), alphabet_(0), vsc_(0), chrRange_(0), numberOfUniqueStates_(0){}
+            ChromosomeNumberMng(): tree_(0), alphabet_(0), vsc_(0), chrRange_(), numberOfUniqueStates_(0){}
             ChromosomeNumberMng(const ChromosomeNumberMng& mng):
                 tree_(mng.tree_->clone()), alphabet_(mng.alphabet_->clone()), vsc_(mng.vsc_->clone()), chrRange_(mng.chrRange_), numberOfUniqueStates_(mng.numberOfUniqueStates_)
             {}
@@ -138,8 +138,9 @@ namespace bpp{
             // getters for testers
             const ChromosomeAlphabet* getAlphabet() const {return alphabet_;}
             const VectorSiteContainer* getSeqData() const {return vsc_;}
-            const uint getChromosomeRange() const {return chrRange_;}
+            const map<uint, uint> getChromosomeRange() const {return chrRange_;}
             const PhyloTree* getPhyloTree() const {return tree_;}
+            
 
 
             //core functions of ChromEvol
@@ -149,7 +150,6 @@ namespace bpp{
             void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const;
             void getMarginalAncestralReconstruction(ChromosomeNumberOptimizer* chrOptimizer, const string &filePath);
             // map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
-            // void computeExpectations(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int numOfSimulations) const;
             void computeExpectations(ChromosomeNumberOptimizer* chrOptimizer, int numOfSimulations) const;
             void simulateData();
             void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
@@ -157,6 +157,10 @@ namespace bpp{
             void convertNodesNames(PhyloTree &tree, uint nodeId, std::map<uint, std::vector<size_t>> &ancestors) const;
 
         protected:
+            void setNodeIdsForAllModels(string &path);
+            void getNodeIdsPerModelFromLine(string &content, PhyloTree* tree, std::map<uint, std::pair<uint, std::vector<uint>>> &modelAndNodeIds);
+            std::shared_ptr<LikelihoodCalculationSingleProcess> setHeterogeneousLikInstance(SingleProcessPhyloLikelihood* likProcess, ParametrizablePhyloTree* parTree, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, bool forAncestral = false) const;
+            std::shared_ptr<NonHomogeneousSubstitutionProcess> setHeterogeneousModel(ParametrizablePhyloTree* tree, SingleProcessPhyloLikelihood* ntl, ValueRef <Eigen::RowVectorXd> rootFreqs,  std::map<int, vector<uint>> sharedParams) const;
             VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* initialAlpha);
             void rescale_tree(PhyloTree* tree, double chrRange);
             void getMaxParsimonyUpperBound(double* parsimonyScore) const;
@@ -165,7 +169,7 @@ namespace bpp{
             void printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult) const;
             static string printTree(const PhyloTree& tree);
             static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
-            std::map<int, vector <double>> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik) const;
+            std::map<int, vector <double>> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik, size_t modelIndex = 1) const;
             // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 

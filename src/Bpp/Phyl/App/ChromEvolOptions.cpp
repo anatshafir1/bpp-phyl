@@ -7,15 +7,16 @@ string ChromEvolOptions::treeFilePath_;
 string ChromEvolOptions::characterFilePath_;
 int ChromEvolOptions::maxChrNum_;
 int ChromEvolOptions::minChrNum_;
+int ChromEvolOptions::numOfModels_;
 double ChromEvolOptions::branchMul_;
 std::vector <unsigned int> ChromEvolOptions::OptPointsNum_;
 std::vector <unsigned int> ChromEvolOptions::OptIterNum_;
-vector<double> ChromEvolOptions::gain_;
-vector<double> ChromEvolOptions::loss_;
-vector<double> ChromEvolOptions::dupl_;
-vector<double> ChromEvolOptions::demiDupl_;
-int ChromEvolOptions::baseNum_;
-vector<double> ChromEvolOptions::baseNumR_;
+std::map<uint, vector<double>> ChromEvolOptions::gain_;
+std::map<uint, vector<double>> ChromEvolOptions::loss_;
+std::map<uint, vector<double>> ChromEvolOptions::dupl_;
+std::map<uint, vector<double>> ChromEvolOptions::demiDupl_;
+std::map<uint, int> ChromEvolOptions::baseNum_;
+std::map<uint, vector<double>> ChromEvolOptions::baseNumR_;
 double ChromEvolOptions::tolerance_;
 unsigned int ChromEvolOptions::maxIterations_;
 bool ChromEvolOptions::maxParsimonyBound_;
@@ -31,15 +32,24 @@ string ChromEvolOptions::fixedFrequenciesFilePath_;
 std::vector<int> ChromEvolOptions::rateChangeType_;
 //bool ChromEvolOptions::optimizeBaseNumber_;
 string ChromEvolOptions::baseNumOptimizationMethod_;
-std::vector<int> ChromEvolOptions::fixedParams_;
+std::map<uint, std::vector<int>> ChromEvolOptions::fixedParams_;
 int ChromEvolOptions::NumOfSimulations_;
 int ChromEvolOptions::jumpTypeMethod_;
 bool ChromEvolOptions::simulateData_;
 int ChromEvolOptions::numOfDataToSimulate_;
 string ChromEvolOptions::resultsPathDir_;
-int ChromEvolOptions::maxBaseNumTransition_;
+std::map<uint, uint> ChromEvolOptions::maxBaseNumTransition_;
 double ChromEvolOptions::treeLength_;
 int ChromEvolOptions::maxNumOfTrials_;
+int ChromEvolOptions::minCladeSize_;
+int ChromEvolOptions::maxNumOfModels_;
+std::map<uint, std::vector<uint>> ChromEvolOptions::mapOfNodeIdsPerModel_;
+std::map<int, vector<uint>> ChromEvolOptions::sharedParameters_;
+bool ChromEvolOptions::heterogeneousModel_;
+double ChromEvolOptions::deltaAICcThreshold_;
+std::map<uint, std::vector<uint>> ChromEvolOptions::mapModelNodesIds_;
+string ChromEvolOptions::nodeIdsFilePath_;
+std::vector<uint> ChromEvolOptions::initialModelNodes_;
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
     initDefaultParameters();
@@ -52,10 +62,11 @@ void ChromEvolOptions::initDefaultParameters(){
     minAlpha_ = 1;
     maxChrNum_ = -10;
     minChrNum_ = 1;
+    numOfModels_ = 1;
     maxIterations_ = 5;
     tolerance_ = 0.01;
     branchMul_ = 999;
-    baseNum_ = IgnoreParam;
+    //baseNum_ = IgnoreParam;
     maxParsimonyBound_ = false;
     standardOptimization_ = false;
     BrentBracketing_ = 2;
@@ -68,9 +79,16 @@ void ChromEvolOptions::initDefaultParameters(){
     jumpTypeMethod_ = 0;
     simulateData_ = false;
     numOfDataToSimulate_ = 1;
-    maxBaseNumTransition_ = 18;
+    maxBaseNumTransition_[1] = 18;
     treeLength_ = 0;
     maxNumOfTrials_ = 100;
+    minCladeSize_ = 2;
+    maxNumOfModels_ = 1;
+    heterogeneousModel_ = false; // the default is homogeneous model
+    deltaAICcThreshold_ = 2;
+
+    
+
 
 
 
@@ -97,70 +115,13 @@ std::vector<int> ChromEvolOptions::translateStringParamsToInt(std::vector<string
     }
     return params;
 }
-/*************************************************************************/
-// void ChromEvolOptions::setFixedParams(std::vector<unsigned int> fixedParams){
-    
-//     //if (optimizeBaseNumber_){
-//     for (size_t i = 0; i < ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS; i++){
-//         switch (i)
-//         {
-//         case ChromosomeSubstitutionModel::BASENUM:
-//             if (baseNum_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::BASENUM]);      
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::BASENUMR:
-//             if (baseNumR_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::BASENUMR]);
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::DUPL:
-//             if (constDupl_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DUPL]);
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::LOSS:
-//             if (constLoss_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::LOSS]);
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::GAIN:
-//             if (constGain_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::GAIN]);
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::LOSSR:
-//             if (lossR_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::LOSSR]);
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::GAINR:
-//             if (gainR_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::GAINR]);
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::DUPLR:
-//             if (duplR_ != IgnoreParam){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DUPLR]);
-//             }
-//             break;
-//         case ChromosomeSubstitutionModel::DEMIDUPL:
-//             if ((constDemiDupl_ != IgnoreParam) && (constDemiDupl_ != DemiEqualDupl)){
-//                 fixedParams_.push_back(fixedParams[ChromosomeSubstitutionModel::DEMIDUPL]);
-//             }
-//             break;
-       
-//         default:
-//             throw Exception("ChromEvolOptions::setFixedParams(): Invalid rate type!");
-//             break;
-//         }
 
-//     }
-// }
+
 /*************************************************************************/
 void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     maxChrNum_ = ApplicationTools::getIntParameter("_maxChrNum", ChromEvol.getParams(), maxChrNum_, "", true, 0);
     minChrNum_ = ApplicationTools::getIntParameter("_minChrNum", ChromEvol.getParams(), minChrNum_, "", true, 0);
+    numOfModels_ = ApplicationTools::getIntParameter("_numOfModels", ChromEvol.getParams(), numOfModels_, "", true, 0);
     seed_ = ApplicationTools::getIntParameter("_seed", ChromEvol.getParams(), seed_, "", true, 0);
     simulateData_ = ApplicationTools::getBooleanParameter("_simulateData", ChromEvol.getParams(), simulateData_, "", true, 0);
     if (simulateData_){
@@ -172,12 +133,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     branchMul_ = ApplicationTools::getDoubleParameter("_branchMul", ChromEvol.getParams(), branchMul_, "", true, 0);
     maxIterations_ = (unsigned int)ApplicationTools::getIntParameter("_maxOptimizationItarations", ChromEvol.getParams(), maxIterations_, "", true, 0);
     tolerance_ = ApplicationTools::getDoubleParameter("_tolParamOptimization", ChromEvol.getParams(), tolerance_, "", true, 0);
-    gain_ = ApplicationTools::getVectorParameter<double>("_gain", ChromEvol.getParams(), ',', "", "", true, 0);
-    loss_ = ApplicationTools::getVectorParameter<double>("_loss", ChromEvol.getParams(), ',', "", "", true, 0);
-    dupl_ = ApplicationTools::getVectorParameter<double>("_dupl", ChromEvol.getParams(), ',', "", "", true, 0);
-    demiDupl_ = ApplicationTools::getVectorParameter<double>("_demiPloidyR", ChromEvol.getParams(), ',', "", "", true, 0);
-    baseNum_ = ApplicationTools::getIntParameter("_baseNum", ChromEvol.getParams(), baseNum_, "", true, 0);
-    baseNumR_ = ApplicationTools::getVectorParameter<double>("_baseNumR", ChromEvol.getParams(),',', "",  "", true, 0);
+    setModelParameters(ChromEvol);
     maxParsimonyBound_ = ApplicationTools::getBooleanParameter("_maxParsimonyBound", ChromEvol.getParams(), maxParsimonyBound_, "", true, 0);
     standardOptimization_ = ApplicationTools::getBooleanParameter("_standardOptimization", ChromEvol.getParams(), standardOptimization_, "", true, 0);
     BrentBracketing_ = ApplicationTools::getIntParameter("_BrentBracketing", ChromEvol.getParams(), BrentBracketing_, "", true, 0);
@@ -189,6 +145,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     OptIterNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizeIterNum", ChromEvol.getParams(), ',', defaultValForOptIterNum, "", true, 0);
     probsForMixedOptimization_ = ApplicationTools::getVectorParameter<double>("_probsForMixedOptimization", ChromEvol.getParams(), ',', defaultValForProbsForMixedOpt, "", true, 0);
     fixedFrequenciesFilePath_ = ApplicationTools::getAFilePath("_fixedFrequenciesFilePath", ChromEvol.getParams(), false, true, "", true, "none", 0);
+    nodeIdsFilePath_ =  ApplicationTools::getAFilePath("_nodeIdsFilePath", ChromEvol.getParams(), false, true, "", true, "none", 0);
     rootFreqs_ = ApplicationTools::getStringParameter("_rootFreqs", ChromEvol.getParams(), rootFreqs_, "", true, 0);
     std::string gainFunc = ApplicationTools::getStringParameter("_gainFunc", ChromEvol.getParams(), "None", "", true, 0);
     std::string lossFunc = ApplicationTools::getStringParameter("_lossFunc", ChromEvol.getParams(), "None", "", true, 0);
@@ -198,21 +155,151 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     setFunctions(gainFunc, lossFunc, duplFunc, demiDuplFunc, baseNumRFunc);
     //optimizeBaseNumber_ = ApplicationTools::getBooleanParameter("_optimizeBaseNumber", ChromEvol.getParams(), optimizeBaseNumber_, "", true, 0);
     baseNumOptimizationMethod_ = ApplicationTools::getStringParameter("_baseNumOptimizationMethod", ChromEvol.getParams(), baseNumOptimizationMethod_, "", true, 0);
-    std::vector<string> fixedParamsStr = ApplicationTools::getVectorParameter<string>("_fixedParams", ChromEvol.getParams(), ',', "", "", true, 0);
-    if (fixedParamsStr.size() > 0){
-        fixedParams_ = translateStringParamsToInt(fixedParamsStr);
-    }else{
-        fixedParams_ = std::vector<int>();
-    }
     NumOfSimulations_ = ApplicationTools::getIntParameter("_NumOfSimulations", ChromEvol.getParams(), NumOfSimulations_, "", true, 0);
     jumpTypeMethod_ = ApplicationTools::getIntParameter("_jumpTypeMethod", ChromEvol.getParams(), jumpTypeMethod_, "", true, 0);
     numOfDataToSimulate_ = ApplicationTools::getIntParameter("_numOfDataToSimulate", ChromEvol.getParams(), numOfDataToSimulate_, "", true, 0);
     resultsPathDir_ = ApplicationTools::getAFilePath("_resultsPathDir", ChromEvol.getParams(), false, true, "", true, "none", 0);
-    maxBaseNumTransition_ = ApplicationTools::getIntParameter("_maxBaseNumTransition", ChromEvol.getParams(), maxBaseNumTransition_, "", true, 0);
+    uint maxBaseNumTransition = static_cast<uint>(ApplicationTools::getIntParameter("_maxBaseNumTransition", ChromEvol.getParams(), 18, "", true, 0));
+
+    for (uint i = 1; i <= (uint)numOfModels_; i++){
+        maxBaseNumTransition_[i] = maxBaseNumTransition;
+    }
     treeLength_ = ApplicationTools::getDoubleParameter("_treeLength", ChromEvol.getParams(), treeLength_, "", true, 0);
     maxNumOfTrials_ = ApplicationTools::getIntParameter("_maxNumOfTrials", ChromEvol.getParams(), maxNumOfTrials_, "", true, 0);
+    minCladeSize_ = ApplicationTools::getIntParameter("_minCladeSize", ChromEvol.getParams(), minCladeSize_, "", true, 0);
+    maxNumOfModels_ = ApplicationTools::getIntParameter("_maxNumOfModels", ChromEvol.getParams(), maxNumOfModels_, "", true, 0);
+    heterogeneousModel_ = ApplicationTools::getBooleanParameter("_heterogeneousModel", ChromEvol.getParams(), heterogeneousModel_, "", true, 0);
+    deltaAICcThreshold_ = ApplicationTools::getDoubleParameter("_deltaAICcThreshold", ChromEvol.getParams(), deltaAICcThreshold_, "", true, 0);
 
 }
+/************************************************************************/
+void ChromEvolOptions::setModelParameters(BppApplication& ChromEvol){
+    std::map<uint, std::map<int, std::pair<int, vector<double>>>>  mapModelTypeValues;
+    std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal;
+    vector<ChromosomeSubstitutionModel::paramType> modelTypeParams = {ChromosomeSubstitutionModel::GAIN, ChromosomeSubstitutionModel::LOSS, ChromosomeSubstitutionModel::DUPL, ChromosomeSubstitutionModel::DEMIDUPL, ChromosomeSubstitutionModel::BASENUM, ChromosomeSubstitutionModel::BASENUMR};
+    vector<string> modelStringParams = {"_gain", "_loss", "_dupl", "_demiPloidyR", "_baseNum", "_baseNumR"};
+    for(uint i = 1; i <= static_cast<uint>(numOfModels_); i++){
+        for (size_t j = 0; j < modelStringParams.size(); j++){
+            string paramName = modelStringParams[j] + "_"+ std::to_string(i);
+            vector<string> paramNumAndValues = ApplicationTools::getVectorParameter<string>(paramName, ChromEvol.getParams(), ';', "", "", true, 0);
+            vector<string> paramValues;
+            int paramCat;
+            if (paramNumAndValues.size() == 2){
+                paramCat = std::stoi(paramNumAndValues[0]);
+                StringTokenizer stoken = StringTokenizer(paramNumAndValues[1], ",");
+                while (stoken.hasMoreToken()){
+                    paramValues.push_back(stoken.nextToken());
+                }
+                if (modelTypeParams[j] == ChromosomeSubstitutionModel::BASENUM){
+                    baseNum_[i] = std::stoi(paramValues[0]);
+                    mapModelBaseNumTypeAndVal[i] = std::pair<int, int>();
+                    mapModelBaseNumTypeAndVal[i].first = paramCat;
+                    mapModelBaseNumTypeAndVal[i].second = baseNum_[i];
+                    continue;
+                }
+            }else{
+                paramCat = IgnoreParam;
+                if (modelTypeParams[j] == ChromosomeSubstitutionModel::BASENUM){
+                    baseNum_[i] = IgnoreParam;
+                    mapModelBaseNumTypeAndVal[i] = std::pair<int, int>();
+                    mapModelBaseNumTypeAndVal[i].first = paramCat;
+                    mapModelBaseNumTypeAndVal[i].second = baseNum_[i];
+                    continue;
+                }
+
+            }
+            mapModelTypeValues[i][modelTypeParams[j]] = std::pair<int, std::vector<double>>();
+            mapModelTypeValues[i][modelTypeParams[j]].first = paramCat;
+            for (size_t k = 0; k < paramValues.size(); k++){
+                mapModelTypeValues[i][modelTypeParams[j]].second.push_back(std::stod(paramValues[k]));
+            }
+            updateModelParameter(i, modelTypeParams[j], mapModelTypeValues[i][modelTypeParams[j]].second);
+        }
+
+    }
+
+    setSharedParameters(mapModelTypeValues, mapModelBaseNumTypeAndVal);
+    setFixedParameters(ChromEvol);
+}
+/************************************************************************/
+void ChromEvolOptions::updateModelParameter(uint model, int type, vector<double> paramValues){
+    switch (type)
+    {
+    case ChromosomeSubstitutionModel::GAIN:
+        gain_[model] = paramValues;
+        break;
+    case ChromosomeSubstitutionModel::LOSS:
+        loss_[model] = paramValues;
+        break;
+    case ChromosomeSubstitutionModel::BASENUMR:
+        baseNumR_[model] = paramValues;
+        break;
+    case ChromosomeSubstitutionModel::DUPL:
+        dupl_[model] = paramValues;
+        break;
+    case ChromosomeSubstitutionModel::DEMIDUPL:
+        demiDupl_[model] = paramValues;
+        break;
+    
+    default:
+        break;
+    }
+
+
+}
+/************************************************************************/
+void ChromEvolOptions::setFixedParameters(BppApplication& ChromEvol){
+    for(uint i = 1; i <= static_cast<uint>(numOfModels_); i++){
+        string paramName = "_fixedParams_"+ std::to_string(i);
+        std::vector<string> fixedParamsStr = ApplicationTools::getVectorParameter<string>(paramName, ChromEvol.getParams(), ',', "", "", true, 0);
+        fixedParams_[i] = translateStringParamsToInt(fixedParamsStr);
+
+    }
+
+}
+/************************************************************************/
+void ChromEvolOptions::setSharedParameters(std::map<uint, std::map<int, std::pair<int, vector<double>>>> mapModelTypeValues, std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal){
+    // for each parameter number I need to hold the corresponding parameter type and vector of models
+    std::map<int, std::map<int, vector<uint>>> mapOfParamNumTypeModels;
+    auto it = mapModelTypeValues.begin();
+    while(it != mapModelTypeValues.end()){
+        uint model = it->first;
+        auto paramsPerType = it->second;
+        auto itType = paramsPerType.begin();
+        while(itType != paramsPerType.end()){
+            int paramType = itType->first;
+            int paramNum = paramsPerType[paramType].first;
+            if (paramNum == IgnoreParam){
+                itType++;
+                continue;
+            }
+            mapOfParamNumTypeModels[paramNum][paramType].push_back(model);
+            itType++;
+        }
+        it++;
+    }
+    auto baseNumIt = mapModelBaseNumTypeAndVal.begin();
+    while (baseNumIt != mapModelBaseNumTypeAndVal.end()){
+        uint model = baseNumIt->first;
+        int paramNum = mapModelBaseNumTypeAndVal[model].first;
+        mapOfParamNumTypeModels[paramNum][ChromosomeSubstitutionModel::BASENUM].push_back(model);
+        baseNumIt ++;
+    }
+    auto paramNumIt = mapOfParamNumTypeModels.begin();
+    while (paramNumIt != mapOfParamNumTypeModels.end()){
+        auto typeIterator = mapOfParamNumTypeModels[paramNumIt->first].begin();
+        while (typeIterator != mapOfParamNumTypeModels[paramNumIt->first].end()){
+            if (mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first].size() > 1){
+                for (size_t k = 0; k < mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first].size(); k++){
+                    sharedParameters_[typeIterator->first].push_back(mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first][k]);
+                }
+            }
+            typeIterator ++;
+        }
+        paramNumIt ++;
+    }
+}
+
 /************************************************************************/
 void ChromEvolOptions::setFunctions(std::string gainFunc, std::string lossFunc, std::string duplFunc, std::string demiDuplFunc, std::string baseNumRFunc){
     for (size_t i = 0; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
@@ -268,14 +355,18 @@ int ChromEvolOptions::getFunctionFromString(string funcStr){
     return func;
 }
 /*************************************************************************/
-void ChromEvolOptions::getInitialValuesForComplexParams(std::map<int, std::vector<double>> &mapOfParams){
-    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain_;
-    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss_;
-    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl_;
-    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = demiDupl_;
-    mapOfParams[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = baseNumR_;
+void ChromEvolOptions::getInitialValuesForComplexParams(std::map<uint, std::pair<int, std::map<int, vector<double>>>> &mapOfParams){
+    for (uint i = 1; i <= static_cast<uint>(numOfModels_); i++){
+        mapOfParams[i] = std::pair<int, std::map<int, std::vector<double>>>();
+        mapOfParams[i].first = baseNum_[i];
+        mapOfParams[i].second[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain_[i];
+        mapOfParams[i].second[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss_[i];
+        mapOfParams[i].second[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl_[i];
+        mapOfParams[i].second[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = demiDupl_[i];
+        mapOfParams[i].second[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = baseNumR_[i];
 
-    
+    }
+   
 }
 /*************************************************************************/
 // void ChromEvolOptions::initVectorOfChrNumParameters(vector<double>& paramVector){

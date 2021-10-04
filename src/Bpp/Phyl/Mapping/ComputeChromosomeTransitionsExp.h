@@ -41,6 +41,7 @@
 
 
 #include "Bpp/Phyl/Model/ChromosomeSubstitutionModel.h"
+#include "Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h"
 #include "Bpp/Phyl/Tree/PhyloTree.h"
 #include "Bpp/Phyl/Tree/PhyloTreeTools.h"
 
@@ -77,10 +78,10 @@ namespace bpp
             map<uint, map<size_t, VVdouble>> jointProbabilitiesFatherSon_;
 
             const PhyloTree* tree_;
-            const ChromosomeSubstitutionModel* model_;
+            const NonHomogeneousSubstitutionProcess* model_;
             const ChromosomeAlphabet* alphabet_;
             // The branches on which the chromsome number changes are simulated
-            vector<Branch> branchOrder_;
+            vector<vector<Branch>> branchOrder_;
 
             // A map which stores for each node the simulated ancestral terminals, such that
             // each pair of ancestral terminals also serves as a key, where the value is a pair,
@@ -118,14 +119,14 @@ namespace bpp
             //vector <int> setVectorOfInitStatesForHeuristics(map <uint, vector<pair<int,int>>>& unAccountedNodesAndTerminals) const;
             
              
-            void updateNumNonAccountedBranches(map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, const string FilePath);
-            void updateBranchLengths(int initState, int iteration, map <int, double>* ratesPerState);
+            void updateNumNonAccountedBranches(map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, size_t modelIndex, const string FilePath);
+            void updateBranchLengths(int initState, int iteration, size_t modelIndex, map <int, double>* ratesPerState);
             void getPosteriorAndExpForNonAccountedFor(map <uint, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
             void computeExpPerTypeHeuristics(map <uint, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
-            bool isMaxStateValid(int prevState) const;
+            bool isMaxStateValid(int prevState, const ChromosomeSubstitutionModel* model) const;
             
         public:
-            ComputeChromosomeTransitionsExp(const std::shared_ptr<ChromosomeSubstitutionModel> model,  const PhyloTree* tree, const ChromosomeAlphabet* alphabet, map<uint, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
+            ComputeChromosomeTransitionsExp(const std::shared_ptr<NonHomogeneousSubstitutionProcess> model,  const PhyloTree* tree, const ChromosomeAlphabet* alphabet, map<uint, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
             :jointProbabilitiesFatherSon_(jointProbabilitiesFatherSon), tree_(tree), model_(model.get()), alphabet_(alphabet),
             //waitingTimes_(), jumpProbs_(), 
             branchOrder_(), 
@@ -168,22 +169,22 @@ namespace bpp
             virtual ~ComputeChromosomeTransitionsExp(){};
             void init();
             void computeExpectationOfChangePerBranch(uint nodeId, VVdouble &jointProbFatherNode, int transitionType);
-            ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransition(int startState, int endState);
+            //ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransition(int startState, int endState);
             //more sophisticated function: if there is an overlap between different transition types-> the chosen state is sampled according to probabilities
-            ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransitionWithProb(int startState, int endState);
+            //ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransitionWithProb(int startState, int endState);
 
 
             void computeExpectationPerType();
             void printResults(const string path = "none");
             PhyloTree* getResultTree();
             // // from previous used class
-            void runIteration(int state, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals = 0);
+            void runIteration(int state, size_t modelIndex, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals = 0);
             void computeExpectationAndPosterior();
             void runSimulations(int numOfSimulations);
             static bool compareBranches(Branch& edge1, Branch& edge2);//sorting function to sort the branches in ascending order of length
-            int getRandomState(int currentState);
+            int getRandomState(int currentState, const ChromosomeSubstitutionModel* model);
             double getExpectation(uint nodeId, int startAncestral, int endAncestral, int typeOfChange);
-            void updateMapOfJumps(int startState, int endState);
+            void updateMapOfJumps(int startState, int endState, const ChromosomeSubstitutionModel* model);
             void updateExpectationsPerBranch(uint nodeId, pair<int, int> ancestralTerminals, pair<int, int> jumpStates);
             void runHeuristics(const string FilePath = "none");
             
