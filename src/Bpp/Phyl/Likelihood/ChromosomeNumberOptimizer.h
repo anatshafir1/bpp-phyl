@@ -108,7 +108,7 @@ namespace bpp
             int BrentBracketing_;
             vector <double> probsForMixedOptimization_;
             std::map<uint, vector<int>> fixedParams_;
-            mutable std::map<int, std::vector<uint>> sharedParams_;
+            mutable std::map<int, std::vector<std::pair<uint, int>>> sharedParams_;
             
             
 
@@ -135,8 +135,6 @@ namespace bpp
                     probsForMixedOptimization_(),
                     fixedParams_(),
                     sharedParams_()
-
-
             {}
 
             ChromosomeNumberOptimizer(const ChromosomeNumberOptimizer& opt):
@@ -157,7 +155,6 @@ namespace bpp
                 probsForMixedOptimization_(opt.probsForMixedOptimization_),
                 fixedParams_(opt.fixedParams_),
                 sharedParams_(opt.sharedParams_)
-
             {}
             ChromosomeNumberOptimizer& operator=(const ChromosomeNumberOptimizer& opt){
                 vectorOfLikelohoods_ = opt.vectorOfLikelohoods_;
@@ -183,7 +180,7 @@ namespace bpp
             virtual ~ChromosomeNumberOptimizer(){clearVectorOfLikelihoods(0);};
             //init models
                         // std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelComplexParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds
-            void initModels(std::map<uint, std::pair<int, map<int, std::vector<double>>>> modelComplexParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numberOfModels, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
+            //void initModels(std::map<uint, std::pair<int, map<int, std::vector<double>>>> modelComplexParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numberOfModels, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
         //     //initialize all the optimization specific members
             void initOptimizer(
                 vector<unsigned int> numOfPoints,
@@ -206,18 +203,31 @@ namespace bpp
                 
 
             }
-            const std::map<int, std::vector<uint>> getSharedParams(){return sharedParams_;}
+            const std::map<int, std::vector<pair<uint, int>>> getSharedParams(){return sharedParams_;}
+            const double getAICOfBestModel() const {
+                std::map<uint, vector<int>> fixedParams = fixedParams_;
+                size_t numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams);
+                return calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
+            }
             
-            void optimizeHomogeneous();
-            void optimizeHeterogeneous();
+            void optimizeMultiProcessModel(std::map<int, std::vector<pair<uint, int>>>* sharedParams ,std::map<uint, vector<int>>* fixedParams);
+            //void optimizeHeterogeneous();
+            void optimize(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
             vector<SingleProcessPhyloLikelihood*> getVectorOfLikelihoods(){return vectorOfLikelohoods_;}
             static vector <double> setFixedRootFrequencies(const std::string &path, std::shared_ptr<ChromosomeSubstitutionModel> chrModel);
-            static std::map<uint, std::vector<string>> getRelatedParameterNamesForEachModel(ParameterList &params, std::string pattern, uint numOfModels, std::map<int, vector<uint>>* mapSharedParams = 0);
-            static std::map<uint, std::pair<int, std::map<int, vector<double>>>> getModelParameters(SingleProcessPhyloLikelihood* tl);
-            static void getMutableMapOfModelAndNodeIds(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik);
+            static std::map<uint, std::vector<string>> getRelatedParameterNamesForEachModel(ParameterList &params, std::string pattern, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* mapSharedParams = 0);
+            //static std::map<uint, std::pair<int, std::map<int, vector<double>>>> getModelParameters(SingleProcessPhyloLikelihood* tl);
+            // get the map of models and the corresponding nodes.
+            static void getMutableMapOfModelAndNodeIds(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik, uint rootId = 0);
             static std::map<uint, pair<int, std::map<int, std::vector<double>>>> getMapOfParamsForComplexModel(SingleProcessPhyloLikelihood* lik, std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames, uint numOfModels);
-            static void updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>>* paramNameAndType, SingleProcessPhyloLikelihood* tl, std::map<int, std::vector<uint>>* sharedParams = 0);
-
+            static void updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>>* paramNameAndType, SingleProcessPhyloLikelihood* tl, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams = 0);
+            //void writeOutputToFile() const;
+            void printRootFrequencies(SingleProcessPhyloLikelihood* lik, ofstream &outFile) const;
+            static std::string getStringParamName(int type);
+            static uint getNumberOfParametersPerParamType(int paramType, vector<int> &funcTypes);
+            static uint getModelFromParamName(string name);
+            static int getTypeOfParamFromParamName(string name);
+            static size_t getNumberOfFixedParams(SingleProcessPhyloLikelihood* lik, std::map<uint, vector<int>> &fixedParams);
 
 
         protected:
@@ -226,13 +236,18 @@ namespace bpp
             
             
         //     // //functions of optimization
+            static void createMapOfSharedParameterNames(std::map<int, std::vector<std::pair<uint, int>>> &sharedParams, std::map<string, vector<std::pair<uint, int>>> &sharedParamsNames);
+            void initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
+            static void setRandomPoints(SingleProcessPhyloLikelihood* lik, uint nodeToSplit, std::map<int, std::vector<uint>>* sharedParams, std::map<int, std::vector<uint>>* updatedSharedParams, int numOfPoints);
             static void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName);
             static int getEnumOfParamName(std::string pattern);
+            static void setParamsNameInForMultiProcess(std::map<uint, std::map<int, vector<string>>> &mapOfParamsNamesPerModelType, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams);
+            static void aliasParametersInSubstitutionProcess(std::map<uint, std::map<int, vector<string>>> &mapOfParamsNamesPerModelType, std::map<int, vector<std::pair<uint, int>>>* updatedSharedParams, std::shared_ptr<NonHomogeneousSubstitutionProcess> process);
             
-            unsigned int optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector<unsigned int> &baseNumCandidates, std::map<int, std::vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams);//, unsigned int inwardBracketing, bool standardOptimization);
-            unsigned int optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector<unsigned int> &baseNumCandidates, std::map<int, std::vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed = false, unsigned int currentIterNum = 0);
-            unsigned int optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed = false, unsigned int currentIterNum = 0);
-            unsigned int useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams);
+            unsigned int optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector<unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams);//, unsigned int inwardBracketing, bool standardOptimization);
+            unsigned int optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector<unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed = false, unsigned int currentIterNum = 0);
+            unsigned int optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed = false, unsigned int currentIterNum = 0);
+            unsigned int useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams);
             void optimizeBaseNum(SingleProcessPhyloLikelihood* tl, size_t index, std::vector <unsigned int> baseNumCandidates, double* currentLikelihood, double lowerBound, double upperBound, const string &paramName, ParameterList& params, uint model);
 
             // // function working on the likelihoods vector object
@@ -251,19 +266,20 @@ namespace bpp
 
             //print functions
             void printLikParameters(SingleProcessPhyloLikelihood* lik, unsigned int optimized, const string path = "none") const;
-            void printRootFrequencies(SingleProcessPhyloLikelihood* lik, const string path = "none") const;
+           
             void printLikelihoodVectorValues(vector <SingleProcessPhyloLikelihood*> lik_vec) const;
 
             /*********************************************************
              * Functions associated with heterogenous ChromEvol models
-            ***********************************************************/
-            double calculateAICc(SingleProcessPhyloLikelihood* lik) const;
-            SingleProcessPhyloLikelihood* getNewLikObject(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<uint>>* sharedParams) const;
-            static SingleProcessPhyloLikelihood* setHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels);
-            static SingleProcessPhyloLikelihood* setRandomHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, double parsimonyBound, std::map<uint, vector<int>> &fixedParams);
-            void optimizeSingleHeterogeneousModel(size_t index, int maxNumOfModels, std::vector<uint> &candidateShiftNodesIds, vector<uint> &baseNumCandidates);
+            **********************************************************/
+            double calculateAICc(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const;
+            //getNewLikObject(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<int, uint>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound)
+            void getNewLikObject(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound);
+            static SingleProcessPhyloLikelihood* setHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<int, vector<std::pair<uint,int>>>* updatedSharedParams);
+            static SingleProcessPhyloLikelihood* setRandomHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, double parsimonyBound, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
+            //void optimizeSingleHeterogeneousModel(size_t index, int maxNumOfModels, std::vector<uint> &candidateShiftNodesIds, vector<uint> &baseNumCandidates);
             void getValidCandidatesForShift(std::vector<uint> &candidateShiftNodesIds, int minCladeSize);
-            void updateSharedParameters(std::map<int, vector<uint>> &sharedParams, uint prevShift, uint numOfShifts) const;
+            void updateSharedParameters(std::map<int, vector<std::pair<uint, int>>> &sharedParams, uint prevShift, uint numOfShifts) const;
 
     };
 }

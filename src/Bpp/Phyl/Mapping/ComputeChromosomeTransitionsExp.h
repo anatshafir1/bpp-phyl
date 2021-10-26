@@ -44,6 +44,7 @@
 #include "Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h"
 #include "Bpp/Phyl/Tree/PhyloTree.h"
 #include "Bpp/Phyl/Tree/PhyloTreeTools.h"
+#include "Bpp/Phyl/App/ChromEvolOptions.h"
 
 #include <Bpp/Exceptions.h>
 #include <Bpp/Numeric/Random/RandomTools.h>

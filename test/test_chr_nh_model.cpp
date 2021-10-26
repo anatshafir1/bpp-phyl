@@ -25,6 +25,12 @@
 using namespace bpp;
 using namespace std;
 
+
+unsigned int optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, ChromosomeAlphabet* alpha, std::vector<int> &mapOfRateType, size_t maxNumOfIterations);
+void updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>> &paramNameAndType, SingleProcessPhyloLikelihood* tl);
+void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName);
+void printLikParameters(SingleProcessPhyloLikelihood* lik);
+
 int main(){
     Newick reader;
     //unique_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("(((A:0.1, B:0.2):0.3,C:0.15):0.25,(D:0.35,(E:0.26,F:0.05):0.12):0.16);", false, "", false, false));
@@ -50,14 +56,16 @@ int main(){
 
     // setting first model
     std::vector<double> gain1;
-    gain1.push_back(2);
+    gain1.push_back(0.767533);
     std::vector<double> loss1;
-    loss1.push_back(1);
+    loss1.push_back(0.767533);
+    std::vector<double> dupl1;
+    dupl1.push_back(0.592413);
     int baseNumber1 = IgnoreParam;
 
     std::vector<int> rateFuncType;
     rateFuncType.push_back(ChromosomeNumberDependencyFunction::IGNORE);
-    rateFuncType.push_back(ChromosomeNumberDependencyFunction::IGNORE);
+    rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
     rateFuncType.push_back(ChromosomeNumberDependencyFunction::IGNORE);
@@ -65,7 +73,7 @@ int main(){
     std::map<int, std::vector<double>> mapOfParamsModel1;
     mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain1;
     mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss1;
-    mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = vector<double>();
+    mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl1;
     mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = vector<double>();
     mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = vector<double>();
 
@@ -73,11 +81,11 @@ int main(){
 
     // setting the second model
     std::vector<double> gain2;
-    gain2.push_back(2);
+    gain2.push_back(5.31089);
     std::vector<double> loss2;
-    loss2.push_back(1.5);
+    loss2.push_back(1.9216);
     std::vector<double> dupl2;
-    dupl2.push_back(2.5);
+    dupl2.push_back(0.55745);
     int baseNumber2 = IgnoreParam;
 
     std::map<int, std::vector<double>> mapOfParamsModel2;
@@ -87,7 +95,6 @@ int main(){
     mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = vector<double>();
     mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = vector<double>();
     std::vector<int> rateFuncType2 = rateFuncType;
-    rateFuncType2[1] = ChromosomeNumberDependencyFunction::CONSTANT;
 
     std::shared_ptr<ChromosomeSubstitutionModel> chrModel2 = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel2, baseNumber2, 0, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType2);
 
@@ -143,7 +150,7 @@ int main(){
     NonHomogeneousSubstitutionProcess* subProSim = new NonHomogeneousSubstitutionProcess(rdist, &parTree);
     subProSim->addModel(chrModel1, model1NodeIds);
     subProSim->addModel(chrModel2, model2NodeIds);
-    subProSim->aliasParameters("Chromosome.gain0_1","Chromosome.gain0_2");
+    subProSim->aliasParameters("Chromosome.gain0_1","Chromosome.loss0_1");
     Context context;
     SubstitutionProcess* nsubPro=subProSim->clone();
     auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc, *nsubPro, true);
@@ -168,6 +175,11 @@ int main(){
         }
         std::cout << "\n";
     }
+
+
+    //RandomTools::setSeed(static_cast<long>(1));
+    //optimizeModelParametersOneDimension(&ntl, alpha, rateFuncType, 5);
+
     RowMatrix<double> pij_0_5_m2 = chrModel2->getPij_t(0.5);
     RowMatrix<double> pij_0_9_m1 = chrModel1->getPij_t(0.9);
     RowMatrix<double> pij_1_m1 = chrModel1->getPij_t(1);
@@ -284,151 +296,193 @@ int main(){
 
 
 
+}
+
+unsigned int optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, ChromosomeAlphabet* alpha, std::vector<int> &modelRateType, size_t maxNumOfIterations){
+
+    // Initialize optimizer
+
+    DerivableSecondOrder* f = tl;
+    BrentOneDimension* optimizer = new BrentOneDimension(f);
+    optimizer->setVerbose(1);
+    optimizer->setProfiler(0);
+    optimizer->setMessageHandler(0);
+    optimizer->setConstraintPolicy(AutoParameter::CONSTRAINTS_AUTO);
+    optimizer->setMaximumNumberOfEvaluations(100);
+    std::cout <<"max chromosome number: " << alpha->getMax() << endl;
+    size_t startCompositeParams = ChromosomeSubstitutionModel::getNumberOfNonCompositeParams();
+
+    // setting bracketing for Brent optimization
+
+    optimizer->setBracketing(BrentOneDimension::BRACKET_SIMPLE);
+
+    // initializing the likelihood values
+    double currentLikelihood = tl->getValue();
+    double prevLikelihood;
+    unsigned int numOfEvaluations = 0;
+    // setting maps of parameter type and the corresponding parameters, and vice versa
+    std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames;
+    std::map<string, std::pair<int, uint>> paramNameAndType;
+    updateMapsOfParamTypesAndNames(typeWithParamNames, paramNameAndType, tl);
+    ParameterList params;
+    // starting iterations of optimization
+    for (size_t i = 0; i < maxNumOfIterations; i++){
+
+        std::cout << "Iteration #"<<i <<endl;
+        
+        //ParameterList params = tl->getParameters();// = tl->getParameters();
+        ParameterList substitutionModelParams = tl->getSubstitutionModelParameters();
+        size_t nbParams = substitutionModelParams.size();
+        prevLikelihood = currentLikelihood;
+        
+        for (size_t j = 0; j < nbParams; j ++){
+            params = tl->getParameters();
+            const string nameOfParam = substitutionModelParams[j].getName();
+            //std::cout << "Previous value of " << nameOfParam << " is: " << f->getParameter(nameOfParam).getValue() << endl;
+            std::cout << "Previous value of " << nameOfParam << " is: " << params.getParameter(nameOfParam).getValue() << endl;
+
+            int rateParamType = paramNameAndType[nameOfParam].first;
+
+            
+            //int rateCompositeParamType;
+            double lowerBound;
+            double upperBound;
+            // param names corresponding to the parameter type
+            std::vector<string> paramsNames = typeWithParamNames[rateParamType][paramNameAndType[nameOfParam].second];
+            Parameter param = params.getParameter(nameOfParam);
+            //Parameter* param = &(f->getParameter(nameOfParam));
 
 
+            auto it = std::find(paramsNames.begin(), paramsNames.end(), nameOfParam);
+            if (it == paramsNames.end()){
+                throw Exception("ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(): index out of range!");
+            }
+            size_t index = it - paramsNames.begin();
+            if (rateParamType != static_cast<int>(ChromosomeSubstitutionModel::BASENUM)){
+                //rateCompositeParamType = compositeParameter::getCompositeRateType(rateParamType);
+                ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(modelRateType[rateParamType-startCompositeParams]);
+                ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+                functionOp->updateBounds(params, paramsNames, index, &lowerBound, &upperBound, alpha->getMax());
+                functionOp->updateBounds(f, nameOfParam, lowerBound, upperBound);
+                delete functionOp;
 
-    // if (args == 1){
-    //     std::cout << "No arguments provided"<<endl;
-    //     return 0;
-    // }
-    //try{
+                // compositeParameter::updateBounds(params, paramsNames, index, &lowerBound, &upperBound, func, alphabet_->getMax());// 24_08 chck if I can remove this function
+                // compositeParameter::updateBounds(f, nameOfParam, lowerBound, upperBound, func);
+                std::shared_ptr<IntervalConstraint> intervalFuncUpdated = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(nameOfParam).getConstraint());
+                double updated_lowerBound = intervalFuncUpdated->getLowerBound();
+                std::cout << "*** ***" << nameOfParam << ": Updated lower bound: " << updated_lowerBound << std::endl;
 
 
+                std::shared_ptr<IntervalConstraint> intervalFuncUpdatedTL = dynamic_pointer_cast<IntervalConstraint>(tl->getParameter(nameOfParam).getConstraint());
+                double updated_lowerBoundTL = intervalFuncUpdatedTL->getLowerBound();
+                std::cout << "*** ***" << nameOfParam << ": Updated lower bound TL: " << updated_lowerBoundTL << std::endl;  
 
-
-        /*
-            VectorSiteContainer* resized_alphabet_site_container = new VectorSiteContainer(alphabet_);
-        for (size_t i = 0; i < numOfSequences; i++){
-        BasicSequence seq = vsc->getSequence(sequenceNames[i]);
-        BasicSequence new_seq = BasicSequence(seq.getName(), seq.getChar(0), alphabet_);
-        resized_alphabet_site_container->addSequence(new_seq);
-
+            }else{
+                // baseNumber parameter
+                throw Exception("not testing base number!");
+            }        
+                 
+            cout <<"Parameter name is: "<< nameOfParam << endl; 
+            //model->checkParametersBounds();     
+            if ((i == 1) & (maxNumOfIterations > 2)){
+                optimizer->getStopCondition()->setTolerance(0.01* 2);
+            }else{
+                optimizer->getStopCondition()->setTolerance(0.01);
+            }
+            if (rateParamType != static_cast<int>(ChromosomeSubstitutionModel::BASENUM)){
+                optimizer->setInitialInterval(lowerBound + 1e-10, upperBound);
+            }else{
+                optimizer->setInitialInterval(lowerBound, upperBound);
+            }            
+            optimizer->init(params.createSubList(param.getName()));
+            currentLikelihood = optimizer->optimize();
+            std::cout <<"Parameter value after optimization: "<< tl->getLikelihoodCalculation()->getParameter(param.getName()).getValue() <<endl;
+            //std::cout <<"Parameter value after optimization: "<< tl->getLikelihoodCalculation()->getParameter(param->getName()).getValue() <<endl;
+            std::cout << "***"<<endl;                        
+        }
+        printLikParameters(tl);
+        
+        if (std::abs(prevLikelihood-currentLikelihood) < 0.01){
+            break;
+        }
+        numOfEvaluations += optimizer->getNumberOfEvaluations();
+       
     }
-        */
+    //std::cout << "Number of likelihood evaluations per parameter is "<< numOfBaseNumEval << endl;
+    auto model_1 = tl->getSubstitutionProcess().getModel(1);
+    auto model_2 = tl->getSubstitutionProcess().getModel(2);
+    auto model1Parameters = (model_1->getParameters()).getParameterNames();
+    auto model2Parameters = (model_2->getParameters()).getParameterNames();
+    std::cout << "Extracting model 1 parameters:" << std::endl;
+    for (size_t i = 0; i < model1Parameters.size(); i++){     
+        std::cout << model1Parameters[i] << std::endl;
+    }
+    std::cout << "Extracting model 2 parameters:" << std::endl;
+    for (size_t i = 0; i < model2Parameters.size(); i++){     
+        std::cout << model2Parameters[i] << std::endl;
+    }
+ 
+    std::cout <<"..."<<endl;
+    delete optimizer;
+    return numOfEvaluations;
+}
 
-        
-        // BppApplication ChromEvol(args, argv, "ChromEvol");
-        // ChromEvolOptions::initAllParameters(ChromEvol);
-        // ChromosomeNumberMng* mng = new ChromosomeNumberMng();
-        // if (!ChromEvolOptions::simulateData_){
-        //     mng->getCharacterData(ChromEvolOptions::characterFilePath_);
-        // }
-        // mng->getTree(ChromEvolOptions::treeFilePath_, ChromEvolOptions::treeLength_);
-        // // setting parameters for model1
-        // std::map<int, std::vector<double>> mapOfParamsModel1;
-        // mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = ChromEvolOptions::gain_;
-        // mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = ChromEvolOptions::loss_;
-        // mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = ChromEvolOptions::dupl_;
-        // mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = ChromEvolOptions::demiDupl_;
-        // mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = ChromEvolOptions::baseNumR_;
-        // int baseNumberModel1 = ChromEvolOptions::baseNum_;
-        // const ChromosomeAlphabet* alpha = mng->getAlphabet();
-        // auto seqData = mng->getSeqData();
-        // auto chrRange = mng->getChromosomeRange();  
-        // unsigned int maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange;
-        // std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel1, baseNumberModel1, maxBaseNumTransition, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);   
+void updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>> &paramNameAndType, SingleProcessPhyloLikelihood* tl){
+    std::map<std::string, int> typeGeneralName;
+    updateWithTypeAndCorrespondingName(typeGeneralName);
+    ParameterList substitutionModelParams = tl->getSubstitutionModelParameters();
+    std::vector<std::string> namesAllParams = substitutionModelParams.getParameterNames();
+    std::map<std::string, int>::iterator it = typeGeneralName.begin();
+    uint numOfModels = static_cast<uint>(tl->getSubstitutionProcess().getNumberOfModels());
+    while (it != typeGeneralName.end()){
+        string name = it->first;
+        int type = it->second;
+        std::map<uint, std::vector<std::string>> modelAndParameterNames = ChromosomeNumberOptimizer::getRelatedParameterNamesForEachModel(substitutionModelParams, name, numOfModels);
+        typeWithParamNames[type] = modelAndParameterNames;
+        auto paramNamesIt = modelAndParameterNames.begin();
+        while(paramNamesIt != modelAndParameterNames.end()){
+            std::vector<string> parametersNames = paramNamesIt->second;
+            for (size_t i = 0; i < parametersNames.size(); i++){
+                paramNameAndType[parametersNames[i]] = std::pair<int, uint>(type, paramNamesIt->first);
 
-        // // // setting the second model
-        // std::vector<double> gain2;
-        // std::vector<double> loss2;
-        // std::vector<double> dupl2;
-        // std::vector<double> demi2;
-        // std::vector<double> baseNumR2;
-        // int baseNumber2 = 9;
-        // // setting parameters for model2
-        // gain2.push_back(1);
-        // loss2.push_back(2);
-        // dupl2.push_back(2);
-        // demi2.push_back(0.01);
-        // baseNumR2.push_back(0.5);
-
-        // std::map<int, std::vector<double>> mapOfParamsModel2;
-        // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain2;
-        // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss2;
-        // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl2;
-        // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = demi2;
-        // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = baseNumR2;
-
-        // //setting functions
-        // vector<int> functions;
-        // for (size_t i = 0; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
-        //     functions.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
-        // }
-        // std::shared_ptr<ChromosomeSubstitutionModel> chrModel2 = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel2, baseNumber2, maxBaseNumTransition, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, functions);
-
-        // get the node ids to be set to model 2
-        // PhyloTree* tree = mng->getPhyloTree()->clone();
-    //     vector<shared_ptr<PhyloNode> > nodes = tree->getAllNodes();
-    //     size_t nbNodes = nodes.size();
-    //     vector<shared_ptr<PhyloNode>> subtreeNodes;
-    //     vector<uint> leavesUnderNode;
-    //     for (size_t i = 0; i < nbNodes; i++){
-    //         uint nodeId = tree->getNodeIndex(nodes[i]);
-    //         if (nodeId == tree->getRootIndex()){
-    //             continue;
-    //         }
-    //         if (tree->isLeaf(nodeId)){
-    //             continue;
-    //         }
-    //        leavesUnderNode = tree->getLeavesUnderNode(nodeId);
-    //         if ((leavesUnderNode.size() >= 5) && (leavesUnderNode.size() < tree->getAllLeavesNames().size())){
-    //             subtreeNodes = tree->getSubtreeNodes(tree->getNode(nodeId));
-    //             for (size_t j = 0; j < leavesUnderNode.size(); j++){
-    //                 string leafName = tree->getNode(leavesUnderNode[j])->getName();
-    //                 std::cout << leafName << std::endl;
-    //             }
-    //             break;
-
-    //         }
-
-    //     }
-    //     vector<uint> model2NodeIds = tree->getNodeIndexes(subtreeNodes);
-    //     vector<uint> model1NodeIds;
-    //     for (size_t i = 0; i < nbNodes; i++){
-    //         if (tree->getRootIndex() == tree->getNodeIndex(nodes[i])){
-    //             continue;
-    //         }
-    //         auto it = std::find(model2NodeIds.begin(), model2NodeIds.end(), tree->getNodeIndex(nodes[i]));
-    //         if (it == model2NodeIds.end()){
-    //             model1NodeIds.push_back(tree->getNodeIndex(nodes[i]));
-    //         }
-
-    //     }
-    //     ParametrizablePhyloTree parTree(*tree);
-    //     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
-    //     NonHomogeneousSubstitutionProcess* subProSim = new NonHomogeneousSubstitutionProcess(rdist, &parTree);
-    //     subProSim->addModel(chrModel, model1NodeIds);
-    //     subProSim->addModel(chrModel2, model2NodeIds);
-    //     Context context;
-    //     SubstitutionProcess* nsubPro=subProSim->clone();
-    //     auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *seqData, *nsubPro, true);
-    //     SingleProcessPhyloLikelihood ntl(context, lik, lik->getParameters());
-    //     std::cout << "likelihood is: " << ntl.getValue() << std::endl;
-    //     ParameterList substitutionModelParams = ntl.getSubstitutionModelParameters();
-    //     std::vector<std::string> paramsNames = substitutionModelParams.getParameterNames();
-    //     for (size_t i = 0; i < paramsNames.size(); i++){
-    //         std::cout << paramsNames[i] << std::endl;
-    //     }
-
-
-
-
-        
-        
-    //     //delete subProSim;
-    //     //delete tree;
-    //     //std::cout << "****** Max allowed chromosome number: "<< ChromEvolOptions::maxChrNum_ <<endl;
-    //     //delete mng;
-
-    // }
-    // catch (exception& e)
-    // {
-    //     cout << e.what() << endl;
-    //     return 1;
-    // }
-
-    // return 0;
-    return 0;
-
+            }
+            
+            paramNamesIt ++;
+        }
+        it ++;
+    }
 
 }
+// /*******************************************************************************/
+void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName){
+    typeGeneralName["gain"] = static_cast<int>(ChromosomeSubstitutionModel::GAIN);
+    typeGeneralName["loss"] = static_cast<int>(ChromosomeSubstitutionModel::LOSS);
+    typeGeneralName["dupl"] = static_cast<int>(ChromosomeSubstitutionModel::DUPL);
+    typeGeneralName["demi"] = static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL);
+    typeGeneralName["baseNumR"] = static_cast<int>(ChromosomeSubstitutionModel::BASENUMR);
+    typeGeneralName["baseNum_"] = static_cast<int>(ChromosomeSubstitutionModel::BASENUM);
+    
+}
+void printLikParameters(SingleProcessPhyloLikelihood* lik) {
+
+
+    std:: cout << "Optimized likelihood is : "<< lik->getValue() << endl;
+
+    std:: cout << "Parameters are:" << endl;
+ 
+    ParameterList substitutionModelParams = lik->getSubstitutionModelParameters();
+    std::vector<std::string> paramsNames = substitutionModelParams.getParameterNames();
+    for (int i = 0; i < (int)(paramsNames.size()); i++){
+        if (paramsNames[i].find("Chromosome.baseNum_") != std::string::npos){
+            std::cout << paramsNames[i] << "value is "<< (int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) <<endl;
+
+        }else{
+            std::cout << paramsNames[i] << "value is "<< lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue() <<endl;
+
+        }
+        
+    }
+    std::cout <<"***"<<endl;
+
+}
+

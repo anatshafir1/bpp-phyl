@@ -44,12 +44,13 @@ int ChromEvolOptions::maxNumOfTrials_;
 int ChromEvolOptions::minCladeSize_;
 int ChromEvolOptions::maxNumOfModels_;
 std::map<uint, std::vector<uint>> ChromEvolOptions::mapOfNodeIdsPerModel_;
-std::map<int, vector<uint>> ChromEvolOptions::sharedParameters_;
+std::map<int, vector<std::pair<uint, int>>> ChromEvolOptions::sharedParameters_;
 bool ChromEvolOptions::heterogeneousModel_;
 double ChromEvolOptions::deltaAICcThreshold_;
 std::map<uint, std::vector<uint>> ChromEvolOptions::mapModelNodesIds_;
 string ChromEvolOptions::nodeIdsFilePath_;
 std::vector<uint> ChromEvolOptions::initialModelNodes_;
+std::vector<string> ChromEvolOptions::globalParams_;
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
     initDefaultParameters();
@@ -64,7 +65,7 @@ void ChromEvolOptions::initDefaultParameters(){
     minChrNum_ = 1;
     numOfModels_ = 1;
     maxIterations_ = 5;
-    tolerance_ = 0.01;
+    tolerance_ = 0.1;
     branchMul_ = 999;
     //baseNum_ = IgnoreParam;
     maxParsimonyBound_ = false;
@@ -81,20 +82,47 @@ void ChromEvolOptions::initDefaultParameters(){
     numOfDataToSimulate_ = 1;
     maxBaseNumTransition_[1] = 18;
     treeLength_ = 0;
-    maxNumOfTrials_ = 100;
+    maxNumOfTrials_ = 0;
     minCladeSize_ = 2;
     maxNumOfModels_ = 1;
     heterogeneousModel_ = false; // the default is homogeneous model
     deltaAICcThreshold_ = 2;
-
     
-
-
-
 
 }
 /*************************************************************************/
-std::vector<int> ChromEvolOptions::translateStringParamsToInt(std::vector<string> strParams){
+// std::string ChromEvolOptions::getParamName(int type){
+//     std::string paramName;
+//     switch (type)
+//     {
+//     case ChromosomeSubstitutionModel::GAIN:
+//         paramName = "gain";
+//         break;
+//     case ChromosomeSubstitutionModel::LOSS:
+//         paramName= "loss";
+//         break;
+//     case ChromosomeSubstitutionModel::DUPL:
+//         paramName = "dupl";
+//         break;
+//     case ChromosomeSubstitutionModel::DEMIDUPL:
+//         paramName = "demi";
+//         break;
+//     case ChromosomeSubstitutionModel::BASENUM:
+//         paramName = "baseNum";
+//         break;
+//     case ChromosomeSubstitutionModel::BASENUMR:
+//         paramName = "baseNumR";
+//         break;
+    
+//     default:
+//         throw Exception("ChromEvolOptions::getParamName(): No such parameter exists!!!"); 
+//         break;
+//     }
+//     return paramName;
+
+// }
+/*************************************************************************/
+std::vector<int> ChromEvolOptions::translateStringParamsToInt(std::vector<string> &strParams){
     std::vector <int> params;
     for (size_t i = 0; i < strParams.size(); i++){
         if (strParams[i] == "gain"){
@@ -142,6 +170,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     string defaultValForOptIterNum = "0,2,5";
     string defaultValForProbsForMixedOpt = "1,0";
     OptPointsNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizePointsNum", ChromEvol.getParams(), ',', defaultValForOptPointsNum, "", true, 0);
+    globalParams_ = ApplicationTools::getVectorParameter<string>("_globalParams", ChromEvol.getParams(), ',', "", "", true, 0);
     OptIterNum_ = ApplicationTools::getVectorParameter<unsigned int>("_optimizeIterNum", ChromEvol.getParams(), ',', defaultValForOptIterNum, "", true, 0);
     probsForMixedOptimization_ = ApplicationTools::getVectorParameter<double>("_probsForMixedOptimization", ChromEvol.getParams(), ',', defaultValForProbsForMixedOpt, "", true, 0);
     fixedFrequenciesFilePath_ = ApplicationTools::getAFilePath("_fixedFrequenciesFilePath", ChromEvol.getParams(), false, true, "", true, "none", 0);
@@ -176,6 +205,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
 void ChromEvolOptions::setModelParameters(BppApplication& ChromEvol){
     std::map<uint, std::map<int, std::pair<int, vector<double>>>>  mapModelTypeValues;
     std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal;
+    std::map<int, size_t> paramNums;
     vector<ChromosomeSubstitutionModel::paramType> modelTypeParams = {ChromosomeSubstitutionModel::GAIN, ChromosomeSubstitutionModel::LOSS, ChromosomeSubstitutionModel::DUPL, ChromosomeSubstitutionModel::DEMIDUPL, ChromosomeSubstitutionModel::BASENUM, ChromosomeSubstitutionModel::BASENUMR};
     vector<string> modelStringParams = {"_gain", "_loss", "_dupl", "_demiPloidyR", "_baseNum", "_baseNumR"};
     for(uint i = 1; i <= static_cast<uint>(numOfModels_); i++){
@@ -186,6 +216,10 @@ void ChromEvolOptions::setModelParameters(BppApplication& ChromEvol){
             int paramCat;
             if (paramNumAndValues.size() == 2){
                 paramCat = std::stoi(paramNumAndValues[0]);
+                if (paramNums.find(paramCat) == paramNums.end()){
+                    paramNums[paramCat] = 0;
+                }
+                paramNums[paramCat] ++;
                 StringTokenizer stoken = StringTokenizer(paramNumAndValues[1], ",");
                 while (stoken.hasMoreToken()){
                     paramValues.push_back(stoken.nextToken());
@@ -217,10 +251,95 @@ void ChromEvolOptions::setModelParameters(BppApplication& ChromEvol){
         }
 
     }
-
-    setSharedParameters(mapModelTypeValues, mapModelBaseNumTypeAndVal);
+    //setSharedParametersInterModels();
+    setSharedParametersPerModel(mapModelTypeValues, mapModelBaseNumTypeAndVal, paramNums);
     setFixedParameters(ChromEvol);
 }
+std::shared_ptr<PhyloNode> ChromEvolOptions::getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes){
+    shared_ptr<PhyloNode> mrca;
+    vector<uint> nodesInIndices = tree->getNodeIndexes(nodes);
+    size_t numOfFound = 0;
+    size_t maxNumOfFound = 0;
+    uint nodeIdOfMaxFound;
+    vector<uint> nodesToBeFound;
+    vector<uint> nodesToBeFoundInMax;
+
+
+    for (size_t i = 0; i < nodes.size(); i++){
+        numOfFound = 0;
+        nodesToBeFound = nodesInIndices;
+        if (!(tree->isLeaf(nodes[i]))){
+            auto nodesUnderSubtree = tree->getSubtreeNodes(nodes[i]);
+            auto subtreeNodesIndices = tree->getNodeIndexes(nodesUnderSubtree);
+            for (size_t j = 0; j < subtreeNodesIndices.size(); j++){
+                auto it = std::find(nodesInIndices.begin(), nodesInIndices.end(), subtreeNodesIndices[j]);
+
+                if (it != nodesInIndices.end()){
+                    nodesToBeFound.erase(std::remove(nodesToBeFound.begin(), nodesToBeFound.end(), subtreeNodesIndices[j]), nodesToBeFound.end());
+                    numOfFound ++;
+                    if (numOfFound == nodesInIndices.size()){
+                        mrca = nodes[i];
+                        return mrca;
+                    }
+                }
+            }
+
+        }else{
+            nodesToBeFound.erase(std::remove(nodesToBeFound.begin(), nodesToBeFound.end(), nodesInIndices[i]), nodesToBeFound.end());
+            numOfFound = 1;
+        }
+
+        if (numOfFound >= maxNumOfFound){
+          nodeIdOfMaxFound = nodesInIndices[i];
+          maxNumOfFound = numOfFound;
+          nodesToBeFoundInMax = nodesToBeFound;
+        }
+    }
+    // MRCA was not among the nodes
+    // choose the one which contained the most nodes in its subtree (or if none had, one is just chosen randomely)
+
+    uint nodeId = nodeIdOfMaxFound;
+    while (maxNumOfFound < nodesInIndices.size()){
+        if (nodeId == tree->getRootIndex()){
+            mrca = tree->getRoot();
+            break;
+        }
+        auto edgeIndex =  tree->getIncomingEdges(nodeId)[0]; 
+        auto fatherIndex = tree->getFatherOfEdge(edgeIndex);
+        auto fatherNode = tree->getNode(fatherIndex);
+        auto sons = tree->getSons(fatherNode);
+        for (size_t n = 0; n < sons.size(); n++){
+          uint sonId = tree->getNodeIndex(sons[n]);
+          if (sonId == nodeId){
+            continue;
+          }
+          auto nodesOfSubtree = tree->getSubtreeNodes(sons[n]);
+          for (size_t i = 0; i < nodesOfSubtree.size(); i++){
+              auto subtreeNodeId = tree->getNodeIndex(nodesOfSubtree[i]);
+              auto it = std::find(nodesToBeFoundInMax.begin(), nodesToBeFoundInMax.end(), subtreeNodeId);
+              if (it != nodesToBeFoundInMax.end()){
+                  nodesToBeFoundInMax.erase(std::remove(nodesToBeFoundInMax.begin(), nodesToBeFoundInMax.end(), subtreeNodeId), nodesToBeFoundInMax.end());
+                  maxNumOfFound ++;
+                  mrca = tree->getNode(fatherIndex);
+              }
+          }
+        }
+
+        nodeId = fatherIndex;
+
+    }
+    return mrca;
+}
+/************************************************************************/
+// void ChromEvolOptions::setSharedParametersInterModels(){
+
+//     std::vector<int> paramTypes = translateStringParamsToInt(globalParams_);
+//     for (size_t i = 0; i < paramTypes.size(); i++){
+//         for (size_t j = 1; j <= (size_t)numOfModels_; j++){
+//             sharedParameters_[uint(i)].push_back(paramTypes[j]);
+//         }
+//     }
+// }
 /************************************************************************/
 void ChromEvolOptions::updateModelParameter(uint model, int type, vector<double> paramValues){
     switch (type)
@@ -258,9 +377,8 @@ void ChromEvolOptions::setFixedParameters(BppApplication& ChromEvol){
 
 }
 /************************************************************************/
-void ChromEvolOptions::setSharedParameters(std::map<uint, std::map<int, std::pair<int, vector<double>>>> mapModelTypeValues, std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal){
+void ChromEvolOptions::setSharedParametersPerModel(std::map<uint, std::map<int, std::pair<int, vector<double>>>> mapModelTypeValues, std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal, std::map<int, size_t> paramNumFreqs){
     // for each parameter number I need to hold the corresponding parameter type and vector of models
-    std::map<int, std::map<int, vector<uint>>> mapOfParamNumTypeModels;
     auto it = mapModelTypeValues.begin();
     while(it != mapModelTypeValues.end()){
         uint model = it->first;
@@ -269,35 +387,48 @@ void ChromEvolOptions::setSharedParameters(std::map<uint, std::map<int, std::pai
         while(itType != paramsPerType.end()){
             int paramType = itType->first;
             int paramNum = paramsPerType[paramType].first;
-            if (paramNum == IgnoreParam){
+            if ((paramNumFreqs[paramNum] < 2) || (paramNum == IgnoreParam)){
                 itType++;
                 continue;
             }
-            mapOfParamNumTypeModels[paramNum][paramType].push_back(model);
+            std::pair<uint, int> modelAndType;
+            modelAndType.first = model;
+            modelAndType.second = paramType;
+            sharedParameters_[paramNum].push_back(modelAndType);
+
             itType++;
         }
         it++;
-    }
+    }  
     auto baseNumIt = mapModelBaseNumTypeAndVal.begin();
     while (baseNumIt != mapModelBaseNumTypeAndVal.end()){
-        uint model = baseNumIt->first;
-        int paramNum = mapModelBaseNumTypeAndVal[model].first;
-        mapOfParamNumTypeModels[paramNum][ChromosomeSubstitutionModel::BASENUM].push_back(model);
-        baseNumIt ++;
-    }
-    auto paramNumIt = mapOfParamNumTypeModels.begin();
-    while (paramNumIt != mapOfParamNumTypeModels.end()){
-        auto typeIterator = mapOfParamNumTypeModels[paramNumIt->first].begin();
-        while (typeIterator != mapOfParamNumTypeModels[paramNumIt->first].end()){
-            if (mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first].size() > 1){
-                for (size_t k = 0; k < mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first].size(); k++){
-                    sharedParameters_[typeIterator->first].push_back(mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first][k]);
-                }
-            }
-            typeIterator ++;
-        }
-        paramNumIt ++;
-    }
+         uint model = baseNumIt->first;
+         int paramNum = mapModelBaseNumTypeAndVal[model].first;
+         if ((paramNum == IgnoreParam) || (paramNumFreqs[paramNum] < 2)){
+             baseNumIt ++;
+             continue;
+         }
+         std::pair<uint, int> modelAndType;
+         modelAndType.first = model;
+         modelAndType.second = ChromosomeSubstitutionModel::BASENUM;
+         sharedParameters_[paramNum].push_back(modelAndType);
+         baseNumIt ++;
+     }
+
+    // auto paramNumIt = mapOfParamNumTypeModels.begin();
+    // while (paramNumIt != mapOfParamNumTypeModels.end()){
+    //     auto typeIterator = mapOfParamNumTypeModels[paramNumIt->first].begin();
+    //     while (typeIterator != mapOfParamNumTypeModels[paramNumIt->first].end()){
+    //         if (mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first].size() > 1){
+    //             for (size_t k = 0; k < mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first].size(); k++){
+    //                 sharedParameters_[typeIterator->first].push_back(mapOfParamNumTypeModels[paramNumIt->first][typeIterator->first][k]);
+    //             }
+    //         }
+    //         typeIterator ++;
+    //     }
+    //     paramNumIt ++;
+    // }
+
 }
 
 /************************************************************************/

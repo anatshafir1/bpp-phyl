@@ -459,7 +459,8 @@ void ComputeChromosomeTransitionsExp::init(){
             modelNodes.push_back(tree->getNode(nodeIds[j]));
             
         }
-        auto mrca = tree->MRCA(modelNodes);
+        //auto mrca = tree->MRCA(modelNodes);
+        auto mrca = ChromEvolOptions::getMRCA(tree, modelNodes);
         if (tree->getNodeIndex(mrca) == tree->getRootIndex()){
             for (size_t k = 0; k < rootSons.size(); k++){
                 auto node = tree_->getNode(rootSons[k]);

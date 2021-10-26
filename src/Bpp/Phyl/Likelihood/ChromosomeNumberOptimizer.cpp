@@ -1,28 +1,61 @@
 #include "ChromosomeNumberOptimizer.h"
 using namespace bpp;
 
-void ChromosomeNumberOptimizer::initModels(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds){
-    fixedParams_ = fixedParams;
-    sharedParams_ = ChromEvolOptions::sharedParameters_;
-    optimizeBaseNumber_ = false;
-    // if we should optimize it for at least one model, we will set it to true. Otherwise it is fixed for all the models.
-    for (uint i = 1; i <= static_cast<uint>(ChromEvolOptions::numOfModels_); i++){
-        if (!(std::count(fixedParams_[i].begin(), fixedParams_[i].end(), ChromosomeSubstitutionModel::BASENUM))){
-            optimizeBaseNumber_ = true;
-        }
-    }
-    vectorOfLikelohoods_.reserve(numOfPoints);
-    //vectorOfContexts_.reserve(numberOfModels);
+// void ChromosomeNumberOptimizer::initModels(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds){
+//     fixedParams_ = fixedParams;
+//     sharedParams_ = ChromEvolOptions::sharedParameters_;
+//     optimizeBaseNumber_ = false;
+//     // if we should optimize it for at least one model, we will set it to true. Otherwise it is fixed for all the models.
+//     for (uint i = 1; i <= static_cast<uint>(ChromEvolOptions::numOfModels_); i++){
+//         if (!(std::count(fixedParams_[i].begin(), fixedParams_[i].end(), ChromosomeSubstitutionModel::BASENUM))){
+//             optimizeBaseNumber_ = true;
+//         }
+//     }
+//     vectorOfLikelohoods_.reserve(numOfPoints);
+//     //vectorOfContexts_.reserve(numberOfModels);
 
-    if (seed != 0){
-        RandomTools::setSeed(static_cast<long>(seed));
-    }
+//     if (seed != 0){
+//         RandomTools::setSeed(static_cast<long>(seed));
+//     }
+//     SingleProcessPhyloLikelihood* lik;
+//     for (size_t n = 0; n < numOfPoints; n++){
+//         if (n == 0){
+//             lik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, &(ChromEvolOptions::sharedParameters_));
+//         }else{
+//             lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
+    
+//         }
+        
+//         if (std::isnan(lik->getValue())){
+//             std::cout << "value is nan"<<endl;
+//         }
+//         int countNumOfTrials = 0;
+        
+//         while (((std::isinf(lik->getValue())) || (std::isnan(lik->getValue())))||(lik->getValue() < 0))
+//         {
+//             if (countNumOfTrials >= ChromEvolOptions::maxNumOfTrials_){
+//                 break;
+//             }
+//             deleteLikObject(lik);
+//             lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
+
+//             countNumOfTrials ++;
+
+//         }
+//         vectorOfLikelohoods_.push_back(lik);//add to vector of likelihoods
+        
+//     }
+
+// }
+/**********************************************************************************/
+void ChromosomeNumberOptimizer::initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* sharedParams){
+
     SingleProcessPhyloLikelihood* lik;
     for (size_t n = 0; n < numOfPoints; n++){
         if (n == 0){
-            lik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_);
+            lik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, sharedParams);
         }else{
-            lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_);
+            lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)n, fixedParams, sharedParams);
     
         }
         
@@ -37,7 +70,7 @@ void ChromosomeNumberOptimizer::initModels(std::map<uint, std::pair<int, std::ma
                 break;
             }
             deleteLikObject(lik);
-            lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_);
+            lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
 
             countNumOfTrials ++;
 
@@ -113,31 +146,34 @@ vector <double> ChromosomeNumberOptimizer::setFixedRootFrequencies(const std::st
     return freqs;
 }
 /*******************************************************************************/
-void ChromosomeNumberOptimizer::optimizeHeterogeneous()
-{
-    vector <unsigned int> baseNumCandidates;
-    if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
-        uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
-        fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
+// void ChromosomeNumberOptimizer::optimizeHeterogeneous()
+// {
+//     vector <unsigned int> baseNumCandidates;
+//     if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
+//         uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
+//         fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
 
-    }
-    int maxNumOfModels;
-    (ChromEvolOptions::maxNumOfModels_ == 1) ? (maxNumOfModels = (static_cast<int>((tree_->getAllLeavesNames()).size())-1)) : (maxNumOfModels = ChromEvolOptions::maxNumOfModels_);
-    vector<uint> candidateShiftNodesIds;
-    getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_);
-    for (size_t i = 0; i < vectorOfLikelohoods_.size(); i++){
-        optimizeSingleHeterogeneousModel(i, maxNumOfModels, candidateShiftNodesIds, baseNumCandidates);
-    }
-    sort(vectorOfLikelohoods_.begin(), vectorOfLikelohoods_.end(), compareLikValues);
-    printRootFrequencies(vectorOfLikelohoods_[0], ChromEvolOptions::resultsPathDir_ + "//" + "inferred_rootFreq.txt");
-    cout <<"*****  Final Optimized -logL *********"  <<endl;
-    printLikParameters(vectorOfLikelohoods_[0], 1, ChromEvolOptions::resultsPathDir_ + "//" + "likelihood.txt");
+//     }
+//     int maxNumOfModels;
+//     (ChromEvolOptions::maxNumOfModels_ == 1) ? (maxNumOfModels = (static_cast<int>((tree_->getAllLeavesNames()).size())-1)) : (maxNumOfModels = ChromEvolOptions::maxNumOfModels_);
+//     vector<uint> candidateShiftNodesIds;
+//     getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_);
+//     if (!(ChromEvolOptions::heterogeneousModel_)){
+//         ChromEvolOptions::maxNumOfModels_ = 1;
+//     }
+//     for (size_t i = 0; i < vectorOfLikelohoods_.size(); i++){
+//         optimizeSingleHeterogeneousModel(i, maxNumOfModels, candidateShiftNodesIds, baseNumCandidates);
+//     }
+//     sort(vectorOfLikelohoods_.begin(), vectorOfLikelohoods_.end(), compareLikValues);
+//     printRootFrequencies(vectorOfLikelohoods_[0], ChromEvolOptions::resultsPathDir_ + "//" + "inferred_rootFreq.txt");
+//     cout <<"*****  Final Optimized -logL *********"  <<endl;
+//     printLikParameters(vectorOfLikelohoods_[0], 1, ChromEvolOptions::resultsPathDir_ + "//" + "likelihood.txt");
 
-}
+// }
 
 // /****************************************************************************/
 
-void ChromosomeNumberOptimizer::optimizeHomogeneous()
+void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vector<std::pair<uint, int>>>* sharedParams ,std::map<uint, vector<int>>* fixedParams)
 {
 
     unsigned int totalNumOfEvaluations = 0;
@@ -165,7 +201,7 @@ void ChromosomeNumberOptimizer::optimizeHomogeneous()
             printLikParameters(vectorOfLikelohoods_[j], 0);
             //If the number of optimization iterations is larger than zero, optimize the number of times as specified
             if (numOfIterations_[i] > 0){
-                numOfEvaluations = optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations_[i], baseNumCandidates, &(ChromEvolOptions::sharedParameters_), &(ChromEvolOptions::fixedParams_));
+                numOfEvaluations = optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations_[i], baseNumCandidates, sharedParams, fixedParams);
                           
             }
             std:: cout << "Number of evaluations per point is : " << numOfEvaluations << endl;
@@ -178,19 +214,8 @@ void ChromosomeNumberOptimizer::optimizeHomogeneous()
         printLikelihoodVectorValues(vectorOfLikelohoods_);
         
     }
-    const string outPath = (ChromEvolOptions::resultsPathDir_ == "none") ? (ChromEvolOptions::resultsPathDir_) : (ChromEvolOptions::resultsPathDir_ + "//" + "likelihood.txt");
-    const string outPathFreq = (ChromEvolOptions::resultsPathDir_ == "none") ? (ChromEvolOptions::resultsPathDir_) : (ChromEvolOptions::resultsPathDir_ + "//" + "inferred_rootFreq.txt");
-    
-    for (size_t i = 0; i < vectorOfLikelohoods_.size(); i++){
-        printRootFrequencies(vectorOfLikelohoods_[i], outPathFreq);
-        cout <<"*****  Final Optimized -logL *********"  <<endl;
-        printLikParameters(vectorOfLikelohoods_[i], 1, outPath);
-        std:: cout << "final number of evaluations is : " << totalNumOfEvaluations << endl;
-        if (!(ChromEvolOptions::heterogeneousModel_)){
-            break;
-        }
-    }
-   
+
+    //writeOutp utToFile();
 }
 /********************************************************************************/
 void ChromosomeNumberOptimizer::deleteLikObject(SingleProcessPhyloLikelihood* lik_to_del){
@@ -245,14 +270,14 @@ void ChromosomeNumberOptimizer::printLikParameters(SingleProcessPhyloLikelihood*
     std::vector<std::string> paramsNames = substitutionModelParams.getParameterNames();
     for (int i = 0; i < (int)(paramsNames.size()); i++){
         if (paramsNames[i].find("Chromosome.baseNum_") != std::string::npos){
-            std::cout << paramsNames[i] << "value is "<< (int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) <<endl;
+            std::cout << paramsNames[i] << " = "<< (int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) <<endl;
             if (filePath != "none"){
-                outFile <<  paramsNames[i] << "value is "<< (int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) <<endl;
+                outFile <<  paramsNames[i] << " = "<< (int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) <<endl;
             }
         }else{
-            std::cout << paramsNames[i] << "value is "<< lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue() <<endl;
+            std::cout << paramsNames[i] << " = "<< lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue() <<endl;
             if (filePath != "none"){
-                outFile << paramsNames[i] << "value is "<< lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue() <<endl;
+                outFile << paramsNames[i] << " = "<< lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue() <<endl;
             }
         }
         
@@ -272,23 +297,18 @@ void ChromosomeNumberOptimizer::printLikelihoodVectorValues(std::vector <SingleP
 }
 
 // /******************************************************************************/
-void ChromosomeNumberOptimizer::printRootFrequencies(SingleProcessPhyloLikelihood* lik, const string filePath) const{
-    ofstream outFile;
-    if (filePath != "none"){
-        outFile.open(filePath);
-    }
-    
+void ChromosomeNumberOptimizer::printRootFrequencies(SingleProcessPhyloLikelihood* lik, ofstream &outFile) const{
     ValueRef <Eigen::RowVectorXd> rootFreqVector = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
     for (size_t s = 0; s < (size_t)rootFreqVector->getTargetValue().size(); s ++){
         cout << "F[" << s + alphabet_->getMin() << "] = " << rootFreqVector.get()->getTargetValue()[s] << endl;
-        if (filePath != "none"){
+        if (s == (size_t)(rootFreqVector->getTargetValue().size()) -1){
             outFile << "F[" << s + alphabet_->getMin() << "] = " << rootFreqVector.get()->getTargetValue()[s] << endl;
-        }
-    }
-    if (filePath != "none"){
-        outFile.close();
-    }
+        }else{
+            outFile << "F[" << s + alphabet_->getMin() << "] = " << rootFreqVector.get()->getTargetValue()[s] << "\t";
 
+        }         
+        
+    }
 }
 /**************************************************************************************/
 uint ChromosomeNumberOptimizer::getMaxBaseNumAmongModels(std::map<uint, uint> baseNumberUpperBound) const{
@@ -369,7 +389,7 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
 }
 
 // /**********************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams){
+unsigned int ChromosomeNumberOptimizer::optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams){
     unsigned int numOfEvaluations = 0;
  
     if (typeOfOptimizer_ == "Brent"){
@@ -405,7 +425,7 @@ void ChromosomeNumberOptimizer::checkLegalUseOfGradientOptimization(){
 }
 
 // /****************************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed, unsigned int currentIterNum){
+unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed, unsigned int currentIterNum){
     DerivableSecondOrder* f = tl;
     ParameterList tmp = tl->getSubstitutionModelParameters();
     unique_ptr<AbstractNumericalDerivative> fnum;
@@ -486,7 +506,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
 }
 // /*******************************************************************************/
 
-unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams){
+unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams){
     std::vector<size_t> optimization = RandomTools::randMultinomial(maxNumOfIterations, probsForMixedOptimization_);
     unsigned int numOfEvaluations = 0;
     for (size_t i = 0; i < maxNumOfIterations; i++){
@@ -510,7 +530,7 @@ unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLik
 
 }
 // /*******************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, vector<uint>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed, unsigned curentIterNum){
+unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed, unsigned curentIterNum){
 
     // Initialize optimizer
     DerivableSecondOrder* f = tl;
@@ -636,32 +656,97 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
     delete optimizer;
     return numOfEvaluations;
 }
-// /*******************************************************************************/
-void ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>>* paramNameAndType, SingleProcessPhyloLikelihood* tl, std::map<int, std::vector<uint>>* sharedParams){
+/**********************************************************************************/
+void ChromosomeNumberOptimizer::createMapOfSharedParameterNames(std::map<int, std::vector<std::pair<uint, int>>> &sharedParams, std::map<string, vector<std::pair<uint, int>>> &sharedParamsNames){
+    auto it = sharedParams.begin();
+    while (it != sharedParams.end()){
+        auto sharedPerParamNum = sharedParams[it->first];
+        uint model = sharedPerParamNum[0].first;
+        int type = sharedPerParamNum[0].second;
+        string paramBasicName = getStringParamName(type);
+        string paramName;
+        size_t numOfParams = getNumberOfParametersPerParamType(type, ChromEvolOptions::rateChangeType_);
+        for (size_t k = 0; k < numOfParams; k++){
+            if (type == ChromosomeSubstitutionModel::BASENUM){
+                paramName = "Chromosome." + paramBasicName +"_"+ std::to_string(model);
+
+            }else{
+                paramName = "Chromosome." + paramBasicName +std::to_string(k) + "_"+ std::to_string(model);
+            }
+            for (size_t i = 1; i < sharedPerParamNum.size(); i++){
+                sharedParamsNames[paramName].push_back(sharedPerParamNum[i]);
+            }
+        }
+
+        it ++;
+    }
+
+}
+/**********************************************************************************/
+uint ChromosomeNumberOptimizer::getModelFromParamName(string name){
+    std::regex modelPattern ("_([\\d]+)");
+    std::smatch sm;
+    std::regex_search(name, sm, modelPattern);
+    std::string modelSuffix = sm[sm.size()-1];
+    uint modelId = static_cast<uint>(stoi(modelSuffix));
+    return modelId;
+
+}
+/**********************************************************************************/
+int ChromosomeNumberOptimizer::getTypeOfParamFromParamName(string name){
+    int type;
     std::map<std::string, int> typeGeneralName;
     updateWithTypeAndCorrespondingName(typeGeneralName);
+    auto itParamType = typeGeneralName.begin();
+    while(itParamType != typeGeneralName.end()){
+        string pattern = itParamType->first;
+        if (name.find(pattern) != string::npos){
+            type = typeGeneralName[pattern];
+            break;
+
+        }
+        itParamType ++;
+    }
+    return type;
+}
+// /*******************************************************************************/
+void ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>>* paramNameAndType, SingleProcessPhyloLikelihood* tl, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams){
+    //std::map<std::string, int> typeGeneralName;
+    //updateWithTypeAndCorrespondingName(typeGeneralName);
     ParameterList substitutionModelParams = tl->getSubstitutionModelParameters();
     std::vector<std::string> namesAllParams = substitutionModelParams.getParameterNames();
-    std::map<std::string, int>::iterator it = typeGeneralName.begin();
-    uint numOfModels = static_cast<uint>(tl->getSubstitutionProcess().getNumberOfModels());
-    while (it != typeGeneralName.end()){
-        string name = it->first;
-        int type = it->second;
-        std::map<uint, std::vector<std::string>> modelAndParameterNames = ChromosomeNumberOptimizer::getRelatedParameterNamesForEachModel(substitutionModelParams, name, numOfModels, sharedParams);
-        typeWithParamNames[type] = modelAndParameterNames;
-        auto paramNamesIt = modelAndParameterNames.begin();
-        if (paramNameAndType == 0){
-            it ++;
-            continue;    
+    std::map<string, vector<std::pair<uint, int>>> sharedParamsNames;
+    if (sharedParams){
+        createMapOfSharedParameterNames(*sharedParams, sharedParamsNames);
+    }
+    for (size_t i = 0; i < namesAllParams.size(); i++){
+        // std::regex modelPattern ("_([\\d]+)");
+        // std::smatch sm;
+        // std::regex_search(namesAllParams[i], sm, modelPattern);
+        // std::string modelSuffix = sm[sm.size()-1];
+        // uint modelId = static_cast<uint>(stoi(modelSuffix));
+        uint modelId = getModelFromParamName(namesAllParams[i]);
+        int type = getTypeOfParamFromParamName(namesAllParams[i]);
+        //should get the type
+
+        
+        typeWithParamNames[type][modelId].push_back(namesAllParams[i]);
+        if (paramNameAndType){
+            (*paramNameAndType)[namesAllParams[i]] = std::pair<int, uint>(type, modelId);
         }
-        while(paramNamesIt != modelAndParameterNames.end()){
-            std::vector<string> parametersNames = paramNamesIt->second;
-            for (size_t i = 0; i < parametersNames.size(); i++){
-                (*paramNameAndType)[parametersNames[i]] = std::pair<int, uint>(type, paramNamesIt->first);
+        if (sharedParams){
+            if (sharedParamsNames.find(namesAllParams[i]) != sharedParamsNames.end()){
+                for (size_t k = 0; k < sharedParamsNames[namesAllParams[i]].size(); k++ ){
+                    uint model = sharedParamsNames[namesAllParams[i]][k].first;
+                    int typeOfSharedParam = sharedParamsNames[namesAllParams[i]][k].second;
+                    typeWithParamNames[typeOfSharedParam][model].push_back(namesAllParams[i]);
+
+                }
+
             }
-            paramNamesIt ++;
+
         }
-        it ++;
+
     }
 
 }
@@ -674,6 +759,50 @@ void ChromosomeNumberOptimizer::updateWithTypeAndCorrespondingName(std::map<std:
     typeGeneralName["baseNumR"] = static_cast<int>(ChromosomeSubstitutionModel::BASENUMR);
     typeGeneralName["baseNum_"] = static_cast<int>(ChromosomeSubstitutionModel::BASENUM);
     
+}
+/*******************************************************************************/
+size_t ChromosomeNumberOptimizer::getNumberOfFixedParams(SingleProcessPhyloLikelihood* lik, std::map<uint, vector<int>> &fixedParams){
+    auto substitutionModelParams = lik->getSubstitutionModelParameters();
+    auto paramNames = substitutionModelParams.getParameterNames();
+    size_t numOfFixedParams = 0;
+    for (size_t i = 0; i < paramNames.size(); i++){
+        auto paramName = paramNames[i];
+        uint model = getModelFromParamName(paramName);
+        int type = getTypeOfParamFromParamName(paramName);
+        auto itMap = fixedParams.find(model);
+        if (itMap != fixedParams.end()){
+            auto fixedTypes = fixedParams[itMap->first];
+            for (size_t j = 0; j < fixedTypes.size(); j++){
+                if (fixedTypes[j] == type){
+                    numOfFixedParams ++;
+                    break;
+                }
+            }
+        }
+
+    }
+    return numOfFixedParams;
+
+}
+/*******************************************************************************/
+string ChromosomeNumberOptimizer::getStringParamName(int type){
+    string strName;
+    if (type == ChromosomeSubstitutionModel::BASENUM){
+        strName = "baseNum";
+    }else if (type == ChromosomeSubstitutionModel::BASENUMR){
+        strName = "baseNumR";
+    }else if (type == ChromosomeSubstitutionModel::DUPL){
+        strName = "dupl";
+    }else if(type == ChromosomeSubstitutionModel::DEMIDUPL){
+        strName = "demi";
+    }else if (type == ChromosomeSubstitutionModel::GAIN){
+        strName = "gain";
+    }else if (type == ChromosomeSubstitutionModel::LOSS){
+        strName = "loss";
+    }else{
+        throw Exception("ChromosomeNumberOptimizer::getStringParamName(): No such parameter exists!");
+    }
+    return strName;
 }
 /*******************************************************************************/
 int ChromosomeNumberOptimizer::getEnumOfParamName(std::string pattern){
@@ -698,40 +827,40 @@ int ChromosomeNumberOptimizer::getEnumOfParamName(std::string pattern){
 
 }
 /*******************************************************************************/
-std::map<uint, std::pair<int, std::map<int, vector<double>>>> ChromosomeNumberOptimizer::getModelParameters(SingleProcessPhyloLikelihood* tl){
-    uint numOfModels = static_cast<uint>(tl->getSubstitutionProcess().getNumberOfModels());
-    std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelsParams;
-    std::map<std::string, int> typeGeneralName;
-    updateWithTypeAndCorrespondingName(typeGeneralName);
-    for (uint i = 1; i <= numOfModels; i++){
-        auto params = tl->getSubstitutionProcess().getModel(static_cast<size_t>(i))->getParameters();
-        std::vector<string> paramNames = params.getParameterNames();
-        for (size_t j = 0; j < params.size(); j ++){
-            std::string fullParamName = paramNames[j];
-            auto it = typeGeneralName.begin();
-            while(it != typeGeneralName.end()){
-                string pattern = it->first;
-                if (fullParamName.find(pattern) != string::npos){
-                    auto type = typeGeneralName[pattern];
-                    if (type == ChromosomeSubstitutionModel::BASENUM){
-                        modelsParams[i].first = static_cast<int>(params[j].getValue());
-                    }else{
-                        modelsParams[i].second[type].push_back(params[j].getValue());
-                    }
+// std::map<uint, std::pair<int, std::map<int, vector<double>>>> ChromosomeNumberOptimizer::getModelParameters(SingleProcessPhyloLikelihood* tl){
+//     uint numOfModels = static_cast<uint>(tl->getSubstitutionProcess().getNumberOfModels());
+//     std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelsParams;
+//     std::map<std::string, int> typeGeneralName;
+//     updateWithTypeAndCorrespondingName(typeGeneralName);
+//     for (uint i = 1; i <= numOfModels; i++){
+//         auto params = tl->getSubstitutionProcess().getModel(static_cast<size_t>(i))->getParameters();
+//         std::vector<string> paramNames = params.getParameterNames();
+//         for (size_t j = 0; j < params.size(); j ++){
+//             std::string fullParamName = paramNames[j];
+//             auto it = typeGeneralName.begin();
+//             while(it != typeGeneralName.end()){
+//                 string pattern = it->first;
+//                 if (fullParamName.find(pattern) != string::npos){
+//                     auto type = typeGeneralName[pattern];
+//                     if (type == ChromosomeSubstitutionModel::BASENUM){
+//                         modelsParams[i].first = static_cast<int>(params[j].getValue());
+//                     }else{
+//                         modelsParams[i].second[type].push_back(params[j].getValue());
+//                     }
 
-                    break;
-                }
-                it ++;
-            }
+//                     break;
+//                 }
+//                 it ++;
+//             }
 
-        }
+//         }
 
-    }
-    return modelsParams;
+//     }
+//     return modelsParams;
 
-}
+// }
 /*******************************************************************************/
-std::map<uint, std::vector<string>> ChromosomeNumberOptimizer::getRelatedParameterNamesForEachModel(ParameterList &params, std::string pattern, uint numOfModels, std::map<int, vector<uint>>* mapSharedParams){
+std::map<uint, std::vector<string>> ChromosomeNumberOptimizer::getRelatedParameterNamesForEachModel(ParameterList &params, std::string pattern, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* mapSharedParams){
   std::map<uint, std::vector<string>> matchingParamsPerModel;
   for (uint i = 1; i <= numOfModels; i++){
     matchingParamsPerModel[i] = vector<string>();
@@ -748,18 +877,24 @@ std::map<uint, std::vector<string>> ChromosomeNumberOptimizer::getRelatedParamet
       uint modelId = static_cast<uint>(stoi(modelSuffix));
       if (mapSharedParams){
         int type = getEnumOfParamName(pattern);
-        auto it = mapSharedParams->find(type);
-        if (it != mapSharedParams->end()){
-            for (size_t j = 0; j < (*mapSharedParams)[type].size(); j ++){
-                uint model_j = (*mapSharedParams)[type][j];
-                matchingParamsPerModel[model_j].push_back(fullParamName);
-
+        auto it = mapSharedParams->begin();
+        while (it != mapSharedParams->end()){
+            auto paramNum = it->first;
+            auto sharedParams = (*mapSharedParams)[paramNum];
+            std::pair<uint, int> modelAndType;
+            modelAndType.first = modelId;
+            modelAndType.second = type;
+            auto found = std::find(sharedParams.begin(), sharedParams.end(), modelAndType);
+            if (found != sharedParams.end()){
+                for (size_t j = 0; j < (*mapSharedParams)[paramNum].size(); j ++){
+                    uint model_j = (*mapSharedParams)[paramNum][j].first;
+                    matchingParamsPerModel[model_j].push_back(fullParamName);
+                }
+                break;
             }
-            continue;
+            it ++;
         }
-          
       }
-      matchingParamsPerModel[modelId].push_back(fullParamName);
     }
   }
 
@@ -831,32 +966,66 @@ void ChromosomeNumberOptimizer::optimizeBaseNum(SingleProcessPhyloLikelihood* tl
 /******************************************
 Functions for heterogeneous ChromEvol model
 *******************************************/
-double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* lik) const{
+double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const{
     // the number of shifts
     size_t numOfModels = lik->getSubstitutionProcess().getNumberOfModels();
     // the number of substitution params takes into account also the backward phase
-    auto numOfSubstitutionParams = lik->getSubstitutionModelParameters().size();
+    auto numOfSubstitutionParams = lik->getSubstitutionModelParameters().size()-numOfFixedParams;
+
     // N (sample size)
     auto sampleSize = tree_->getAllLeavesNames().size();
     // p (number of overall parameters)
-    double numOfParams = static_cast<double>(numOfModels) + static_cast<double>(numOfSubstitutionParams);
+    // k must maintain the constraint of the denominator -> throw detailed exception..
+    double numOfParams = static_cast<double>(numOfModels) - 1 + static_cast<double>(numOfSubstitutionParams);
     // sample size correction term
-    double sampleSizeCorrection = (2*numOfParams*(numOfParams + 1))/(static_cast<double>(sampleSize)-numOfParams-1);
-    //Calculating AICc
-    double AICc = 2*(lik->getValue()) + (2*numOfParams) + sampleSizeCorrection;
+    auto denominator = (static_cast<double>(sampleSize)-numOfParams-1);
+    if (denominator <= 0){
+        string errorMessage = "ChromosomeNumberOptimizer::calculateAICc(): Too many parameters when using " + std::to_string(numOfModels) + " different models! Try to set _maxNumOfModels to " + std::to_string(numOfModels-1) + "\n"; 
+        throw Exception(errorMessage);
+    }
+    double sampleSizeCorrection = (2*numOfParams*(numOfParams + 1))/denominator;
+    //Calculating AICc-> I have some problems with AIC. In some cases the denominator becomes zero.
+    // so meanwhile I will use AIC...
+    double AIC = 2*(lik->getValue()) + (2*numOfParams);
+    double AICc = AIC + sampleSizeCorrection;
+    //return AICc;
     return AICc;
 
 }
 /***********************************************/
+void ChromosomeNumberOptimizer::setParamsNameInForMultiProcess(std::map<uint, std::map<int, vector<string>>> &mapOfParamsNamesPerModelType, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams){
+    auto it = modelParams.begin();
+    while(it != modelParams.end()){
+        uint model = it->first;
+        for (int i = 0; i < ChromosomeSubstitutionModel::NUM_OF_CHR_PARAMS; i++){
+            vector<string> paramsFullNames;
+            auto strParamName = getStringParamName(i);
+            if (i == ChromosomeSubstitutionModel::BASENUM){
+                auto fullParamName = "Chromosome." + strParamName + "_"+ std::to_string(model);
+                mapOfParamsNamesPerModelType[model][i].push_back(fullParamName);
+                continue;
+            }
+            for (size_t j = 0; j < modelParams[model].second[i].size(); j++){
+                auto fullParamName = "Chromosome." + strParamName + std::to_string(j)+ "_"+ std::to_string(model);
+                mapOfParamsNamesPerModelType[model][i].push_back(fullParamName);
+            }
+            
+        }
+        it ++;
+    }
+
+}
 
 
 /***********************************************/
-SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getNewLikObject(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<uint>>* sharedParams) const{
-    SingleProcessPhyloLikelihood* newLik;
+
+void ChromosomeNumberOptimizer::getNewLikObject(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound){
+    
     uint modelNumInCurrentLik = static_cast<uint>(currentLik->getSubstitutionProcess().getModelNumberForNode(nodeToSplit));
     uint numOfModels = static_cast<uint>(currentLik->getSubstitutionProcess().getNumberOfModels());
     std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames;//parameter type, num of model, related parameters
     ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(typeWithParamNames, 0, currentLik, sharedParams);
+    
     std::map<uint, pair<int, std::map<int, std::vector<double>>>> modelParams = getMapOfParamsForComplexModel(currentLik, typeWithParamNames, numOfModels);
 
     // add the new regime to the map (i.e., copy the parameters of the regime to which the node was assigned to previously)
@@ -885,11 +1054,18 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getNewLikObject(SingleP
     }
     baseNumberUpperBound_[numOfModels+1] = baseNumberUpperBound_[modelNumInCurrentLik];
     // setting the heterogeneous model
-    newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1);
+    SingleProcessPhyloLikelihood* newLik;
+    for (size_t i = 0; i < numOfPoints; i++){
+        if (i == 0){
+            newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, updatedSharedParams);
 
-
-    return newLik;
-
+        }else{
+            // setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
+            newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)i, fixedParams, updatedSharedParams);
+        }
+        vectorOfLikelohoods_.push_back(newLik);
+    }
+    
 }
 /****************************************************************/
 std::map<uint, pair<int, std::map<int, std::vector<double>>>> ChromosomeNumberOptimizer::getMapOfParamsForComplexModel(SingleProcessPhyloLikelihood* lik, std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames, uint numOfModels) {
@@ -921,8 +1097,11 @@ std::map<uint, pair<int, std::map<int, std::vector<double>>>> ChromosomeNumberOp
 
 }
 /***********************************************************************************************/
-void ChromosomeNumberOptimizer::getMutableMapOfModelAndNodeIds(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik){
+void ChromosomeNumberOptimizer::getMutableMapOfModelAndNodeIds(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik, uint rootId){
     uint numOfModels = static_cast<uint>(lik->getSubstitutionProcess().getNumberOfModels());
+    if (rootId){
+        mapModelNodesIds[1].push_back(rootId);
+    }
     for (uint i = 1; i <= numOfModels; i++){
         auto vectorOfNodes = lik->getSubstitutionProcess().getNodesWithModel(i);
         for (size_t j = 0; j < vectorOfNodes.size(); j++){
@@ -931,7 +1110,17 @@ void ChromosomeNumberOptimizer::getMutableMapOfModelAndNodeIds(std::map<uint, ve
     }
 }
 /**********************************************************************************************/
-SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, double parsimonyBound, std::map<uint, vector<int>> &fixedParams){
+SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet,
+    std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, 
+    std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, 
+    uint numOfModels, double parsimonyBound, 
+    std::map<uint, vector<int>> &fixedParams,
+    std::map<int, std::vector<std::pair<uint, int>>>* sharedParams)
+{
+
+
+    std::map<uint, std::map<int, vector<string>>> mapOfParamsNamesPerModelType;
+    setParamsNameInForMultiProcess(mapOfParamsNamesPerModelType, modelParams);    
     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
     ParametrizablePhyloTree* parTree = new ParametrizablePhyloTree(*tree);
     string fixedRootFreqPath = ChromEvolOptions::fixedFrequenciesFilePath_;
@@ -959,8 +1148,7 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousM
         }  
         subProSim->addModel(chrModel, mapModelNodesIds[i]);
     }
-
-
+    aliasParametersInSubstitutionProcess(mapOfParamsNamesPerModelType, sharedParams, subProSim);
     SubstitutionProcess* nsubPro= subProSim->clone();
     Context* context = new Context();
     auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(*context, *vsc->clone(), *nsubPro, weightedRootFreqs);
@@ -969,11 +1157,80 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousM
 
 }
 /**********************************************************************************************/
-SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels){
+void ChromosomeNumberOptimizer::aliasParametersInSubstitutionProcess(std::map<uint, std::map<int, vector<string>>> &mapOfParamsNamesPerModelType, std::map<int, vector<std::pair<uint, int>>>* updatedSharedParams, std::shared_ptr<NonHomogeneousSubstitutionProcess> process){
+    std::map<uint, std::map<int, vector<string>>> mapOfUpdatedParamNames;
+    auto paramNumIt = updatedSharedParams->begin();
+    while (paramNumIt != updatedSharedParams->end()){
+        auto paramNum = paramNumIt->first;
+        auto pairsOfModelsAndTypes = (*updatedSharedParams)[paramNum]; // vector<pair<uint, int>>
+        if (pairsOfModelsAndTypes.size() < 2){
+            continue;
+        }
+        uint firstModel = pairsOfModelsAndTypes[0].first;// vector<pair<uint, int>>[0]-> pair<uint, int>.first->uint
+        int type = pairsOfModelsAndTypes[0].second;
+        
+        auto parametersOfFirstModel = mapOfParamsNamesPerModelType[firstModel][type];
+        mapOfUpdatedParamNames[firstModel][type] = parametersOfFirstModel;
+        for (size_t i = 1; i < pairsOfModelsAndTypes.size(); i++){ 
+            uint modelToAlias = pairsOfModelsAndTypes[i].first;
+            int typeToAlias = pairsOfModelsAndTypes[i].second;
+            auto paramsToAlias = mapOfParamsNamesPerModelType[modelToAlias][typeToAlias]; 
+            for (size_t j = 0; j < paramsToAlias.size(); j++){
+                process->aliasParameters(parametersOfFirstModel[j],paramsToAlias[j]);
+
+            }           
+        }
+        paramNumIt ++;
+    }
+    // 17.10:
+    // ################    TODO   ############################################################: 
+    // alias parameters within each model
+    // idea:
+    // combine shared parameters within model and between models
+    // for example:
+    // model 1:
+    //  gain1
+    //  loss1 = gain1
+    //  dupl1
+    // model2:
+    //  gain2 = gain1
+    //  loss2
+    //  dupl2 = dupl1
+    // sharedParams = {{"loss1", "gain1", "gain2"}, {"dupl1", "dupl2"}}
+    // we do aliasing...
+    // the left parameters are: {"loss1", "dupl1"}
+    // For each model m:
+    // for each type i:
+    // This map (map #1) should contain all the parameters including not shared ones!
+    // #1: {loss1 = loss1, gain1 = loss1, dupl1 = dupl1}
+    // #2: {loss2 = loss2, gain2 = loss1, dupl2 = dupl1}
+    // now I know the aliasing steps
+    // which input shared parameters is the best one for ChromEvolOptions?
+    // A map where the key is the param numbering, and the value is a vector of pair of <model, type>
+    // A new model is examined (suppose model j is detrived from model i):
+    // I then use map #1:
+    // search for each parameter of model j whether it was aliased. If it was, I should alias it too.
+    // It is possible to store a map of pair of <model, type> and the true string parameter name, and then it
+    // will help to find the corresponding aliased name.
+    //* Once it is ready:
+    // Tests:
+    // (1) Test on homogeneous model. Does it work the same as before?
+    // (2) Take a simple example of tree and data, and test the heterogeneous model without shared parameters.
+    // (2.1) Does the partitions of the nodes work?
+    // (2.2) Does the vector of likelihoods contain the best likelihood from each iteration?
+    // (3) Test the heterogeneous model with shared and fixed parameters:
+    // (3.1) Test the map of aliasing
+    // (3.2) Verify that the the shared and fixed parameters are updated to the final best model at each iteration.
+
+}
+/**********************************************************************************************/
+SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* updatedSharedParams){
     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
     ParametrizablePhyloTree* parTree = new ParametrizablePhyloTree(*tree);
     string fixedRootFreqPath = ChromEvolOptions::fixedFrequenciesFilePath_;
     bool weightedRootFreqs;
+    std::map<uint, std::map<int, vector<string>>> mapOfParamsNamesPerModelType;
+    setParamsNameInForMultiProcess(mapOfParamsNamesPerModelType, modelParams);
     std::shared_ptr<NonHomogeneousSubstitutionProcess> subProSim;
     std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet, modelParams[1].second, modelParams[1].first, baseNumberUpperBound[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
     if (fixedRootFreqPath == "none"){
@@ -988,8 +1245,6 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(c
         subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies.get());
     }
     
-
-    
     // adding models
     for (uint i = 1; i <= numOfModels; i++){
         if (i > 1){
@@ -997,6 +1252,7 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(c
         }   
         subProSim->addModel(chrModel, mapModelNodesIds[i]);
     }
+    aliasParametersInSubstitutionProcess(mapOfParamsNamesPerModelType, updatedSharedParams, subProSim);
 
 
     SubstitutionProcess* nsubPro= subProSim->clone();
@@ -1011,78 +1267,393 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(c
 
 }
 /**********************************************************************************************/
-void ChromosomeNumberOptimizer::updateSharedParameters(std::map<int, vector<uint>> &sharedParams, uint prevShift, uint numOfShifts) const{
-    auto sharedParamIt = sharedParams.begin();
-    while(sharedParamIt != sharedParams.end()){
-        if (std::count(sharedParams[sharedParamIt->first].begin(), sharedParams[sharedParamIt->first].end(), numOfShifts + 1)){
-            sharedParams[sharedParamIt->first].erase(std::remove(sharedParams[sharedParamIt->first].begin(), sharedParams[sharedParamIt->first].end(), numOfShifts + 1), sharedParams[sharedParamIt->first].end());
+void ChromosomeNumberOptimizer::updateSharedParameters(std::map<int, vector<std::pair<uint, int>>> &sharedParams, uint prevShift, uint numOfShifts) const{
+    auto paramNumIt = sharedParams.begin();
+    // Should Change this function !!!! TODO
+    int maxNum = 0;
+    vector<int> globalsAccounted;
+    std::vector<int> globalParamTypes = ChromEvolOptions::translateStringParamsToInt(ChromEvolOptions::globalParams_);
+    std::map<int, bool> mapOfInterSharedModels;
+    // removing the previous examined model
+    while(paramNumIt != sharedParams.end()){
+        int paramNum = paramNumIt->first;
+        // how many shared parameters in this particular category
+        size_t sharedParamsSize = sharedParams[paramNum].size();
+        if (sharedParamsSize == 0){
+            auto elemToDel = paramNumIt;
+            paramNumIt ++;
+            sharedParams.erase(elemToDel);     
+            continue;
         }
-        sharedParamIt ++;
-    }
-    sharedParamIt = sharedParams.begin();
-    while (sharedParamIt != sharedParams.end()){
-        if (std::count(sharedParams[sharedParamIt->first].begin(), sharedParams[sharedParamIt->first].end(), prevShift)){
-            sharedParams[sharedParamIt->first].push_back(numOfShifts + 1);
+        // added as the last one
+        bool isInterModelShared = false;
+        uint firstModel = sharedParams[paramNum][0].first;
+        int i = sharedParamsSize-1;
+        while (i >=  0){
+            uint model = sharedParams[paramNum][static_cast<size_t>(i)].first;
+            if (model == numOfShifts){
+                sharedParams[paramNum].pop_back();
+            }else{
+                if (model != firstModel){
+                    isInterModelShared = true;
+                    mapOfInterSharedModels[paramNum] = isInterModelShared;
+                    break;
+                }
+
+            }
+            i--;
+  
         }
-        sharedParamIt ++;
+        if (sharedParams[paramNum].size() == 0){
+            auto elemToDel = paramNumIt;
+            paramNumIt ++;
+            sharedParams.erase(elemToDel);     
+            continue;
+                    
+        }
+        if (paramNum > maxNum){
+            maxNum = paramNum;
+        }
+
+
+        paramNumIt ++;
     }
+    
+    // update the shared parameters according to the appropriate model from which the new one derives.
+    auto it = sharedParams.begin();
+    auto numOfParamNums = sharedParams.size();
+    size_t currNumOfItems = 0;
+    while (it != sharedParams.end()){
+        auto paramNum = it->first;
+        auto sharedModelAndType = sharedParams[paramNum];
+        size_t sizeOfSharedParams = sharedModelAndType.size();
+        bool isSharedBetweenModels = mapOfInterSharedModels[paramNum];
+        bool maxNumUpdated = false;
+        for (size_t i = 0; i < sizeOfSharedParams; i++){
+            if (sharedModelAndType[i].first == prevShift){
+                std::pair<uint, int> modelAndParam;
+                modelAndParam.first = numOfShifts;
+                modelAndParam.second = sharedModelAndType[i].second;
+                //int paramNumToPut;
+                if (isSharedBetweenModels){
+                // if for example gain2 = gain1, if model 3 derives from model2, gain3 = gain1.
+                    sharedParams[paramNum].push_back(modelAndParam);
+                    //paramNumToPut = paramNum;
+                    maxNumUpdated = true;
+
+                }else{
+
+                    auto globalParamIt = std::find(globalParamTypes.begin(), globalParamTypes.end(), modelAndParam.second);
+                    if (globalParamIt == globalParamTypes.end()){
+                        
+                        //paramNumToPut = maxNum + 1;
+                        if (!maxNumUpdated){
+                            maxNum ++;
+                            
+                        }
+                        sharedParams[maxNum].push_back(modelAndParam);
+                        maxNumUpdated = true;
+                        
+                    
+                    }else{
+                        // a special case for on model
+                        if (std::find(globalsAccounted.begin(), globalsAccounted.end(), modelAndParam.second) == globalsAccounted.end()){
+                            globalsAccounted.push_back(modelAndParam.second);
+
+                        }
+                        maxNumUpdated = true;
+                        sharedParams[paramNum].push_back(modelAndParam);
+                    }
+                
+
+                }
+            }
+                //modelAndParam.first = numOfShifts;
+                //modelAndParam.second = sharedModelAndType[i].second;
+
+        }
+        // if (sharedModelAndType[0].first == prevShift){
+        //     std::pair<uint, int> modelAndParam;
+        //     modelAndParam.first = numOfShifts;
+        //     modelAndParam.second = sharedModelAndType[0].second;
+        //     int paramNumToPut;
+        //     if (isSharedBetweenModels){
+        //             // if for example gain2 = gain1, if model 3 derives from model2, gain3 = gain1.
+        //         sharedParams[paramNum].push_back(modelAndParam);
+        //         paramNumToPut = paramNum;
+
+        //     }else{
+                // if it is shared only within the model, the model should have a unique numbering
+                // auto globalParamIt = std::find(globalParamTypes.begin(), globalParamTypes.end(), modelAndParam.second);
+                // if (globalParamIt == globalParamTypes.end()){
+                //     sharedParams[maxNum + 1].push_back(modelAndParam);
+                //     paramNumToPut = maxNum + 1; 
+                //     maxNum++;
+                    
+                // }else{
+                        // a special case for on model
+                    // if (std::find(globalsAccounted.begin(), globalsAccounted.end(), modelAndParam.second) == globalsAccounted.end()){
+            //             globalsAccounted.push_back(modelAndParam.second);
+
+            //         }
+                    
+            //         sharedParams[paramNum].push_back(modelAndParam);
+            //         paramNumToPut = paramNum;
+            //     }
+                
+
+            // }
+        //     for (size_t i = 1; i < sizeOfSharedParams; i++){
+        //         modelAndParam.first = numOfShifts;
+        //         modelAndParam.second = sharedModelAndType[i].second;
+        //         sharedParams[paramNumToPut].push_back(modelAndParam);
+        //     }
+
+        // }
+        
+        it ++;
+        currNumOfItems ++;
+        if (currNumOfItems == numOfParamNums){
+            break;
+        }
+    }
+    if (numOfShifts <= 2){
+        for (size_t i = 0; i < globalParamTypes.size(); i++){
+            if (std::find(globalsAccounted.begin(), globalsAccounted.end(), globalParamTypes[i]) == globalsAccounted.end()){
+                for (size_t j = 1; j <= numOfShifts; j++){
+                    std::pair<uint, int> modelAndParam;
+                    modelAndParam.first = static_cast<uint>(j);
+                    modelAndParam.second = globalParamTypes[i];
+                    sharedParams[maxNum + 1].push_back(modelAndParam);
+                
+
+                }
+                maxNum ++;
+            
+            }
+        }
+
+    }
+
 
 }
 /**********************************************************************************************/
-void ChromosomeNumberOptimizer::optimizeSingleHeterogeneousModel(size_t index, int maxNumOfModels, std::vector<uint> &candidateShiftNodesIds, vector<uint> &baseNumCandidates){
-    auto lik = vectorOfLikelohoods_[index];
-    vectorOfLikelohoods_[index] = 0;
-    bool deltaAICcImproved = true;
-    SingleProcessPhyloLikelihood* minAICcLik = lik;
+// void ChromosomeNumberOptimizer::writeOutputToFile() const{
+//     const string outPath = (ChromEvolOptions::resultsPathDir_ == "none") ? (ChromEvolOptions::resultsPathDir_) : (ChromEvolOptions::resultsPathDir_ + "//" + "likelihood.txt");
+//     const string outPathFreq = (ChromEvolOptions::resultsPathDir_ == "none") ? (ChromEvolOptions::resultsPathDir_) : (ChromEvolOptions::resultsPathDir_ + "//" + "inferred_rootFreq.txt");
+//     ofstream outFile;
+//     if (outPathFreq != "none"){
+//         outFile.open(outPathFreq);
+//     }
+//     for (size_t i = 0; i < vectorOfLikelohoods_.size(); i++){
+//         printRootFrequencies(vectorOfLikelohoods_[i], outFile);
+//         cout <<"*****  Final Optimized -logL *********"  <<endl;
+//         printLikParameters(vectorOfLikelohoods_[i], 1, outPath);
+
+//     }
+//     if (outPathFreq != "none"){
+//         outFile.close();
+
+//     }
+    
+// }
+/**********************************************************************************************/
+void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds){
+    int maxNumOfModels;
+    SingleProcessPhyloLikelihood* lik;
+    SingleProcessPhyloLikelihood* minAICcLik;
+    
+    std::map<int, vector<pair<uint, int>>> bestModelSharedParams;
+    fixedParams_ = fixedParams;
+    sharedParams_ = ChromEvolOptions::sharedParameters_;
+    bestModelSharedParams = sharedParams_;
+    optimizeBaseNumber_ = false;
+    // if we should optimize it for at least one model, we will set it to true. Otherwise it is fixed for all the models.
+    for (uint i = 1; i <= static_cast<uint>(ChromEvolOptions::numOfModels_); i++){
+        if (!(std::count(fixedParams_[i].begin(), fixedParams_[i].end(), ChromosomeSubstitutionModel::BASENUM))){
+            optimizeBaseNumber_ = true;
+        }
+    }
+    // if (!(ChromEvolOptions::heterogeneousModel_)){
+    //     ChromEvolOptions::maxNumOfModels_ = 1;
+    // }
+
+    ((ChromEvolOptions::maxNumOfModels_ == 1) && (ChromEvolOptions::heterogeneousModel_)) ? (maxNumOfModels = (static_cast<int>((tree_->getAllLeavesNames()).size())-1)) : (maxNumOfModels = ChromEvolOptions::maxNumOfModels_);
+    vector<uint> candidateShiftNodesIds;
+    if (ChromEvolOptions::heterogeneousModel_){
+        getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_);
+
+    }
+    
+    vector <unsigned int> baseNumCandidates;
     uint numOfShifts = ChromEvolOptions::numOfModels_;
     if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
         uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
         fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
 
     }
-    std::map<int, std::vector<uint>> sharedParams = ChromEvolOptions::sharedParameters_;
-    std::map<uint, vector<int>> fixedParameters = ChromEvolOptions::fixedParams_;
-    while((deltaAICcImproved) && (numOfShifts < (size_t)maxNumOfModels)){
-        if (candidateShiftNodesIds.size() == 0){
+    std::map<int, std::vector<std::pair<uint, int>>> sharedParams = ChromEvolOptions::sharedParameters_;
+    vectorOfLikelohoods_.reserve(numOfPoints);
+    //vectorOfContexts_.reserve(numberOfModels);
+
+    if (seed != 0){
+        RandomTools::setSeed(static_cast<long>(seed));
+    }
+    bool deltaAICcImproved = true;
+    bool firstIteration = true;
+
+    while((deltaAICcImproved) && (numOfShifts <= (size_t)maxNumOfModels)){
+        if ((candidateShiftNodesIds.size() == 0) && (maxNumOfModels > 1)){
             break;
         }
-        uint minDetaAICcNode;
+        
         bool improvedModelFound = false;
-        double initialAICc = calculateAICc(minAICcLik);
+        if (firstIteration){
+            initLikelihoods(modelParams, parsimonyBound, rateChange, numOfPoints, fixedRootFreqPath, fixedParams, mapModelNodesIds, numOfShifts, &sharedParams);
+            optimizeMultiProcessModel(&sharedParams, &fixedParams);
+            // leave only the best one
+            clearVectorOfLikelihoods(1);
+            //minAICcLik = vectorOfLikelohoods_[0];
+            firstIteration = false;
+            numOfShifts ++;
+            continue;
+
+        }
+        
+        lik = vectorOfLikelohoods_.back();
+        minAICcLik = lik;
+        auto prevLik = minAICcLik;
+
+        //vectorOfLikelohoods_.pop_back();     
+        size_t numOfFixedParams = getNumberOfFixedParams(minAICcLik, fixedParams); 
+        double initialAICc = calculateAICc(minAICcLik, numOfFixedParams);
+        uint minDetaAICcNode;
         double minAICc = initialAICc;
+        std::cout << "*** *** *** Starting considering " << numOfShifts << " shifts *** *** ***" << std::endl;
         for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
+            std::cout << "Candidate shifting node: N" << candidateShiftNodesIds[i] << " ..." << std::endl;
             uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
             updateSharedParameters(sharedParams, prevShift, numOfShifts);
-            fixedParameters[numOfShifts + 1] = fixedParameters[prevShift];
-
-            SingleProcessPhyloLikelihood* candidateLik = getNewLikObject(lik, candidateShiftNodesIds[i], &ChromEvolOptions::sharedParameters_);
-            optimizeModelParameters(candidateLik, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, baseNumCandidates, &sharedParams, &fixedParameters);
-            double AICc_candidate =  calculateAICc(candidateLik);
+            fixedParams[numOfShifts] = fixedParams[prevShift];
+            vectorOfLikelohoods_.pop_back();
+            getNewLikObject(lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, numOfPoints, fixedParams, parsimonyBound);
+            optimizeMultiProcessModel(&sharedParams, &fixedParams);
+            clearVectorOfLikelihoods(1);
+            auto candidateLik = vectorOfLikelohoods_[0];
+            //optimizeModelParameters(candidateLik, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, baseNumCandidates, &sharedParams, &fixedParams);
+            numOfFixedParams = getNumberOfFixedParams(candidateLik, fixedParams); 
+            double AICc_candidate =  calculateAICc(candidateLik, numOfFixedParams);
             SingleProcessPhyloLikelihood* likToDel;
+            // DEBUG //
+            std::cout <<  "AICc of the model before the shift:  " << initialAICc << std::endl;
+            std::cout << "AICc of the candidate model : " << AICc_candidate << std::endl;
             if ((initialAICc - AICc_candidate > ChromEvolOptions::deltaAICcThreshold_) && (AICc_candidate < minAICc)){
                 minDetaAICcNode = candidateShiftNodesIds[i];
                 likToDel = minAICcLik;
                 minAICcLik = candidateLik;
-                sharedParams_ = sharedParams;
-                improvedModelFound = true;                           
+                bestModelSharedParams = sharedParams;
+                improvedModelFound = true;
+                if (likToDel != prevLik){
+                    deleteLikObject(likToDel);
+
+                }
+                
+                std::cout << "** Best model is updated **" << std::endl;
             }else{
                 likToDel = candidateLik;
+                clearVectorOfLikelihoods(0);
+                vectorOfLikelohoods_.push_back(minAICcLik);
+                std::cout << "** Best model remains **" << std::endl;
             }
-            deleteLikObject(likToDel);
+            printLikParameters(vectorOfLikelohoods_[0], 1);
+            
+            //deleteLikObject(likToDel);
         }
         if (improvedModelFound){
             deltaAICcImproved = true;
+            sharedParams_ = bestModelSharedParams;
+            fixedParams_ = fixedParams;
             numOfShifts ++;
         }else{
             deltaAICcImproved = false;
+           
         }   
-        
-        candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
+        if (vectorOfLikelohoods_[0]->getSubstitutionProcess().getNumberOfModels() > 1){
+            candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
 
+        }
+        if (prevLik != minAICcLik){
+            deleteLikObject(prevLik);
+        }
+        // sanity check //
+       
+        
     }
-    // no iteration
-    vectorOfLikelohoods_[index] = minAICcLik;
+     std::cout << "*** Final best model: " << vectorOfLikelohoods_[0]->getValue() << std::endl;
+
+    //initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, vector<uint>>* sharedParams, std::map<uint, vector<int>> &fixedParameters)
+
+}
+/**********************************************************************************************/
+// void ChromosomeNumberOptimizer::optimizeSingleHeterogeneousModel(size_t index, int maxNumOfModels, std::vector<uint> &candidateShiftNodesIds, vector<uint> &baseNumCandidates){
+//     auto lik = vectorOfLikelohoods_[index];
+//     vectorOfLikelohoods_[index] = 0;
+//     bool deltaAICcImproved = true;
+//     SingleProcessPhyloLikelihood* minAICcLik = lik;
+//     uint numOfShifts = ChromEvolOptions::numOfModels_;
+//     if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
+//         uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
+//         fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
+
+//     }
+//     std::map<int, std::vector<uint>> sharedParams = ChromEvolOptions::sharedParameters_;
+//     std::map<uint, vector<int>> fixedParameters = ChromEvolOptions::fixedParams_;
+//     while((deltaAICcImproved) && (numOfShifts < (size_t)maxNumOfModels)){
+//         if (candidateShiftNodesIds.size() == 0){
+//             break;
+//         }
+//         uint minDetaAICcNode;
+//         bool improvedModelFound = false;
+//         double initialAICc = calculateAICc(minAICcLik);
+//         double minAICc = initialAICc;
+//         for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
+//             uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
+//             updateSharedParameters(sharedParams, prevShift, numOfShifts);
+//             fixedParameters[numOfShifts + 1] = fixedParameters[prevShift];
+
+//             SingleProcessPhyloLikelihood* candidateLik = getNewLikObject(lik, candidateShiftNodesIds[i], &ChromEvolOptions::sharedParameters_);
+//             optimizeModelParameters(candidateLik, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, baseNumCandidates, &sharedParams, &fixedParameters);
+//             double AICc_candidate =  calculateAICc(candidateLik);
+//             SingleProcessPhyloLikelihood* likToDel;
+//             if ((initialAICc - AICc_candidate > ChromEvolOptions::deltaAICcThreshold_) && (AICc_candidate < minAICc)){
+//                 minDetaAICcNode = candidateShiftNodesIds[i];
+//                 likToDel = minAICcLik;
+//                 minAICcLik = candidateLik;
+//                 sharedParams_ = sharedParams;
+//                 improvedModelFound = true;                           
+//             }else{
+//                 likToDel = candidateLik;
+//             }
+//             deleteLikObject(likToDel);
+//         }
+//         if (improvedModelFound){
+//             deltaAICcImproved = true;
+//             numOfShifts ++;
+//         }else{
+//             deltaAICcImproved = false;
+//         }   
+        
+//         candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
+
+//     }
+//     // no iteration
+//     vectorOfLikelohoods_[index] = minAICcLik;
     
+// }
+/**********************************************************************************************/
+void ChromosomeNumberOptimizer::setRandomPoints(SingleProcessPhyloLikelihood* lik, uint nodeToSplit, std::map<int, std::vector<uint>>* sharedParams, std::map<int, std::vector<uint>>* updatedSharedParams, int numOfPoints){
+    
+
 }
 /**********************************************************************************************/
 void ChromosomeNumberOptimizer::getValidCandidatesForShift(std::vector<uint> &candidateShiftNodesIds, int minCladeSize){
@@ -1105,3 +1676,30 @@ void ChromosomeNumberOptimizer::getValidCandidatesForShift(std::vector<uint> &ca
 
 }
 
+/*************************************************************************************/
+uint ChromosomeNumberOptimizer::getNumberOfParametersPerParamType(int paramType, vector<int> &funcTypes){
+    uint numOfParams;
+    if (paramType == ChromosomeSubstitutionModel::BASENUM){
+        if (ChromEvolOptions::baseNum_[1] == IgnoreParam){
+            numOfParams = 0;
+        }else{
+            numOfParams = 1;
+        }
+        
+    }else{
+        size_t startForComposite = ChromosomeSubstitutionModel::getNumberOfNonCompositeParams();
+        auto funcType = funcTypes[paramType-startForComposite];
+        if (funcType == ChromosomeNumberDependencyFunction::IGNORE){
+            numOfParams = 0;
+        }else{
+            ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(static_cast<ChromosomeNumberDependencyFunction::FunctionType>(funcType));
+            numOfParams = static_cast<uint>(functionOp->getNumOfParameters());
+            delete functionOp;
+
+        }
+
+    }
+    return numOfParams;
+
+
+}

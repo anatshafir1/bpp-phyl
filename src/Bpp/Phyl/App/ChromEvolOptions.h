@@ -84,22 +84,28 @@ public:
     static int minCladeSize_;
     static int maxNumOfModels_;
     static std::map<uint, std::vector<uint>> mapOfNodeIdsPerModel_;
-    static std::map<int, vector<uint>> sharedParameters_;
+    static std::map<int, vector<std::pair<uint, int>>> sharedParameters_;
     static bool heterogeneousModel_;
     static double deltaAICcThreshold_;
     static std::map<uint, std::vector<uint>> mapModelNodesIds_;
     static string nodeIdsFilePath_;
     static std::vector<uint> initialModelNodes_;
+    static std::vector<string> globalParams_;
+    // public functions
+    static std::vector<int> translateStringParamsToInt(std::vector<string> &strParams);
+    static std::shared_ptr<PhyloNode> getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes);
+    //static std::string getParamName(int type);
 
 private:
     static void initDefaultParameters();
     static void initParametersFromFile(BppApplication& ChromEvol);
     //static void setFixedParams(std::vector<unsigned int> fixedParams);
-    static std::vector<int> translateStringParamsToInt(std::vector<string> strParams);
+    
     static void setFunctions(std::string gainFunc, std::string lossFunc, std::string duplFunc, std::string demiDuplFunc, std::string baseNumRFunc);
     static int getFunctionFromString(string funcStr);
     static void setModelParameters(BppApplication& ChromEvol);
-    static void setSharedParameters(std::map<uint, std::map<int, std::pair<int, vector<double>>>> mapModelTypeValues, std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal);
+    //static void setSharedParametersInterModels();
+    static void setSharedParametersPerModel(std::map<uint, std::map<int, std::pair<int, vector<double>>>> mapModelTypeValues, std::map<uint, std::pair<int, int>> mapModelBaseNumTypeAndVal, std::map<int, size_t> paramNumFreqs);
     static void setFixedParameters(BppApplication& ChromEvol);
     static void updateModelParameter(uint model, int type, vector<double> paramValues);
 

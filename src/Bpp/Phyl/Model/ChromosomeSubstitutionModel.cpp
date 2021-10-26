@@ -346,8 +346,8 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
           ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startCompositeParams]);
           ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
 
-          int numOfParameters = functionOp->getNumOfParameters();
-          for (size_t j = 0; j < (size_t)numOfParameters; j++){
+          auto numOfParameters = functionOp->getNumOfParameters();
+          for (size_t j = 0; j < numOfParameters; j++){
             functionOp->getBoundsForInitialParams(j, paramValues, &lowerBound, &upperBound, alpha->getMax());
             //compositeParameter::getBoundsForInitialParams(func, j, paramValues, &lowerBound, &upperBound, alpha->getMax(), true);
             if (parsimonyBound > 0){
