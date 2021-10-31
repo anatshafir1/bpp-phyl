@@ -757,7 +757,7 @@ void ChromosomeNumberMng::convertNodesNames(PhyloTree &tree, uint nodeId, std::m
         //auto sons = tree.getNode(nodeId)->getSons();
         for (size_t i = 0; i < sons.size(); i++){
             uint sonId = tree.getNodeIndex(sons[i]);
-            convertNodesNames(tree, sonId, ancestors, false);
+            convertNodesNames(tree, sonId, ancestors, alphabetStates);
 
         }
     }
