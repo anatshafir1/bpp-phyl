@@ -91,6 +91,7 @@ public:
     static string nodeIdsFilePath_;
     static std::vector<uint> initialModelNodes_;
     static std::vector<string> globalParams_;
+    static bool parallelization_;
     // public functions
     static std::vector<int> translateStringParamsToInt(std::vector<string> &strParams);
     static std::shared_ptr<PhyloNode> getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes);

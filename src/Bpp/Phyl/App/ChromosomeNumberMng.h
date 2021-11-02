@@ -94,6 +94,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <time.h>
 
 using namespace std;
 namespace bpp{

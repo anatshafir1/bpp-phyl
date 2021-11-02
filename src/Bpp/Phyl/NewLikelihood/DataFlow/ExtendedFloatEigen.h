@@ -1040,7 +1040,7 @@ namespace bpp {
     
     Self operator=(const Array& rhs) 
     {
-      std::cerr << "ExtendedFloatArrayWrapper::operator= " << std::endl;
+      //std::cerr << "ExtendedFloatArrayWrapper::operator= " << std::endl;
       efm_->float_part().array() = rhs.float_part();
       efm_->exponent_part() = rhs.exponent_part();
       return *this;

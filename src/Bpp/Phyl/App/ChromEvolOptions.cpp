@@ -51,6 +51,7 @@ std::map<uint, std::vector<uint>> ChromEvolOptions::mapModelNodesIds_;
 string ChromEvolOptions::nodeIdsFilePath_;
 std::vector<uint> ChromEvolOptions::initialModelNodes_;
 std::vector<string> ChromEvolOptions::globalParams_;
+bool ChromEvolOptions::parallelization_;
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
     initDefaultParameters();
@@ -87,6 +88,7 @@ void ChromEvolOptions::initDefaultParameters(){
     maxNumOfModels_ = 1;
     heterogeneousModel_ = false; // the default is homogeneous model
     deltaAICcThreshold_ = 2;
+    parallelization_ = false;
     
 
 }
@@ -163,6 +165,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     tolerance_ = ApplicationTools::getDoubleParameter("_tolParamOptimization", ChromEvol.getParams(), tolerance_, "", true, 0);
     setModelParameters(ChromEvol);
     maxParsimonyBound_ = ApplicationTools::getBooleanParameter("_maxParsimonyBound", ChromEvol.getParams(), maxParsimonyBound_, "", true, 0);
+    parallelization_ = ApplicationTools::getBooleanParameter("_parallelization", ChromEvol.getParams(), parallelization_, "", true, 0);
     standardOptimization_ = ApplicationTools::getBooleanParameter("_standardOptimization", ChromEvol.getParams(), standardOptimization_, "", true, 0);
     BrentBracketing_ = ApplicationTools::getIntParameter("_BrentBracketing", ChromEvol.getParams(), BrentBracketing_, "", true, 0);
     optimizationMethod_ = ApplicationTools::getStringParameter("_optimizationMethod", ChromEvol.getParams(), optimizationMethod_, "", true, 0);
