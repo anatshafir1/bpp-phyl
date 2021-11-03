@@ -173,12 +173,9 @@ vector <double> ChromosomeNumberOptimizer::setFixedRootFrequencies(const std::st
 
 // /****************************************************************************/
 
-void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vector<std::pair<uint, int>>>* sharedParams ,std::map<uint, vector<int>>* fixedParams, vector<SingleProcessPhyloLikelihood*>* perCandidateLik)
+void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vector<std::pair<uint, int>>>* sharedParams ,std::map<uint, vector<int>>* fixedParams, vector<SingleProcessPhyloLikelihood*>* perCandidateLik, omp_lock_t* mutex)
 {
 
-    unsigned int totalNumOfEvaluations = 0;
-    unsigned int numOfEvaluations;
-    unsigned int numOfEvaluationsPerCycle;
     vector <unsigned int> baseNumCandidates;
 
     // If base number is one of the parameters
@@ -190,9 +187,10 @@ void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vec
 
     //Go over each cycle
     for (size_t i = 0; i < numOfIterations_.size(); i++){
-        numOfEvaluationsPerCycle = 0;
         if (perCandidateLik){
+            omp_set_lock(mutex);
             clearVectorOfLikelihoods(numOfPoints_[i], *perCandidateLik);
+            omp_unset_lock(mutex);
         }else{
             clearVectorOfLikelihoods(numOfPoints_[i]);
 
@@ -201,29 +199,21 @@ void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vec
         cout << "*********  cycle "<< i <<"  **************"<<endl;     
         //Go over each point at cycle i 
         for (size_t j = 0; j < numOfPoints_[i]; j++){
-            numOfEvaluations = 0;
             std::cout << "Starting cycle with Point #" << j <<"...."<<endl;
             if (!perCandidateLik){
                 printLikParameters(vectorOfLikelohoods_[j], 0);
 
-            }//else{
-            //     printLikParameters((*perCandidateLik)[j], 0);
-            // }
-
+            }
             
             //If the number of optimization iterations is larger than zero, optimize the number of times as specified
             if (numOfIterations_[i] > 0){
                 if (perCandidateLik){
-                    numOfEvaluations = optimizeModelParameters((*perCandidateLik)[j], tolerance_, numOfIterations_[i], baseNumCandidates, sharedParams, fixedParams);
+                    optimizeModelParameters((*perCandidateLik)[j], tolerance_, numOfIterations_[i], baseNumCandidates, sharedParams, fixedParams);
                 }else{
-                    numOfEvaluations = optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations_[i], baseNumCandidates, sharedParams, fixedParams);
+                    optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations_[i], baseNumCandidates, sharedParams, fixedParams);
                 }
             }
-            std:: cout << "Number of evaluations per point is : " << numOfEvaluations << endl;
-            numOfEvaluationsPerCycle += numOfEvaluations;
-            std:: cout <<"*****************************" << endl;            
         }
-        totalNumOfEvaluations += numOfEvaluationsPerCycle;
         //sort the vector of likelihoods, such that the worst likelihood is at the end
         if (perCandidateLik){
             sort((*perCandidateLik).begin(), (*perCandidateLik).end(), compareLikValues);
@@ -1370,7 +1360,7 @@ void ChromosomeNumberOptimizer::updateSharedParameters(std::map<int, vector<std:
         // added as the last one
         bool isInterModelShared = false;
         uint firstModel = sharedParams[paramNum][0].first;
-        int i = sharedParamsSize-1;
+        int i = static_cast<int>(sharedParamsSize)-1;
         while (i >=  0){
             uint model = sharedParams[paramNum][static_cast<size_t>(i)].first;
             if (model == numOfShifts){
@@ -1525,7 +1515,7 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
         }
         if (firstIteration){
             initLikelihoods(modelParams, parsimonyBound, rateChange, numOfPoints, fixedRootFreqPath, fixedParams_, mapModelNodesIds, numOfShifts, &sharedParams_);
-            optimizeMultiProcessModel(&sharedParams_, &fixedParams_);
+            optimizeMultiProcessModel(&sharedParams_, &fixedParams_, 0);
             // leave only the best one
             clearVectorOfLikelihoods(1);
             //minAICcLik = vectorOfLikelohoods_[0];
@@ -1559,7 +1549,9 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
         #pragma omp parallel for schedule(dynamic)
         for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
             runNewBranchModel(mutex, lik, newShiftLikCandidates, candidateShiftNodesIds, i, numOfShifts, parsimonyBound, numOfPoints);
+            std::cout << "Number of threads in iteration  " << i << " : " << omp_get_num_threads() << std::endl;
         }
+        omp_destroy_lock(&mutex);
 
 
         // get the best candidate
@@ -1633,7 +1625,7 @@ void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProce
         getNewLikObjectForParallelRuns(newShiftLikCandidates, i, perCandidateLikVec, lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, numOfPoints, fixedParams, parsimonyBound);
         omp_unset_lock(&mutex);
         //std::cout << "After getNewObject: " << i << std::endl;
-        optimizeMultiProcessModel(&sharedParams, &fixedParams, &perCandidateLikVec);
+        optimizeMultiProcessModel(&sharedParams, &fixedParams, &perCandidateLikVec, &mutex);
         //std::cout << "After optimizeMultiProcessModel: " << i << std::endl;
         // add the candidate to the vector of candidates
         newShiftLikCandidates[i] = perCandidateLikVec[0];
@@ -1693,7 +1685,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
         bool improvedModelFound = false;
         if (firstIteration){
             initLikelihoods(modelParams, parsimonyBound, rateChange, numOfPoints, fixedRootFreqPath, fixedParams, mapModelNodesIds, numOfShifts, &sharedParams);
-            optimizeMultiProcessModel(&sharedParams, &fixedParams);
+            optimizeMultiProcessModel(&sharedParams, &fixedParams, 0);
             // leave only the best one
             clearVectorOfLikelihoods(1);
             //minAICcLik = vectorOfLikelohoods_[0];
@@ -1720,7 +1712,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
             fixedParams[numOfShifts] = fixedParams[prevShift];
             vectorOfLikelohoods_.pop_back();
             getNewLikObject(lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, numOfPoints, fixedParams, parsimonyBound);
-            optimizeMultiProcessModel(&sharedParams, &fixedParams);
+            optimizeMultiProcessModel(&sharedParams, &fixedParams, 0);
             clearVectorOfLikelihoods(1);
             auto candidateLik = vectorOfLikelohoods_[0];
             //optimizeModelParameters(candidateLik, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, baseNumCandidates, &sharedParams, &fixedParams);

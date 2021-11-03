@@ -210,7 +210,7 @@ namespace bpp
                 return calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
             }
             void runNewBranchModel(omp_lock_t &mutex, SingleProcessPhyloLikelihood* lik, std::vector<SingleProcessPhyloLikelihood*> &newShiftLikCandidates, vector<uint> &candidateShiftNodesIds, size_t i, uint numOfShifts, double parsimonyBound, uint numOfPoints);
-            void optimizeMultiProcessModel(std::map<int, std::vector<pair<uint, int>>>* sharedParams ,std::map<uint, vector<int>>* fixedParams, vector<SingleProcessPhyloLikelihood*>* perCandidateLikVec = 0);
+            void optimizeMultiProcessModel(std::map<int, std::vector<pair<uint, int>>>* sharedParams ,std::map<uint, vector<int>>* fixedParams, vector<SingleProcessPhyloLikelihood*>* perCandidateLikVec, omp_lock_t* mutex = 0);
             //void optimizeHeterogeneous();
             void optimize(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
             void optimizeInParallel(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
