@@ -155,7 +155,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     seed_ = ApplicationTools::getIntParameter("_seed", ChromEvol.getParams(), seed_, "", true, 0);
     simulateData_ = ApplicationTools::getBooleanParameter("_simulateData", ChromEvol.getParams(), simulateData_, "", true, 0);
     if (simulateData_){
-        characterFilePath_ = ApplicationTools::getAFilePath("_dataFile", ChromEvol.getParams(), false, true, "", true, "none", 1);
+        characterFilePath_ = ApplicationTools::getAFilePath("_dataFile", ChromEvol.getParams(), false, false, "", true, "none", 1);
     }else{
         characterFilePath_ = ApplicationTools::getAFilePath("_dataFile", ChromEvol.getParams(), true, true, "", true, "none", 1);
     }

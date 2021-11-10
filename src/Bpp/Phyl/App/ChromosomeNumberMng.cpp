@@ -957,7 +957,14 @@ void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector
             simulatedData->addSequence(seq);
         }
         vsc_ = simulatedData;
-        string pathForSimulatedData = ChromEvolOptions::resultsPathDir_ + "//"+ "chr_counts"+ std::to_string(iter) +".fasta";
+        string pathForSimulatedData;
+        if (ChromEvolOptions::characterFilePath_ == "none"){
+            pathForSimulatedData = ChromEvolOptions::resultsPathDir_ + "//"+ "chr_counts"+ std::to_string(iter) +".fasta";
+
+        }else{
+            pathForSimulatedData = ChromEvolOptions::characterFilePath_;
+        }
+        
         Fasta fasta;
         fasta.writeSequences(pathForSimulatedData, *simulatedData);
 
