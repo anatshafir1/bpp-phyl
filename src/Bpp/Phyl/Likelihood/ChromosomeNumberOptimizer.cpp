@@ -1518,7 +1518,6 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
             optimizeMultiProcessModel(&sharedParams_, &fixedParams_, 0);
             // leave only the best one
             clearVectorOfLikelihoods(1);
-            //minAICcLik = vectorOfLikelohoods_[0];
             firstIteration = false;
             numOfShifts ++;
             continue;

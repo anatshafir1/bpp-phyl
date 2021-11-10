@@ -332,8 +332,14 @@ void ChromosomeNumberMng::rescale_tree(PhyloTree* tree, double chrRange){
     }else{
         //tree must be rescaled
         double treeLength = tree->getTotalLength();
-        if (ChromEvolOptions::branchMul_ == 999){
+
+        if ((ChromEvolOptions::branchMul_ == 999) || (ChromEvolOptions::treeLength_)){
             scale_tree_factor = chrRange/treeLength;
+        }else{
+            scale_tree_factor = ChromEvolOptions::branchMul_;
+        }
+        if (scale_tree_factor == 0){
+            throw Exception("ChromosomeNumberMng::rescale_tree(): ERROR!!! Tree will be scaled to 0!!!!");
         }
         tree->scaleTree(scale_tree_factor);
 
@@ -610,9 +616,7 @@ void ChromosomeNumberMng::runChromEvol(){
         //simulate data using a tree and a set of model parameters
         RandomTools::setSeed(static_cast<long>(ChromEvolOptions::seed_));
         simulateData();
-        if (ChromEvolOptions::numOfDataToSimulate_ > 1){
-            return;
-        }
+        return;
 
     }
     
@@ -847,16 +851,60 @@ string ChromosomeNumberMng::nodeToParenthesis(const uint nodeId, const PhyloTree
 }
 /*********************************************************************************/
 void ChromosomeNumberMng::simulateData(){
-    std::cout << "should be reimplemented!! " << std::endl;
-    // if ((ChromEvolOptions::minChrNum_ <= 0) || (ChromEvolOptions::maxChrNum_ < 0)){
-    //     throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): minimum and maximum chromsome number should be positive!");
-    // }
-    // if (ChromEvolOptions::maxChrNum_ <= ChromEvolOptions::minChrNum_){
-    //     throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): maximum chromsome number should be larger than minimum chromosome number!");
-    // }
+    if ((ChromEvolOptions::minChrNum_ <= 0) || (ChromEvolOptions::maxChrNum_ < 0)){
+        throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): minimum and maximum chromsome number should be positive!");
+    }
+    if (ChromEvolOptions::maxChrNum_ <= ChromEvolOptions::minChrNum_){
+        throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): maximum chromsome number should be larger than minimum chromosome number!");
+    }
 
-    // alphabet_ = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
-    // DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    alphabet_ = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
+    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    ParametrizablePhyloTree* parTree =  new ParametrizablePhyloTree(*tree_);
+    std::map<uint, std::pair<int, std::map<int, vector<double>>>> complexParamsValues;
+    ChromEvolOptions::getInitialValuesForComplexParams(complexParamsValues);
+    std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
+    //1. ChromEvolOptions::mapModelNodesIds_: already calculated
+    
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
+    if (ChromEvolOptions::fixedFrequenciesFilePath_ == "none"){
+        throw Exception("ChromosomeNumberMng::simulateData(): ERROR! The file of fixed root frequencies is missing!!!");
+
+        
+
+    }
+    vector <double> rootFreqs = ChromosomeNumberOptimizer::setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, chrModel);
+    std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqs);
+    std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
+    std::shared_ptr<NonHomogeneousSubstitutionProcess> subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies->clone());
+
+    // adding models
+    for (uint i = 1; i <= ChromEvolOptions::numOfModels_; i++){
+        if (i > 1){
+            chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
+        }   
+        subProSim->addModel(chrModel, ChromEvolOptions::mapModelNodesIds_[i]);
+    }
+    SimpleSubstitutionProcessSiteSimulator* simulator = new SimpleSubstitutionProcessSiteSimulator(*subProSim);
+    SiteSimulationResult* simResult = simulator->dSimulateSite();
+    vector <size_t> leavesStates = simResult->getFinalStates();
+    vector<string> leavesNames = simResult->getLeaveNames();
+    printSimulatedData(leavesStates, leavesNames, 0);
+    printSimulatedDataAndAncestors(simResult);
+    if (ChromEvolOptions::resultsPathDir_ != "none"){
+        printSimulatedEvoPath(ChromEvolOptions::resultsPathDir_ +"//"+ "simulatedEvolutionPaths.txt", simResult);
+    }
+    delete simResult;
+    delete simulator;
+    
+    
+
+
+
+
+
+    
+    
     // std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, ChromEvolOptions::gain_, ChromEvolOptions::loss_, 
     //                                                             ChromEvolOptions::dupl_, ChromEvolOptions::demiDupl_, ChromEvolOptions::baseNum_, 
     //                                                             ChromEvolOptions::baseNumR_, ChromEvolOptions::maxBaseNumTransition_, 
@@ -1037,6 +1085,7 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
     }
     outFile << "Min allowed chromosome number  = " << alphabet_->getMin() << std::endl;
     outFile << "Max allowed chromosome number = " << alphabet_->getMax() << std::endl;
+    outFile << "tree Length was scaled to: " << tree_->getTotalLength() << std::endl;
     auto numOfModels = bestLik->getSubstitutionProcess().getNumberOfModels();
     outFile << "Number of models in the best model = " << numOfModels << std::endl;
     outFile << "Min clade size specified in the parameter file = " << ChromEvolOptions::minCladeSize_ << std::endl;
