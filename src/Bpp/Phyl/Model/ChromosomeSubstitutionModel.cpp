@@ -250,8 +250,7 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
   int baseNum,
   unsigned int chrRange, 
   rootFreqType freqType,
-  vector<int> rateChangeType,
-  bool forSimulation):
+  vector<int> rateChangeType):
     AbstractParameterAliasable("Chromosome."),
     AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
     gain_(0),
@@ -307,52 +306,11 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
   computeFrequencies(false);
   isScalable_ = false;    //in ChromEvol the matrix should be not normalized
   updateMatrices();
-  if (forSimulation){
-    correctMatrixForSimulation();
-  }
+
 
 }
-/******************************************************************************/
-void ChromosomeSubstitutionModel::correctMatrixForSimulation(){
-    //update generator matrix
-    size_t maxChrNum = (size_t)(getMax());
-    size_t minChrNum = (size_t)(getMin()); 
- 
-    // updating Q matrix
-    for (size_t i = minChrNum; i < maxChrNum+1; i++){
-        if (i < maxChrNum){
-          if (baseNum_ != IgnoreParam){
-            //updateQWithBaseNumParameters(i, minChrNum, maxChrNum);
-            if ( baseNumR_->getRate(i) < 0){
-              throw Exception("ChromosomeSubstitutionModel::updateQWithBaseNumParameters():Negative base number rate!");
-            }
-            for (size_t j = i + 1; j < maxChrNum + 1; j ++){
-              if (j == maxChrNum){
-                if ((j-i) <= maxChrRange_){
-                  generator_(i-minChrNum, maxChrNum-minChrNum) -= baseNumR_->getRate(i);
-                }
-              }
-            }
-          }
-        }
-        // correct for dupl
-        if (i*2 > maxChrNum){
-          if (dupl_ != 0){
-            generator_(i-minChrNum, maxChrNum-minChrNum) -= dupl_->getRate(i);
-          }
-        }
-        // correct for demi
-        if (demiploidy_ != 0){
-          if ((size_t)ceil((double)i*1.5) > maxChrNum){
-            generator_(i-minChrNum, maxChrNum-minChrNum) -= demiploidy_->getRate(i);
-          }
-        }
-    }
-    setDiagonal();  //sets Qii to -sigma(Qij)
-    updateEigenMatrices();
-    firstNormQ_ = getFirstNorm();
-  
-}
+
+
 /******************************************************************************/
 ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
   const ChromosomeAlphabet* alpha,
@@ -587,6 +545,49 @@ void ChromosomeSubstitutionModel::updateMatrices(){
           }
         }
         
+    }
+    setDiagonal();  //sets Qii to -sigma(Qij)
+    updateEigenMatrices();
+    firstNormQ_ = getFirstNorm();
+
+}
+/*******************************************************************************/
+void ChromosomeSubstitutionModel::correctBaseNumForSimulation(int maxChrNumInferred){
+    //update generator matrix
+    size_t maxChrNum = (size_t)(getMax());
+    size_t minChrNum = (size_t)(getMin()); 
+ 
+    // updating Q matrix
+    for (size_t i = minChrNum; i < maxChrNum; i++){
+      if (baseNumR_->getRate(i) < 0){
+        throw Exception("ChromosomeSubstitutionModel::correctBaseNumForSimulation():Negative base number rate!");
+      }
+      for (size_t j = i + 1; j < maxChrNum + 1; j ++){
+        if (j == maxChrNum){
+          if (((j-i) <= maxChrRange_) && ((int)(j-i) > baseNum_)){
+            generator_(i-minChrNum, maxChrNum-minChrNum) -= baseNumR_->getRate(i);
+          }
+
+
+        }else{
+          if ((j-i) % baseNum_ == 0){
+            if (i > (size_t)maxChrNumInferred){
+              if (((j-i) <= maxChrRange_) && ((int)(j-i) > baseNum_)){
+                generator_(i - minChrNum, j - minChrNum) -= baseNumR_->getRate(i);
+              }
+            }else{
+              if (((int)j-maxChrNumInferred) >= baseNum_ ){
+                if ((j-i) <= maxChrRange_){
+                  if (((int)i != maxChrNumInferred) || ((int)j-maxChrNumInferred != baseNum_)){
+                    generator_(i - minChrNum, j - minChrNum) -= baseNumR_->getRate(i);
+
+                  }                 
+                }
+              }
+            }
+          } 
+        }
+      }
     }
     setDiagonal();  //sets Qii to -sigma(Qij)
     updateEigenMatrices();

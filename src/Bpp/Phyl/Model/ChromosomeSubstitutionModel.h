@@ -351,8 +351,7 @@ public:
     int baseNum,
     unsigned int maxChrRange, 
     rootFreqType freqType,
-    vector<int> rateChangeType,
-    bool forSimulation = false);
+    vector<int> rateChangeType);
 
   //constructor with vector of parameters
   // ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
@@ -484,14 +483,14 @@ public:
   
   //These functions should be used from chromsome number optimizer
   void checkParametersBounds() const;
+  // this function is needed, because a large range of base number tends to lead to very high chromosome numbers in the simulation
+  void correctBaseNumForSimulation(int maxChrNum);
 
 
 protected:
   void addCompositeParameter(std::vector<Parameter*> parameters);
   void getCompositeParametersValues(std::string paramName, compositeParameter* param);
   void calculatePijtUsingEigenValues(double t) const;
-  // this function is needed, because a large range of base number tends to lead to very high chromosome numbers in the simulation
-  void correctMatrixForSimulation();
   //static void getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, double upperBoundExp, rateChangeFunc rateFunc, int maxChrNum, unsigned int chrRange, map<int, double>& setOfFixedParameters);
   //void updateParameters();
   void updateParameters(vector<double> &gain, vector<double> &loss, vector<double> &dupl, vector<double> &demi, vector<double> &baseNumR);

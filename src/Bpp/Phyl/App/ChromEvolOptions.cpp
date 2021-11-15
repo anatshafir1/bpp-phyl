@@ -52,6 +52,7 @@ string ChromEvolOptions::nodeIdsFilePath_;
 std::vector<uint> ChromEvolOptions::initialModelNodes_;
 std::vector<string> ChromEvolOptions::globalParams_;
 bool ChromEvolOptions::parallelization_;
+int ChromEvolOptions::maxChrInferred_;
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
     initDefaultParameters();
@@ -89,6 +90,7 @@ void ChromEvolOptions::initDefaultParameters(){
     heterogeneousModel_ = false; // the default is homogeneous model
     deltaAICcThreshold_ = 2;
     parallelization_ = false;
+    maxChrInferred_ = maxChrNum_;
     
 
 }
@@ -202,6 +204,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     maxNumOfModels_ = ApplicationTools::getIntParameter("_maxNumOfModels", ChromEvol.getParams(), maxNumOfModels_, "", true, 0);
     heterogeneousModel_ = ApplicationTools::getBooleanParameter("_heterogeneousModel", ChromEvol.getParams(), heterogeneousModel_, "", true, 0);
     deltaAICcThreshold_ = ApplicationTools::getDoubleParameter("_deltaAICcThreshold", ChromEvol.getParams(), deltaAICcThreshold_, "", true, 0);
+    maxChrInferred_ = ApplicationTools::getIntParameter("_maxChrInferred", ChromEvol.getParams(), maxChrInferred_, "", true, 0);
 
 }
 /************************************************************************/

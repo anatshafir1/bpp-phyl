@@ -866,7 +866,8 @@ void ChromosomeNumberMng::simulateData(){
     std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
     //1. ChromEvolOptions::mapModelNodesIds_: already calculated
     
-    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+    chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
     if (ChromEvolOptions::fixedFrequenciesFilePath_ == "none"){
         throw Exception("ChromosomeNumberMng::simulateData(): ERROR! The file of fixed root frequencies is missing!!!");
 
@@ -879,9 +880,10 @@ void ChromosomeNumberMng::simulateData(){
     std::shared_ptr<NonHomogeneousSubstitutionProcess> subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies->clone());
 
     // adding models
-    for (uint i = 1; i <= ChromEvolOptions::numOfModels_; i++){
+    for (uint i = 1; i <= (uint)(ChromEvolOptions::numOfModels_); i++){
         if (i > 1){
-            chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
+            chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+            chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
         }   
         subProSim->addModel(chrModel, ChromEvolOptions::mapModelNodesIds_[i]);
     }
