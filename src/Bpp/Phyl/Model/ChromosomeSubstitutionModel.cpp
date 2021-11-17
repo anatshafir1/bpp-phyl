@@ -337,6 +337,9 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
       double lowerBound;
       double upperBound;
       if (static_cast<ChromosomeSubstitutionModel::paramType>(i) == ChromosomeSubstitutionModel::BASENUM){
+        if (baseNumber == IgnoreParam){
+          continue;
+        }
         lowerBound = lowerBoundBaseNumber;
         upperBound = std::max((int)chrRange, lowerBoundBaseNumber+1);
         newBaseNumber = static_cast<int>(lowerBound + RandomTools::giveIntRandomNumberBetweenZeroAndEntry(upperBound-lowerBound));

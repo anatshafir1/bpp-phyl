@@ -1165,6 +1165,16 @@ std::map<uint, pair<int, std::map<int, std::vector<double>>>> ChromosomeNumberOp
         }
         it ++;
     }
+    auto modelIterator = heterogeneousModelParams.begin();
+    // it is important to set base number as ignored if it is not used. Other parameters are manipulated
+    // by the function specification.
+    while (modelIterator != heterogeneousModelParams.end()){
+        uint model = modelIterator->first;
+        if ((heterogeneousModelParams[model].second[ChromosomeSubstitutionModel::BASENUMR]).size() == 0){
+            heterogeneousModelParams[model].first = IgnoreParam;
+        }
+        modelIterator ++;
+    }
     return heterogeneousModelParams;
 
 }
