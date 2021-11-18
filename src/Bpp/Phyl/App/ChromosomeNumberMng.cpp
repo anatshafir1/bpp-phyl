@@ -867,7 +867,11 @@ void ChromosomeNumberMng::simulateData(){
     //1. ChromEvolOptions::mapModelNodesIds_: already calculated
     
     std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
-    chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
+    if (chrModel->getBaseNumber() != IgnoreParam){
+        chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
+
+    }
+    
     if (ChromEvolOptions::fixedFrequenciesFilePath_ == "none"){
         throw Exception("ChromosomeNumberMng::simulateData(): ERROR! The file of fixed root frequencies is missing!!!");
 
@@ -883,7 +887,11 @@ void ChromosomeNumberMng::simulateData(){
     for (uint i = 1; i <= (uint)(ChromEvolOptions::numOfModels_); i++){
         if (i > 1){
             chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
-            chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
+            if (chrModel->getBaseNumber() != IgnoreParam){
+                chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
+
+            }
+            
         }   
         subProSim->addModel(chrModel, ChromEvolOptions::mapModelNodesIds_[i]);
     }
