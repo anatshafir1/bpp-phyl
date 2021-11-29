@@ -1102,6 +1102,9 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
     }
     outFile << "Min allowed chromosome number  = " << alphabet_->getMin() << std::endl;
     outFile << "Max allowed chromosome number = " << alphabet_->getMax() << std::endl;
+    auto originalTreeLength = getOriginalTreeLength(ChromEvolOptions::treeFilePath_);
+    outFile << "Original tree length was: " << originalTreeLength <<std::endl;
+    outFile << "Tree scaling factor is: " << tree_->getTotalLength()/originalTreeLength << std::endl;
     outFile << "tree Length was scaled to: " << tree_->getTotalLength() << std::endl;
     auto numOfModels = bestLik->getSubstitutionProcess().getNumberOfModels();
     outFile << "Number of models in the best model = " << numOfModels << std::endl;
@@ -1116,7 +1119,7 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
     for (uint i = 1; i <= numOfModels; i++){
         outFile << "# Model $" << i << " = " << "N" << modelAndRepresentitives[i] << std::endl;
     }
-    writeTreeWithCorrespondingModels(*tree_, mapModelNodesIds, outFile);
+    writeTreeWithCorrespondingModels(*tree_, mapModelNodesIds);
 
     chrOptimizer->printRootFrequencies(bestLik, outFile);
     printLikParameters(chrOptimizer, bestLik, outFile);
@@ -1124,7 +1127,7 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
     outFile.close();
 
 }
-void ChromosomeNumberMng::writeTreeWithCorrespondingModels(PhyloTree tree, std::map<uint, vector<uint>> &modelAndNodes, ofstream &outFile) const{
+void ChromosomeNumberMng::writeTreeWithCorrespondingModels(PhyloTree tree, std::map<uint, vector<uint>> &modelAndNodes) const{
     std::map<uint, std::vector<size_t>> mapOfNodeAndModel;
     auto it = modelAndNodes.begin();
     while (it != modelAndNodes.end()){
@@ -1138,7 +1141,7 @@ void ChromosomeNumberMng::writeTreeWithCorrespondingModels(PhyloTree tree, std::
     uint rootId = tree.getRootIndex();
     convertNodesNames(tree, rootId, mapOfNodeAndModel, false);
     string tree_str = printTree(tree);
-    outFile << tree_str << std::endl;
+    //outFile << tree_str << std::endl;
     string pathForTree = ChromEvolOptions::resultsPathDir_ +"//"+ "treeWithShifts.tree";
     ofstream outFileTree;
     outFileTree.open(pathForTree);
@@ -1304,4 +1307,9 @@ void ChromosomeNumberMng::printLikParameters(ChromosomeNumberOptimizer* chrOptim
     }
 }
 /******************************************************************************/
-
+double ChromosomeNumberMng::getOriginalTreeLength(string &path) const{
+    Newick reader;
+    auto originalTree = reader.readPTree(path);
+    double treeLength = originalTree->getTotalLength();
+    return treeLength;
+}
