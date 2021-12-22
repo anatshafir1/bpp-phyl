@@ -50,6 +50,8 @@ public:
     static double branchMul_;
     static std::vector <unsigned int> OptPointsNum_;
     static std::vector <unsigned int> OptIterNum_;
+    static std::vector <unsigned int> OptPointsNumNextRounds_;
+    static std::vector <unsigned int> OptIterNumNextRounds_;
     static std::map<uint, std::vector<double>> gain_;
     static std::map<uint, std::vector<double>> loss_;
     static std::map<uint, std::vector<double>> dupl_;

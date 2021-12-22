@@ -48,36 +48,82 @@ using namespace bpp;
 
 // }
 /**********************************************************************************/
-void ChromosomeNumberOptimizer::initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* sharedParams){
+void ChromosomeNumberOptimizer::fillVectorOfLikelihoods(SingleProcessPhyloLikelihood* lik, uint numOfIterationsFirstCycle,  size_t currPoint, uint reqNumOfPoints, vector <uint> baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>& fixedParams, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string* text, omp_lock_t* mutex){
+    printLikParameters(lik, 0, text);
+    if (numOfIterationsFirstCycle > 0){
+        optimizeModelParameters(lik, tolerance_, numOfIterationsFirstCycle, baseNumCandidates, sharedParams, &fixedParams, text);
+        printLikParameters(lik, 1, text);
 
+    }
+    if(mutex){
+        omp_set_lock(mutex);
+        //std::cout << "Within critiacal section: fillVectorOfLikelihoods()" << std::endl;
+
+    }
+    if (currPoint < reqNumOfPoints){
+        vectorOfLiklihoods.push_back(lik);
+            
+    }else{
+        SingleProcessPhyloLikelihood* likToDel;
+        size_t index;
+
+        for (size_t i = 0; i < reqNumOfPoints; i++){ 
+            if (i == 0){
+                likToDel = vectorOfLiklihoods[0];
+                index = 0;
+            }else{
+                if (likToDel->getValue() < vectorOfLiklihoods[i]->getValue()){
+                    likToDel = vectorOfLiklihoods[i];
+                    index = i;
+                }
+            }
+        }
+        if (lik->getValue() < likToDel->getValue()){
+            vectorOfLiklihoods[index] = lik;
+            
+
+        }else{
+            likToDel = lik;
+
+        }
+
+        deleteLikObject(likToDel);
+                      
+
+    }
+    if (mutex){
+        //std::cout << "Out of critiacal section: fillVectorOfLikelihoods()" << std::endl;
+        omp_unset_lock(mutex);
+            
+
+    }      
+
+}
+/**********************************************************************************/
+void ChromosomeNumberOptimizer::initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* sharedParams){
+    size_t index = min((int)numOfPoints_.size()-1, 1);
+    vectorOfLikelohoods_.reserve(numOfPoints_[index]);
+    vector <unsigned int> baseNumCandidates;
+    getBaseNumCandidates(baseNumCandidates, baseNumberUpperBound_);
+
+    // If base number is one of the parameters
     SingleProcessPhyloLikelihood* lik;
+    cout <<"##################################" << endl;
+    cout << "*********  cycle 0  **************"<<endl;  
     for (size_t n = 0; n < numOfPoints; n++){
+        std::cout << "Starting cycle with Point #" << n <<"...."<<endl;
         if (n == 0){
             lik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, sharedParams);
         }else{
             lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)n, fixedParams, sharedParams);
     
         }
-        
-        if (std::isnan(lik->getValue())){
-            std::cout << "value is nan"<<endl;
-        }
-        int countNumOfTrials = 0;
-        
-        while (((std::isinf(lik->getValue())) || (std::isnan(lik->getValue())))||(lik->getValue() < 0))
-        {
-            if (countNumOfTrials >= ChromEvolOptions::maxNumOfTrials_){
-                break;
-            }
-            deleteLikObject(lik);
-            lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
-
-            countNumOfTrials ++;
-
-        }
-        vectorOfLikelohoods_.push_back(lik);//add to vector of likelihoods
-        
+        fillVectorOfLikelihoods(lik, numOfIterations_[0],  n, numOfPoints_[index], baseNumCandidates, sharedParams, fixedParams, vectorOfLikelohoods_, 0);
+   
     }
+
+    sort(vectorOfLikelohoods_.begin(), vectorOfLikelohoods_.end(), compareLikValues);
+    printLikelihoodVectorValues(vectorOfLikelohoods_, 0, 0);
 
 }
 // // /****************************************************************************/
@@ -170,64 +216,134 @@ vector <double> ChromosomeNumberOptimizer::setFixedRootFrequencies(const std::st
 //     printLikParameters(vectorOfLikelohoods_[0], 1, ChromEvolOptions::resultsPathDir_ + "//" + "likelihood.txt");
 
 // }
-
-// /****************************************************************************/
-
-void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vector<std::pair<uint, int>>>* sharedParams ,std::map<uint, vector<int>>* fixedParams, vector<SingleProcessPhyloLikelihood*>* perCandidateLik, omp_lock_t* mutex)
-{
-
-    vector <unsigned int> baseNumCandidates;
-
-    // If base number is one of the parameters
+/*******************************************************************************/
+void ChromosomeNumberOptimizer::getBaseNumCandidates(vector <unsigned int> &baseNumCandidates, std::map<uint, uint> &baseNumberUpperBounds) const{
     if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
-        uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
+        uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBounds);
         fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
 
     }
 
+}
+
+// /****************************************************************************/
+
+void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, vector<unsigned int> &numOfPoints, vector<unsigned int> &numOfIterations, std::map<uint, uint> &baseNumberUpperBounds, vector<SingleProcessPhyloLikelihood*>* perCandidateLik, string* text, omp_lock_t* mutex)
+{
+    if (mutex){
+        omp_set_lock(mutex);
+        //std::cout << "Within critical section: optimizeMultiProcessModel(): base number fill" << std::endl;
+
+    }
+    vector <unsigned int> baseNumCandidates;
+    getBaseNumCandidates(baseNumCandidates, baseNumberUpperBounds);
+    if (mutex){
+        //std::cout << "Out of critical section: optimizeMultiProcessModel():base number fill" << std::endl;
+        omp_unset_lock(mutex);
+    }
     //Go over each cycle
-    for (size_t i = 0; i < numOfIterations_.size(); i++){
-        if (perCandidateLik){
-            omp_set_lock(mutex);
-            clearVectorOfLikelihoods(numOfPoints_[i], *perCandidateLik);
-            omp_unset_lock(mutex);
-        }else{
-            clearVectorOfLikelihoods(numOfPoints_[i]);
-
-        }   
-        cout <<"##################################" << endl;
-        cout << "*********  cycle "<< i <<"  **************"<<endl;     
-        //Go over each point at cycle i 
-        for (size_t j = 0; j < numOfPoints_[i]; j++){
-            std::cout << "Starting cycle with Point #" << j <<"...."<<endl;
+    // note: I start from the second point, because the first iteration has been already done.
+    for (size_t i = 1; i < numOfIterations.size(); i++){
+        for (size_t j = 0; j < numOfPoints[i]; j++){
             if (!perCandidateLik){
-                printLikParameters(vectorOfLikelohoods_[j], 0);
-
+                printLikParameters(vectorOfLikelohoods_[j], 0, text);
             }
-            
             //If the number of optimization iterations is larger than zero, optimize the number of times as specified
-            if (numOfIterations_[i] > 0){
+            if (numOfIterations[i] > 0){
                 if (perCandidateLik){
-                    optimizeModelParameters((*perCandidateLik)[j], tolerance_, numOfIterations_[i], baseNumCandidates, sharedParams, fixedParams);
+                    // add here baseNum candidates
+                    optimizeModelParameters((*perCandidateLik)[j], tolerance_, numOfIterations[i], baseNumCandidates, sharedParams, fixedParams, text);
                 }else{
-                    optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations_[i], baseNumCandidates, sharedParams, fixedParams);
+                    optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations[i], baseNumCandidates, sharedParams, fixedParams, text);
                 }
             }
+            if ((i < numOfIterations.size()-1) && (j >= numOfPoints[i+1])){
+                if (mutex){
+                    omp_set_lock(mutex);
+                    //std::cout << "Within critical section: optimizeMultiProcessModel()" << std::endl;
+
+                }
+                
+                SingleProcessPhyloLikelihood* currLik;
+                SingleProcessPhyloLikelihood* likToDel;
+                (perCandidateLik) ? (currLik = (*perCandidateLik)[j]) : (currLik = vectorOfLikelohoods_[j]);
+                size_t index = 0;
+                for (size_t k = 0; k < numOfPoints[i+1]; k++){
+                    if (k == 0){
+                        if (perCandidateLik){
+                            likToDel = (*perCandidateLik)[k];
+
+                        }else{
+                            likToDel = vectorOfLikelohoods_[k];
+                        }
+                        
+                    }else{
+                        if (perCandidateLik){
+                            if (likToDel->getValue() < (*perCandidateLik)[k]->getValue()){
+                                likToDel = (*perCandidateLik)[k];
+                                index = k;
+                            }
+                        }else{
+                            if (likToDel->getValue() < vectorOfLikelohoods_[k]->getValue()){
+                                likToDel = vectorOfLikelohoods_[k];
+                                index = k;
+                            }
+
+                        }
+                    }
+
+                }
+                if (currLik->getValue() > likToDel->getValue()){
+                    likToDel = currLik;
+                }else{
+                    (perCandidateLik) ? ((*perCandidateLik)[index] = currLik) : (vectorOfLikelohoods_[index] = currLik);
+                }
+                
+                deleteLikObject(likToDel);
+                (perCandidateLik) ? ((*perCandidateLik)[j] = 0) : (vectorOfLikelohoods_[j] = 0);
+                if (mutex){
+                    //std::cout << "Out of critical section: optimizeMultiProcessModel()" << std::endl;
+                    omp_unset_lock(mutex);
+                }
+            }     
         }
-        //sort the vector of likelihoods, such that the worst likelihood is at the end
+        if (i < numOfIterations.size()-1){
+            if (mutex){
+                omp_set_lock(mutex);
+                //std::cout << "Within critical section2 : optimizeMultiProcessModel()" << std::endl;
+            }
+            if (perCandidateLik){
+                clearVectorOfLikelihoods(numOfPoints[i+1], *perCandidateLik);
+
+            }else{
+                clearVectorOfLikelihoods(numOfPoints[i+1]);
+            }
+            if (mutex){
+                //std::cout << "Out of critical section2: optimizeMultiProcessModel()" << std::endl;
+                omp_unset_lock(mutex);
+            }
+                      
+        }
+        if (mutex){
+            omp_set_lock(mutex);
+            //std::cout << "Within critical section3: optimizeMultiProcessModel()" << std::endl;
+        }
+
         if (perCandidateLik){
             sort((*perCandidateLik).begin(), (*perCandidateLik).end(), compareLikValues);
+            printLikelihoodVectorValues(*perCandidateLik, text, i);
         }else{
             sort(vectorOfLikelohoods_.begin(), vectorOfLikelohoods_.end(), compareLikValues);
-            printLikelihoodVectorValues(vectorOfLikelohoods_);
+            printLikelihoodVectorValues(vectorOfLikelohoods_, 0, i);
 
         }
-        
-        
-        
+        if (mutex){
+            //std::cout << "Out of critical section3: optimizeMultiProcessModel()" << std::endl;
+            omp_unset_lock(mutex);
+        }
     }
 
-    //writeOutp utToFile();
+
 }
 /********************************************************************************/
 void ChromosomeNumberOptimizer::deleteLikObject(SingleProcessPhyloLikelihood* lik_to_del){
@@ -250,8 +366,10 @@ void ChromosomeNumberOptimizer::clearVectorOfLikelihoods(size_t new_size){
         //deleteTreeLikAssociatedAttributes(vectorOfLikelohoods_[vectorOfLikelohoods_.size()-1]);
         SingleProcessPhyloLikelihood* lik_to_del = vectorOfLikelohoods_.back(); 
         vectorOfLikelohoods_.pop_back();
-        deleteLikObject(lik_to_del);
+        if (lik_to_del){
+            deleteLikObject(lik_to_del);
 
+        }
     }
 }
 // /********************************************************************************/
@@ -260,7 +378,11 @@ void ChromosomeNumberOptimizer::clearVectorOfLikelihoods(size_t new_size, std::v
         //deleteTreeLikAssociatedAttributes(vectorOfLikelohoods_[vectorOfLikelohoods_.size()-1]);
         SingleProcessPhyloLikelihood* lik_to_del = likelihoodsVec.back(); 
         likelihoodsVec.pop_back();
-        deleteLikObject(lik_to_del);
+        if (lik_to_del){
+            deleteLikObject(lik_to_del);
+
+        }
+        
 
     }
 }
@@ -270,21 +392,21 @@ bool ChromosomeNumberOptimizer::compareLikValues(SingleProcessPhyloLikelihood* l
     return (lik1->getValue() < lik2->getValue());
 }
 // /***********************************************************************************/
-void ChromosomeNumberOptimizer::printLikParameters(SingleProcessPhyloLikelihood* lik, unsigned int optimized, const string filePath) const{
+void ChromosomeNumberOptimizer::printLikParameters(SingleProcessPhyloLikelihood* lik, unsigned int optimized, string* textToPrint, const string filePath) const{
     ofstream outFile;
     if (filePath != "none"){
         outFile.open(filePath);
     }
+    string text;
     if (optimized == 0){
-        std:: cout << "Initial likelihood is : "<< lik->getValue() << endl;
+        text = "Initial likelihood is : "+ std::to_string(lik->getValue())+"\n";
     }else{
-        std:: cout << "Optimized likelihood is : "<< lik->getValue() << endl;
+        text = "Optimized likelihood is : "+ std::to_string(lik->getValue()) +"\n";
         if (filePath != "none"){
             outFile << "Final optimized likelihood is: "<< lik->getValue() << endl;
         }
     }
-    
-    std:: cout << "Parameters are:" << endl;
+    text +=  "Parameters are:\n";
     if (filePath != "none"){
         outFile << "Optimized parameters are:"<<endl;
     }
@@ -292,12 +414,12 @@ void ChromosomeNumberOptimizer::printLikParameters(SingleProcessPhyloLikelihood*
     std::vector<std::string> paramsNames = substitutionModelParams.getParameterNames();
     for (int i = 0; i < (int)(paramsNames.size()); i++){
         if (paramsNames[i].find("Chromosome.baseNum_") != std::string::npos){
-            std::cout << paramsNames[i] << " = "<< (int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) <<endl;
+            text += paramsNames[i]+ " = "+ std::to_string((int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()))+"\n";
             if (filePath != "none"){
                 outFile <<  paramsNames[i] << " = "<< (int)(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) <<endl;
             }
         }else{
-            std::cout << paramsNames[i] << " = "<< lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue() <<endl;
+            text += (paramsNames[i] + " = "+ std::to_string(lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue()) + "\n");
             if (filePath != "none"){
                 outFile << paramsNames[i] << " = "<< lik->getLikelihoodCalculation()->getParameter(paramsNames[i]).getValue() <<endl;
             }
@@ -307,14 +429,24 @@ void ChromosomeNumberOptimizer::printLikParameters(SingleProcessPhyloLikelihood*
     if (filePath != "none"){
         outFile.close();
     }
-    std::cout <<"***"<<endl;
+    text +=  "***\n";
+    if (textToPrint){
+        *textToPrint += text;
+    }else{
+        std::cout << text;
+    }
 
 }
 // /*************************************************************************************/
-void ChromosomeNumberOptimizer::printLikelihoodVectorValues(std::vector <SingleProcessPhyloLikelihood*> lik_vec) const{
-    std :: cout <<"The likelihoods at the end of cycle are :"<<endl;
+void ChromosomeNumberOptimizer::printLikelihoodVectorValues(std::vector <SingleProcessPhyloLikelihood*> lik_vec, string* text, size_t cycle) const{
+    string textToPrint = "The likelihoods at the end of cycle " + std::to_string(cycle)+" are :\n";
     for (size_t i = 0; i < lik_vec.size(); i++){
-        std :: cout << lik_vec[i]->getValue() << endl;
+        textToPrint += std::to_string(lik_vec[i]->getValue())+"\n";
+    }
+    if (text){
+        *text += textToPrint;
+    }else{
+        std::cout << textToPrint;
     }
 }
 
@@ -411,18 +543,18 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
 }
 
 // /**********************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams){
+unsigned int ChromosomeNumberOptimizer::optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint){
     unsigned int numOfEvaluations = 0;
  
     if (typeOfOptimizer_ == "Brent"){
-        numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams);
+        numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams, textToPrint);
     }else if (typeOfOptimizer_ == "gradient"){
         checkLegalUseOfGradientOptimization();
-        numOfEvaluations += optimizeMultiDimensions(tl, tol, maxNumOfIterations, sharedParams, fixedParams);
+        numOfEvaluations += optimizeMultiDimensions(tl, tol, maxNumOfIterations, sharedParams, fixedParams, textToPrint);
 
     }else{
         checkLegalUseOfGradientOptimization();
-        numOfEvaluations += useMixedOptimizers(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams);
+        numOfEvaluations += useMixedOptimizers(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams, textToPrint);
     }
         
     return numOfEvaluations;
@@ -447,7 +579,7 @@ void ChromosomeNumberOptimizer::checkLegalUseOfGradientOptimization(){
 }
 
 // /****************************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed, unsigned int currentIterNum){
+unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, bool mixed, unsigned int currentIterNum){
     DerivableSecondOrder* f = tl;
     ParameterList tmp = tl->getSubstitutionModelParameters();
     unique_ptr<AbstractNumericalDerivative> fnum;
@@ -466,15 +598,16 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
     ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(typeWithParamNames, &paramNameAndType, tl);
     size_t startCompositeParams = ChromosomeSubstitutionModel::getNumberOfNonCompositeParams();
 
+    string text = "";
     unsigned int numOfEvaluations = 0;
     double currentLikelihood = tl->getValue();
     double prevLikelihood;
     for (size_t i = 0; i < maxNumOfIterations; i++){
         if(mixed){
-            std::cout << "Iteration #"<< currentIterNum <<endl;
+            text += ("Iteration #"+ std::to_string(currentIterNum)+"\n");
 
         }else{
-            std::cout << "Iteration #"<< i <<endl;
+            text += ("Iteration #"+ std::to_string(i)+"\n");
         }
         
         ParameterList paramsFull = tl->getSubstitutionModelParameters();
@@ -510,16 +643,26 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
         prevLikelihood = currentLikelihood;
         optimizer->init(params);
         currentLikelihood = optimizer->optimize();
-        printLikParameters(tl, 1);
+        *textToPrint += text;
+        if (!textToPrint){
+            std::cout << text;
+        }
+        printLikParameters(tl, 1, textToPrint);
         if (std::abs(prevLikelihood-currentLikelihood) < tol){
             break;
         }
         
         
     }
+    
     numOfEvaluations += optimizer->getNumberOfEvaluations();
     if (!mixed){
-        std::cout <<"..."<<endl;
+        if (textToPrint){
+            *textToPrint += "...\n";
+        }else{
+            std::cout <<"..."<<endl;
+
+        }
     }
     //std::cout << "The final number of evaluations is: "<< numOfEvaluations << endl;
     delete optimizer;
@@ -528,18 +671,19 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
 }
 // /*******************************************************************************/
 
-unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams){
+unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint){
     std::vector<size_t> optimization = RandomTools::randMultinomial(maxNumOfIterations, probsForMixedOptimization_);
     unsigned int numOfEvaluations = 0;
     for (size_t i = 0; i < maxNumOfIterations; i++){
         double prevLikelihood = tl->getValue();
         if (optimization[i] == 0){
-            std::cout << "Optimizing with Brent" <<endl;
-
-            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, 1, baseNumCandidates, sharedParams, fixedParams, true, (unsigned int)i);
+            string text = "Optimizing with Brent\n";
+            printLog(textToPrint, text);
+            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, 1, baseNumCandidates, sharedParams, fixedParams, textToPrint, true, (unsigned int)i);
         }else{
-            std::cout << "Optimizing with Gradient Descent" <<endl;
-            numOfEvaluations += optimizeMultiDimensions(tl, tol, 1, sharedParams, fixedParams, true, (unsigned int)i);
+            string text = "Optimizing with Gradient Descent\n";
+            printLog(textToPrint, text);
+            numOfEvaluations += optimizeMultiDimensions(tl, tol, 1, sharedParams, fixedParams, textToPrint, true, (unsigned int)i);
         }
         double currentLikValue = tl->getValue();
         if (std::abs(prevLikelihood-currentLikValue) < tol){
@@ -548,13 +692,15 @@ unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLik
 
 
     }
+    
     return numOfEvaluations;
 
 }
 // /*******************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, bool mixed, unsigned curentIterNum){
+unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, bool mixed, unsigned curentIterNum){
 
     // Initialize optimizer
+    string text;
     DerivableSecondOrder* f = tl;
     BrentOneDimension* optimizer = new BrentOneDimension(f);
     optimizer->setVerbose(1);
@@ -586,11 +732,13 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
     // starting iterations of optimization
     for (size_t i = 0; i < maxNumOfIterations; i++){
         if (mixed){
-            std::cout << "Iteration #"<<curentIterNum <<endl;
+            text = "Iteration #" + std::to_string(curentIterNum)+ "\n";
+            
 
         }else{
-            std::cout << "Iteration #"<<i <<endl;
+            text = "Iteration #" +std::to_string(i) + "\n";
         }
+        printLog(textToPrint, text);
         //ParameterList params = tl->getParameters();// = tl->getParameters();
         ParameterList substitutionModelParams = tl->getSubstitutionModelParameters();
         size_t nbParams = substitutionModelParams.size();
@@ -599,9 +747,8 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
         for (size_t j = 0; j < nbParams; j ++){
             params = tl->getParameters();
             const string nameOfParam = substitutionModelParams[j].getName();
-            //std::cout << "Previous value of " << nameOfParam << " is: " << f->getParameter(nameOfParam).getValue() << endl;
-            std::cout << "Previous value of " << nameOfParam << " is: " << params.getParameter(nameOfParam).getValue() << endl;
-
+            text = "Previous value of "+ nameOfParam + " is: "+ std::to_string(params.getParameter(nameOfParam).getValue()) + "\n";
+            printLog(textToPrint, text);
             int rateParamType = paramNameAndType[nameOfParam].first;
             
             if (std::count((*fixedParams)[paramNameAndType[nameOfParam].second].begin(), (*fixedParams)[paramNameAndType[nameOfParam].second].end(), rateParamType)){
@@ -629,26 +776,28 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
                 delete functionOp;
 
                 std::shared_ptr<IntervalConstraint> intervalFuncUpdated = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(nameOfParam).getConstraint());
-                double updated_lowerBound = intervalFuncUpdated->getLowerBound();
-                std::cout << "*** ***" << nameOfParam << ": Updated lower bound: " << updated_lowerBound << std::endl;
+                //double updated_lowerBound = intervalFuncUpdated->getLowerBound();
+                //std::cout << "*** ***" << nameOfParam << ": Updated lower bound: " << updated_lowerBound << std::endl;
 
 
                 std::shared_ptr<IntervalConstraint> intervalFuncUpdatedTL = dynamic_pointer_cast<IntervalConstraint>(tl->getParameter(nameOfParam).getConstraint());
-                double updated_lowerBoundTL = intervalFuncUpdatedTL->getLowerBound();
-                std::cout << "*** ***" << nameOfParam << ": Updated lower bound TL: " << updated_lowerBoundTL << std::endl;  
+                //double updated_lowerBoundTL = intervalFuncUpdatedTL->getLowerBound();
+                //std::cout << "*** ***" << nameOfParam << ": Updated lower bound TL: " << updated_lowerBoundTL << std::endl;  
 
             }else{
                 // baseNumber parameter
                 if (baseNumOptimizationMethod_ != "Brent"){
                     if (!std::count((*fixedParams)[paramNameAndType[nameOfParam].second].begin(), (*fixedParams)[paramNameAndType[nameOfParam].second].end(), ChromosomeSubstitutionModel::BASENUM)){
                         optimizeBaseNum(tl, j, baseNumCandidates, &currentLikelihood, lowerBound, upperBound, nameOfParam, params, paramNameAndType[nameOfParam].second);
-                        std::cout << "parameter value after optimization "<< tl->getLikelihoodCalculation()->getParameter(param.getName()).getValue() << endl;
+                        text = "parameter value after optimization "+ std::to_string(tl->getLikelihoodCalculation()->getParameter(param.getName()).getValue())+ "\n";
+                        printLog(textToPrint, text);
                         continue;
                     }
                 }
-            }        
+            }
+            text = "Parameter name is: "+ nameOfParam +"\n";
+            printLog(textToPrint, text);         
                  
-            cout <<"Parameter name is: "<< nameOfParam << endl; 
             if ((i == 1) & (maxNumOfIterations > 2)){
                 optimizer->getStopCondition()->setTolerance(tol* 2);
             }else{
@@ -661,10 +810,12 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
             }            
             optimizer->init(params.createSubList(param.getName()));
             currentLikelihood = optimizer->optimize();
-            std::cout <<"Parameter value after optimization: "<< tl->getLikelihoodCalculation()->getParameter(param.getName()).getValue() <<endl;
-            std::cout << "***"<<endl;                        
+            text = "parameter value after optimization "+ std::to_string(tl->getLikelihoodCalculation()->getParameter(param.getName()).getValue())+ "\n";
+            printLog(textToPrint, text);
+            text = "***\n";
+            printLog(textToPrint, text);
         }
-        printLikParameters(tl, 1);
+        printLikParameters(tl, 1, textToPrint);
         
         if (std::abs(prevLikelihood-currentLikelihood) < tol){
             break;
@@ -673,7 +824,8 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
        
     }
     if (!mixed){
-        std::cout <<"..."<<endl;
+        text =  "...\n";
+        printLog(textToPrint, text);
     }
     delete optimizer;
     return numOfEvaluations;
@@ -1037,10 +1189,115 @@ void ChromosomeNumberOptimizer::setParamsNameInForMultiProcess(std::map<uint, st
     }
 
 }
+/***********************************************/
+void ChromosomeNumberOptimizer::setNewModelAttributes(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, std::map<uint, pair<int, std::map<int, std::vector<double>>>>* modelParams, std::map<uint, std::vector<uint>>* mapModelNodesIds, std::map<uint, uint>* baseNumberBounds){
+    uint modelNumInCurrentLik = static_cast<uint>(currentLik->getSubstitutionProcess().getModelNumberForNode(nodeToSplit));
+    uint numOfModels = static_cast<uint>(currentLik->getSubstitutionProcess().getNumberOfModels());
+    std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames;//parameter type, num of model, related parameters
+    ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(typeWithParamNames, 0, currentLik, sharedParams);   
+    *modelParams = getMapOfParamsForComplexModel(currentLik, typeWithParamNames, numOfModels);
 
+    // add the new regime to the map (i.e., copy the parameters of the regime to which the node was assigned to previously)
+    (*modelParams)[numOfModels+1] = (*modelParams)[modelNumInCurrentLik];
+    //getting nodeIds per each model (for the current model) *not the new one
+    getMutableMapOfModelAndNodeIds(*mapModelNodesIds, currentLik);
+
+    // getting an updated map of nodes per model (for the new model)
+    PhyloTree tree = *tree_;
+    vector<std::shared_ptr<PhyloNode>> newSubtree = tree.getSubtreeNodes(tree.getNode(nodeToSplit));
+    vector<uint> newSubtreeIds = tree.getNodeIndexes(newSubtree);
+    //delete tree;
+    (*mapModelNodesIds)[numOfModels+1] = std::vector<uint>();
+    for (size_t i = 0; i < newSubtreeIds.size(); i++){
+        uint nodeId = newSubtreeIds[i];
+        uint prevModel = static_cast<uint>(currentLik->getSubstitutionProcess().getModelNumberForNode(nodeId));
+        if (prevModel == modelNumInCurrentLik){
+            (*mapModelNodesIds)[prevModel].erase(std::remove((*mapModelNodesIds)[prevModel].begin(), (*mapModelNodesIds)[prevModel].end(), nodeId), (*mapModelNodesIds)[prevModel].end());
+            (*mapModelNodesIds)[numOfModels+1].push_back(nodeId);
+
+        }
+    }
+    for (size_t i = 1; i <= numOfModels; i ++){
+        auto branchProcess = currentLik->getSubstitutionProcess().getModel(i);
+        baseNumberUpperBound_[static_cast<uint>(i)] = dynamic_cast<const ChromosomeSubstitutionModel*>(branchProcess)->getMaxChrRange();
+        (*baseNumberBounds)[static_cast<uint>(i)] = baseNumberUpperBound_[static_cast<uint>(i)];
+    }
+    baseNumberUpperBound_[numOfModels+1] = baseNumberUpperBound_[modelNumInCurrentLik];
+    (*baseNumberBounds)[numOfModels+1] = baseNumberUpperBound_[modelNumInCurrentLik];
+
+}
+/***********************************************/
+
+void ChromosomeNumberOptimizer::optimizeFirstRound(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLikelihoods, string &text, std::map<uint, uint>* baseNumberBounds, omp_lock_t* mutex){
+    size_t index = min((int)numOfPointsNextRounds.size()-1, 1);
+    vectorOfLikelihoods.reserve(numOfPointsNextRounds[index]);
+    if (mutex){
+        omp_set_lock(mutex);
+        //std::cout << "Within critical section: optimizeFirstRound(): fill base number" << std::endl;
+    } 
+    vector <unsigned int> baseNumCandidates;
+    getBaseNumCandidates(baseNumCandidates, *baseNumberBounds);
+    if (mutex){
+        //std::cout << "Out of critical section: optimizeFirstRound(): optimizeFirstRound(): fill base number" << std::endl;
+        omp_unset_lock(mutex);
+
+    }  
+    string log = "";
+
+    // If base number is one of the parameters
+    log += "##################################\n";
+    log += "*********  cycle 0  **************\n";
+    printLog(&text, log);  
+    for (size_t n = 0; n < numOfPointsNextRounds[0]; n++){
+        log = "Starting cycle with Point #";
+        log += std::to_string(n) +"....\n";
+        printLog(&text, log);
+        if (mutex){
+            omp_set_lock(mutex);
+            //std::cout << "Within critical section: optimizeFirstRound()" << std::endl;
+        }    //std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, uint iteration
+        //std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, uint iteration
+        auto lik = getSingleNewLikObject(updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, (uint)n, baseNumberBounds);
+        if (mutex){
+            //std::cout << "Out of critical section: optimizeFirstRound()" << std::endl;
+            omp_unset_lock(mutex);
+
+        }      
+        fillVectorOfLikelihoods(lik, numOfIterationsNextRounds[0],  n, numOfPointsNextRounds[index], baseNumCandidates, updatedSharedParams, fixedParams, vectorOfLikelihoods, &text, mutex);
+   
+    }
+    if (mutex){
+        omp_set_lock(mutex);
+        //std::cout << "Within critical section2: optimizeFirstRound()" << std::endl;
+    } 
+    sort(vectorOfLikelihoods.begin(), vectorOfLikelihoods.end(), compareLikValues);
+    if (mutex){
+        //std::cout << "Out of critical section2: optimizeFirstRound()" << std::endl;
+        omp_unset_lock(mutex);
+
+    }
+    printLikelihoodVectorValues(vectorOfLikelihoods, &text, 0);
+
+}
+/***********************************************/
+SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getSingleNewLikObject(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, uint iteration, std::map<uint, uint>* baseNumberBounds){
+
+    SingleProcessPhyloLikelihood* newLik;
+    if (iteration == 0){
+        newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, updatedSharedParams);         
+
+    }else{
+            // setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
+        newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
+    }
+    return newLik;
+    
+
+}
 /***********************************************/
 // this function will replace the getNewLikObject() once it is tested for bugs
-void ChromosomeNumberOptimizer::getNewLikObjectForParallelRuns(std::vector<SingleProcessPhyloLikelihood*> &newShiftLikCandidates, size_t index, std::vector<SingleProcessPhyloLikelihood*> &perCandidateLikVec, SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound){
+// (perCandidateLikVec, lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, numOfPoints, fixedParams, parsimonyBound);
+void ChromosomeNumberOptimizer::getNewLikObjectForParallelRuns(std::vector<SingleProcessPhyloLikelihood*> &perCandidateLikVec, SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound){
     
     uint modelNumInCurrentLik = static_cast<uint>(currentLik->getSubstitutionProcess().getModelNumberForNode(nodeToSplit));
     uint numOfModels = static_cast<uint>(currentLik->getSubstitutionProcess().getNumberOfModels());
@@ -1480,6 +1737,145 @@ void ChromosomeNumberOptimizer::updateSharedParameters(std::map<int, vector<std:
 }
 
 /**********************************************************************************************/
+// // this function will replace the optimize function once it will be tested on enough data
+// void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds){
+//     int maxNumOfModels;
+//     SingleProcessPhyloLikelihood* lik;
+//     SingleProcessPhyloLikelihood* minAICcLik;
+    
+//     fixedParams_ = fixedParams;
+//     sharedParams_ = ChromEvolOptions::sharedParameters_;
+//     optimizeBaseNumber_ = false;
+//     // if we should optimize it for at least one model, we will set it to true. Otherwise it is fixed for all the models.
+//     for (uint i = 1; i <= static_cast<uint>(ChromEvolOptions::numOfModels_); i++){
+//         if (!(std::count(fixedParams_[i].begin(), fixedParams_[i].end(), ChromosomeSubstitutionModel::BASENUM))){
+//             optimizeBaseNumber_ = true;
+//         }
+//     }
+//     ((ChromEvolOptions::maxNumOfModels_ == 1) && (ChromEvolOptions::heterogeneousModel_)) ? (maxNumOfModels = (static_cast<int>((tree_->getAllLeavesNames()).size())-1)) : (maxNumOfModels = ChromEvolOptions::maxNumOfModels_);
+//     vector<uint> candidateShiftNodesIds;
+//     if (ChromEvolOptions::heterogeneousModel_){
+//         getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_);
+
+//     }
+    
+//     vector <unsigned int> baseNumCandidates;
+//     getBaseNumCandidates(baseNumCandidates, baseNumberUpperBound_);
+//     uint numOfShifts = ChromEvolOptions::numOfModels_;
+
+//     sharedParams_ = ChromEvolOptions::sharedParameters_;
+//     vectorOfLikelohoods_.reserve(numOfPoints);
+//     //vectorOfContexts_.reserve(numberOfModels);
+
+//     if (seed != 0){
+//         RandomTools::setSeed(static_cast<long>(seed));
+//     }
+//     bool deltaAICcImproved = true;
+//     bool firstIteration = true;
+
+//     while((deltaAICcImproved) && (numOfShifts <= (size_t)maxNumOfModels)){
+//         if ((candidateShiftNodesIds.size() == 0) && (maxNumOfModels > 1)){
+//             break;
+//         }
+//         if (firstIteration){
+//             initLikelihoods(modelParams, parsimonyBound, rateChange, numOfPoints, fixedRootFreqPath, fixedParams_, mapModelNodesIds, numOfShifts, &sharedParams_);
+//             optimizeMultiProcessModel(&sharedParams_, &fixedParams_, numOfPoints_, numOfIterations_, baseNumberUpperBound_, 0, 0);
+//             // leave only the best one
+//             clearVectorOfLikelihoods(1);
+//             firstIteration = false;
+//             numOfShifts ++;
+//             continue;
+
+//         }
+        
+//         lik = vectorOfLikelohoods_.back();
+//         minAICcLik = lik;
+//         auto prevLik = minAICcLik;
+
+//         //vectorOfLikelohoods_.pop_back();     
+//         size_t numOfFixedParams = getNumberOfFixedParams(minAICcLik, fixedParams_); 
+//         double initialAICc = calculateAICc(minAICcLik, numOfFixedParams);
+//         uint minDetaAICcNode;
+//         double minAICc = initialAICc;
+//         std::vector<SingleProcessPhyloLikelihood*> newShiftLikCandidates;
+//         // initialize the vector with the required number of elements
+//         newShiftLikCandidates.resize(candidateShiftNodesIds.size());
+//         vector<PhyloTree*> trees;
+//         for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
+//             trees.push_back(tree_->clone());
+//         }
+        
+//         std::cout << "*** *** *** Starting considering " << numOfShifts << " shifts *** *** ***" << std::endl;
+//         //omp_set_num_threads(4);
+//         omp_lock_t mutex;
+//         omp_init_lock(&mutex);
+//         #pragma omp parallel for schedule(dynamic)
+//         for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
+//             runNewBranchModel(mutex, lik, newShiftLikCandidates, candidateShiftNodesIds, i, numOfShifts, parsimonyBound, numOfPoints);
+//             std::cout << "Number of threads in iteration  " << i << " : " << omp_get_num_threads() << std::endl;
+//         }
+//         omp_destroy_lock(&mutex);
+
+
+//         // get the best candidate
+//         // for each candidate calculate the AICc, and delete those which have a worse AICc than the best so far
+//         SingleProcessPhyloLikelihood* bestLikAmongCandidates = 0;
+//         uint prevShiftOfBest;
+//         std::map<uint, vector<int>> fixedParameters = fixedParams_;
+//         std::cout << "****   ****  Candidates parameters, log likelihood, and AICc  ****   ****"<< std::endl;
+//         for (size_t i = 0; i < newShiftLikCandidates.size(); i++){
+//             auto candidateLik = newShiftLikCandidates[i];
+//             std::cout << "\tshift is at node: "<< candidateShiftNodesIds[i] << std::endl;
+//             uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
+//             fixedParameters[numOfShifts] = fixedParameters[prevShift];
+//             numOfFixedParams = getNumberOfFixedParams(candidateLik, fixedParameters); 
+//             double AICc_candidate = calculateAICc(candidateLik, numOfFixedParams);
+//             std::cout << "log likelihood is: " << candidateLik->getValue() << std::endl;
+//             std::cout << "AICc is: " << AICc_candidate << std::endl;
+//             printLikParameters(candidateLik, 1, 0);
+//             if ((initialAICc - AICc_candidate > ChromEvolOptions::deltaAICcThreshold_) && (AICc_candidate < minAICc)){
+//                 bestLikAmongCandidates = candidateLik;
+//                 minAICc = AICc_candidate;
+//                 minDetaAICcNode = candidateShiftNodesIds[i];
+//                 prevShiftOfBest = prevShift;
+//             }
+//             std::cout << "***" << std::endl;
+//         }
+//         // remove non-relevant likelihood candidates
+//         while (newShiftLikCandidates.size() > 0){
+//             auto candLik = newShiftLikCandidates.back();
+//             newShiftLikCandidates.pop_back();
+//             if (candLik != bestLikAmongCandidates){
+//                 deleteLikObject(candLik);
+//             }
+//         }
+//         if (bestLikAmongCandidates){ // a new model was chosen
+//             vectorOfLikelohoods_.pop_back();
+//             deleteLikObject(prevLik);
+//             minAICcLik = bestLikAmongCandidates;
+//             deltaAICcImproved = true;
+//             std::map<int, std::vector<std::pair<uint, int>>> sharedParams = sharedParams_;
+//             updateSharedParameters(sharedParams, prevShiftOfBest, numOfShifts);
+//             sharedParams_ = sharedParams;
+//             fixedParameters[numOfShifts] = fixedParameters[prevShiftOfBest];
+//             fixedParams_ = fixedParameters;
+//             numOfShifts ++;
+//             vectorOfLikelohoods_.push_back(minAICcLik);
+//             candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
+
+//         }else{
+//             deltaAICcImproved = false;
+//         }
+
+        
+//     }
+//      std::cout << "*** Final best model: " << vectorOfLikelohoods_[0]->getValue() << std::endl;
+
+//     //initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, vector<uint>>* sharedParams, std::map<uint, vector<int>> &fixedParameters)
+
+// }
+/**********************************************************************************************/
+
 // this function will replace the optimize function once it will be tested on enough data
 void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds){
     int maxNumOfModels;
@@ -1503,12 +1899,9 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
     }
     
     vector <unsigned int> baseNumCandidates;
+    getBaseNumCandidates(baseNumCandidates, baseNumberUpperBound_);
     uint numOfShifts = ChromEvolOptions::numOfModels_;
-    if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
-        uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
-        fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
 
-    }
     sharedParams_ = ChromEvolOptions::sharedParameters_;
     vectorOfLikelohoods_.reserve(numOfPoints);
     //vectorOfContexts_.reserve(numberOfModels);
@@ -1525,7 +1918,7 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
         }
         if (firstIteration){
             initLikelihoods(modelParams, parsimonyBound, rateChange, numOfPoints, fixedRootFreqPath, fixedParams_, mapModelNodesIds, numOfShifts, &sharedParams_);
-            optimizeMultiProcessModel(&sharedParams_, &fixedParams_, 0);
+            optimizeMultiProcessModel(&sharedParams_, &fixedParams_, numOfPoints_, numOfIterations_, baseNumberUpperBound_, 0,0);
             // leave only the best one
             clearVectorOfLikelihoods(1);
             firstIteration = false;
@@ -1542,22 +1935,24 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
         size_t numOfFixedParams = getNumberOfFixedParams(minAICcLik, fixedParams_); 
         double initialAICc = calculateAICc(minAICcLik, numOfFixedParams);
         uint minDetaAICcNode;
-        double minAICc = initialAICc;
-        std::vector<SingleProcessPhyloLikelihood*> newShiftLikCandidates;
+        //double minAICc = initialAICc;
+        //std::vector<SingleProcessPhyloLikelihood*> newShiftLikCandidates;
         // initialize the vector with the required number of elements
-        newShiftLikCandidates.resize(candidateShiftNodesIds.size());
-        vector<PhyloTree*> trees;
-        for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
-            trees.push_back(tree_->clone());
-        }
+        //newShiftLikCandidates.resize(candidateShiftNodesIds.size());
+        // vector<PhyloTree*> trees;
+        // for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
+        //     trees.push_back(tree_->clone());
+        // }
         
         std::cout << "*** *** *** Starting considering " << numOfShifts << " shifts *** *** ***" << std::endl;
         //omp_set_num_threads(4);
+        SingleProcessPhyloLikelihood* bestLikAmongCandidates = 0;
+        double bestAICcScore = initialAICc;
         omp_lock_t mutex;
         omp_init_lock(&mutex);
         #pragma omp parallel for schedule(dynamic)
         for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
-            runNewBranchModel(mutex, lik, newShiftLikCandidates, candidateShiftNodesIds, i, numOfShifts, parsimonyBound, numOfPoints);
+            runNewBranchModel(mutex, lik, candidateShiftNodesIds, i, numOfShifts, parsimonyBound, numOfPoints, &bestLikAmongCandidates, &bestAICcScore, &minDetaAICcNode);
             std::cout << "Number of threads in iteration  " << i << " : " << omp_get_num_threads() << std::endl;
         }
         omp_destroy_lock(&mutex);
@@ -1565,37 +1960,11 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
 
         // get the best candidate
         // for each candidate calculate the AICc, and delete those which have a worse AICc than the best so far
-        SingleProcessPhyloLikelihood* bestLikAmongCandidates = 0;
-        uint prevShiftOfBest;
+        uint prevShiftOfBest = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(minDetaAICcNode));
         std::map<uint, vector<int>> fixedParameters = fixedParams_;
-        std::cout << "****   ****  Candidates parameters, log likelihood, and AICc  ****   ****"<< std::endl;
-        for (size_t i = 0; i < newShiftLikCandidates.size(); i++){
-            auto candidateLik = newShiftLikCandidates[i];
-            std::cout << "\tshift is at node: "<< candidateShiftNodesIds[i] << std::endl;
-            uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
-            fixedParameters[numOfShifts] = fixedParameters[prevShift];
-            numOfFixedParams = getNumberOfFixedParams(candidateLik, fixedParameters); 
-            double AICc_candidate = calculateAICc(candidateLik, numOfFixedParams);
-            std::cout << "log likelihood is: " << candidateLik->getValue() << std::endl;
-            std::cout << "AICc is: " << AICc_candidate << std::endl;
-            printLikParameters(candidateLik, 1);
-            if ((initialAICc - AICc_candidate > ChromEvolOptions::deltaAICcThreshold_) && (AICc_candidate < minAICc)){
-                bestLikAmongCandidates = candidateLik;
-                minAICc = AICc_candidate;
-                minDetaAICcNode = candidateShiftNodesIds[i];
-                prevShiftOfBest = prevShift;
-            }
+        if (initialAICc - bestAICcScore > ChromEvolOptions::deltaAICcThreshold_){
+            //minAICc = bestAICcScore;
             std::cout << "***" << std::endl;
-        }
-        // remove non-relevant likelihood candidates
-        while (newShiftLikCandidates.size() > 0){
-            auto candLik = newShiftLikCandidates.back();
-            newShiftLikCandidates.pop_back();
-            if (candLik != bestLikAmongCandidates){
-                deleteLikObject(candLik);
-            }
-        }
-        if (bestLikAmongCandidates){ // a new model was chosen
             vectorOfLikelohoods_.pop_back();
             deleteLikObject(prevLik);
             minAICcLik = bestLikAmongCandidates;
@@ -1608,11 +1977,12 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
             numOfShifts ++;
             vectorOfLikelohoods_.push_back(minAICcLik);
             candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
-
         }else{
+            deleteLikObject(bestLikAmongCandidates);
             deltaAICcImproved = false;
-        }
 
+        }
+        
         
     }
      std::cout << "*** Final best model: " << vectorOfLikelohoods_[0]->getValue() << std::endl;
@@ -1621,26 +1991,132 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
 
 }
 /**********************************************************************************************/
-void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProcessPhyloLikelihood* lik, std::vector<SingleProcessPhyloLikelihood*> &newShiftLikCandidates, vector<uint> &candidateShiftNodesIds, size_t i, uint numOfShifts, double parsimonyBound, uint numOfPoints){
-        vector<SingleProcessPhyloLikelihood*> perCandidateLikVec; // this vector should hold the likelihoods related to the cucles of the currently examined candidate
-        std::map<int, std::vector<std::pair<uint, int>>> sharedParams = sharedParams_;
-        std::map<uint, vector<int>> fixedParams = fixedParams_;
-        uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
-        updateSharedParameters(sharedParams, prevShift, numOfShifts);
-        fixedParams[numOfShifts] = fixedParams[prevShift];
-        // the following section is a critical section, because the tree_ object adds to the
-        // observers_ data member the parametrizable tree. Without this mutex, there are segmentation faults.
-        omp_set_lock(&mutex);
-        getNewLikObjectForParallelRuns(newShiftLikCandidates, i, perCandidateLikVec, lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, numOfPoints, fixedParams, parsimonyBound);
-        omp_unset_lock(&mutex);
-        //std::cout << "After getNewObject: " << i << std::endl;
-        optimizeMultiProcessModel(&sharedParams, &fixedParams, &perCandidateLikVec, &mutex);
-        //std::cout << "After optimizeMultiProcessModel: " << i << std::endl;
-        // add the candidate to the vector of candidates
-        newShiftLikCandidates[i] = perCandidateLikVec[0];
-        std::cout << "reached the end of the function: " << i << std::endl;
+void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProcessPhyloLikelihood* lik, vector<uint> &candidateShiftNodesIds, size_t i, uint numOfShifts, double parsimonyBound, uint numOfPoints, SingleProcessPhyloLikelihood** bestCandidateLik, double* bestAICc, uint* minAICcNode){
+    vector<SingleProcessPhyloLikelihood*> perCandidateLikVec; // this vector should hold the likelihoods related to the cucles of the currently examined candidate
+    std::map<int, std::vector<std::pair<uint, int>>> sharedParams = sharedParams_;
+    std::map<uint, vector<int>> fixedParams = fixedParams_;
+    uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
+    updateSharedParameters(sharedParams, prevShift, numOfShifts);
+    fixedParams[numOfShifts] = fixedParams[prevShift];
+    // the following section is a critical section, because the tree_ object adds to the
+    // observers_ data member the parametrizable tree. Without this mutex, there are segmentation faults.
+    
+    std::map<uint, pair<int, std::map<int, std::vector<double>>>> modelParams;
+    std::map<uint, std::vector<uint>> mapModelNodesIds;
+    omp_set_lock(&mutex);
+    //std::cout << "Within critical section before setNewModelAttributes()" << std::endl;
+    std::map<uint, uint> baseNumberBounds;
+    setNewModelAttributes(lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, fixedParams, &modelParams, &mapModelNodesIds, &baseNumberBounds);
+    //std::cout << "Out of critical section before setNewModelAttributes()" << std::endl;
+    omp_unset_lock(&mutex);
+    uint numOfModels =  static_cast<uint>(lik->getSubstitutionProcess().getNumberOfModels());
+    string textToPrint = "";
+    //optimizeFirstRound2(lik, candidateShiftNodesIds[i], &sharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, numOfPointsNextRounds_, numOfIterationsNextRounds_, perCandidateLikVec, textToPrint, &baseNumberBounds, &mutex);
+    optimizeFirstRound(&sharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, numOfPointsNextRounds_, numOfIterationsNextRounds_, perCandidateLikVec, textToPrint, &baseNumberBounds, &mutex);
+
+    optimizeMultiProcessModel(&sharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberBounds, &perCandidateLikVec, &textToPrint, &mutex);
+    //std::cout << "After optimizeMultiProcessModel: " << i << std::endl;
+    size_t numOfFixedParams = getNumberOfFixedParams(perCandidateLikVec[0], fixedParams); 
+    double AICc = calculateAICc(perCandidateLikVec[0], numOfFixedParams);
+    /////////////////////////////////////////////////////////////////////////////
+    // should be surrounded by mutex!!!!!!!
+    omp_set_lock(&mutex);
+    //std::cout << "Within critical section2: runNewBranchModel()" << std::endl;
+    std::cout << "\tshift is at node: "<< candidateShiftNodesIds[i] << std::endl;
+    std::cout << textToPrint << std::endl;
+    std::cout << "Final log likelihood is: " << perCandidateLikVec[0]->getValue() << std::endl;
+    std::cout << "Final AICc is: " << AICc << std::endl;
+    std::cout << "*** *** *** *** "<< candidateShiftNodesIds[i] << std::endl;
+    printLikParameters(perCandidateLikVec[0], 1, &textToPrint);
+    if ((*bestCandidateLik == 0) || (AICc < *bestAICc)){                      
+        *bestAICc =  AICc;
+        *minAICcNode = candidateShiftNodesIds[i];
+        if (*bestCandidateLik != 0){
+            auto likObjectToDel = *bestCandidateLik;
+            *bestCandidateLik = perCandidateLikVec[0];
+            deleteLikObject(likObjectToDel);
+        }else{
+            *bestCandidateLik = perCandidateLikVec[0];
+        }
+
+    }else{
+        SingleProcessPhyloLikelihood* lik_to_del = perCandidateLikVec.back(); 
+        perCandidateLikVec.pop_back();
+        deleteLikObject(lik_to_del);
+    }
+    //std::cout << "Out of critical section2: runNewBranchModel()" << std::endl;
+    omp_unset_lock(&mutex);
+    ////////////////////////////////////////////////////////////////////////////
 
 }
+// void ChromosomeNumberOptimizer::optimizeFirstRound2(SingleProcessPhyloLikelihood* prevLik, uint shiftNode, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLikelihoods, string &text, std::map<uint, uint>* baseNumberBounds, omp_lock_t* mutex){
+//     size_t index = min(numOfPointsNextRounds[numOfPointsNextRounds.size()-1], numOfPointsNextRounds[1]);
+//     vectorOfLikelihoods.reserve(numOfPointsNextRounds[index]);
+//     vector <unsigned int> baseNumCandidates;
+//     getBaseNumCandidates(baseNumCandidates);
+//     string log = "";
+
+//     // If base number is one of the parameters
+//     log += "##################################\n";
+//     log += "*********  cycle 0  **************\n";
+//     printLog(&text, log);  
+//     for (size_t n = 0; n < numOfPointsNextRounds[0]; n++){
+//         log = "Starting cycle with Point #";
+//         log += std::to_string(n) +"....\n";
+//         printLog(&text, log);
+//         if (mutex){
+//             omp_set_lock(mutex);
+//             std::cout << "Within critical section: optimizeFirstRound()" << std::endl;
+//         }    //std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, uint iteration
+//         //std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, uint iteration
+//         setNewModelAttributes(prevLik, shiftNode, &sharedParams_, updatedSharedParams, fixedParams, &modelParams, &mapModelNodesIds, baseNumberBounds);
+//         auto lik = getSingleNewLikObject(updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, n, baseNumberBounds);
+//         if (mutex){
+//             std::cout << "Out of critical section: optimizeFirstRound()" << std::endl;
+//             omp_unset_lock(mutex);
+
+//         }      
+//         fillVectorOfLikelihoods(lik, numOfIterationsNextRounds[0],  n, numOfPointsNextRounds[index], baseNumCandidates, updatedSharedParams, fixedParams, vectorOfLikelihoods, &text, mutex);
+   
+//     }
+//     if (mutex){
+//         omp_set_lock(mutex);
+//         std::cout << "Within critical section2: optimizeFirstRound()" << std::endl;
+//     } 
+//     sort(vectorOfLikelihoods.begin(), vectorOfLikelihoods.end(), compareLikValues);
+//     if (mutex){
+//         std::cout << "Out of critical section2: optimizeFirstRound()" << std::endl;
+//         omp_unset_lock(mutex);
+
+//     }
+//     printLikelihoodVectorValues(vectorOfLikelihoods, &text, 0);
+
+
+// }
+
+
+/**********************************************************************************************/
+// void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProcessPhyloLikelihood* lik, std::vector<SingleProcessPhyloLikelihood*> &newShiftLikCandidates, vector<uint> &candidateShiftNodesIds, size_t i, uint numOfShifts, double parsimonyBound, uint numOfPoints){
+//         vector<SingleProcessPhyloLikelihood*> perCandidateLikVec; // this vector should hold the likelihoods related to the cucles of the currently examined candidate
+//         std::map<int, std::vector<std::pair<uint, int>>> sharedParams = sharedParams_;
+//         std::map<uint, vector<int>> fixedParams = fixedParams_;
+//         uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
+//         updateSharedParameters(sharedParams, prevShift, numOfShifts);
+//         fixedParams[numOfShifts] = fixedParams[prevShift];
+//         // the following section is a critical section, because the tree_ object adds to the
+//         // observers_ data member the parametrizable tree. Without this mutex, there are segmentation faults.
+//         omp_set_lock(&mutex);
+//         getNewLikObjectForParallelRuns(perCandidateLikVec, lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, numOfPoints, fixedParams, parsimonyBound);
+//         omp_unset_lock(&mutex);
+//         string text;
+//         //std::cout << "After getNewObject: " << i << std::endl;
+//         optimizeMultiProcessModel(&sharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberUpperBound_, &perCandidateLikVec, &text, &mutex);
+//         //std::cout << "After optimizeMultiProcessModel: " << i << std::endl;
+//         // add the candidate to the vector of candidates
+//         newShiftLikCandidates[i] = perCandidateLikVec[0];
+//         std::cout << "reached the end of the function: " << i << std::endl;
+
+// }
 /**********************************************************************************************/
 void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds){
     int maxNumOfModels;
@@ -1670,12 +2146,9 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
     }
     
     vector <unsigned int> baseNumCandidates;
+    getBaseNumCandidates(baseNumCandidates, baseNumberUpperBound_);
     uint numOfShifts = ChromEvolOptions::numOfModels_;
-    if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
-        uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
-        fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
 
-    }
     std::map<int, std::vector<std::pair<uint, int>>> sharedParams = ChromEvolOptions::sharedParameters_;
     vectorOfLikelohoods_.reserve(numOfPoints);
     //vectorOfContexts_.reserve(numberOfModels);
@@ -1694,7 +2167,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
         bool improvedModelFound = false;
         if (firstIteration){
             initLikelihoods(modelParams, parsimonyBound, rateChange, numOfPoints, fixedRootFreqPath, fixedParams, mapModelNodesIds, numOfShifts, &sharedParams);
-            optimizeMultiProcessModel(&sharedParams, &fixedParams, 0);
+            optimizeMultiProcessModel(&sharedParams, &fixedParams, numOfPoints_, numOfIterations_, baseNumberUpperBound_, 0, 0);
             // leave only the best one
             clearVectorOfLikelihoods(1);
             //minAICcLik = vectorOfLikelohoods_[0];
@@ -1721,7 +2194,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
             fixedParams[numOfShifts] = fixedParams[prevShift];
             vectorOfLikelohoods_.pop_back();
             getNewLikObject(lik, candidateShiftNodesIds[i], &sharedParams_, &sharedParams, numOfPoints, fixedParams, parsimonyBound);
-            optimizeMultiProcessModel(&sharedParams, &fixedParams, 0);
+            optimizeMultiProcessModel(&sharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberUpperBound_, 0, 0);
             clearVectorOfLikelihoods(1);
             auto candidateLik = vectorOfLikelohoods_[0];
             //optimizeModelParameters(candidateLik, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, baseNumCandidates, &sharedParams, &fixedParams);
@@ -1749,7 +2222,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
                 vectorOfLikelohoods_.push_back(minAICcLik);
                 std::cout << "** Best model remains **" << std::endl;
             }
-            printLikParameters(vectorOfLikelohoods_[0], 1);
+            printLikParameters(vectorOfLikelohoods_[0], 1, 0);
             
             //deleteLikObject(likToDel);
         }
