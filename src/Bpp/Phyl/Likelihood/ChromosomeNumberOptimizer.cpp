@@ -48,10 +48,10 @@ using namespace bpp;
 
 // }
 /**********************************************************************************/
-void ChromosomeNumberOptimizer::fillVectorOfLikelihoods(SingleProcessPhyloLikelihood* lik, uint numOfIterationsFirstCycle,  size_t currPoint, uint reqNumOfPoints, vector <uint> baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>& fixedParams, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string* text, omp_lock_t* mutex){
+void ChromosomeNumberOptimizer::fillVectorOfLikelihoods(SingleProcessPhyloLikelihood* lik, uint numOfIterationsFirstCycle,  size_t currPoint, uint reqNumOfPoints, vector <uint> baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>& fixedParams, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string* text, std::map<uint, uint> &baseNumberUpperBounds, omp_lock_t* mutex){
     printLikParameters(lik, 0, text);
     if (numOfIterationsFirstCycle > 0){
-        optimizeModelParameters(lik, tolerance_, numOfIterationsFirstCycle, baseNumCandidates, sharedParams, &fixedParams, text);
+        optimizeModelParameters(lik, tolerance_, numOfIterationsFirstCycle, baseNumCandidates, sharedParams, &fixedParams, text, baseNumberUpperBounds);
         printLikParameters(lik, 1, text);
 
     }
@@ -118,7 +118,7 @@ void ChromosomeNumberOptimizer::initLikelihoods(std::map<uint, std::pair<int, st
             lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)n, fixedParams, sharedParams);
     
         }
-        fillVectorOfLikelihoods(lik, numOfIterations_[0],  n, numOfPoints_[index], baseNumCandidates, sharedParams, fixedParams, vectorOfLikelohoods_, 0);
+        fillVectorOfLikelihoods(lik, numOfIterations_[0],  n, numOfPoints_[index], baseNumCandidates, sharedParams, fixedParams, vectorOfLikelohoods_, 0, baseNumberUpperBound_);
    
     }
 
@@ -252,9 +252,9 @@ void ChromosomeNumberOptimizer::optimizeMultiProcessModel(std::map<int, std::vec
             if (numOfIterations[i] > 0){
                 if (perCandidateLik){
                     // add here baseNum candidates
-                    optimizeModelParameters((*perCandidateLik)[j], tolerance_, numOfIterations[i], baseNumCandidates, sharedParams, fixedParams, text);
+                    optimizeModelParameters((*perCandidateLik)[j], tolerance_, numOfIterations[i], baseNumCandidates, sharedParams, fixedParams, text, baseNumberUpperBounds);
                 }else{
-                    optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations[i], baseNumCandidates, sharedParams, fixedParams, text);
+                    optimizeModelParameters(vectorOfLikelohoods_[j], tolerance_, numOfIterations[i], baseNumCandidates, sharedParams, fixedParams, text, baseNumberUpperBounds);
                 }
             }
             if ((i < numOfIterations.size()-1) && (j >= numOfPoints[i+1])){
@@ -543,18 +543,18 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
 }
 
 // /**********************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint){
+unsigned int ChromosomeNumberOptimizer::optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, std::map<uint, uint> &baseNumberUpperBounds){
     unsigned int numOfEvaluations = 0;
  
     if (typeOfOptimizer_ == "Brent"){
-        numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams, textToPrint);
+        numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams, textToPrint, baseNumberUpperBounds);
     }else if (typeOfOptimizer_ == "gradient"){
         checkLegalUseOfGradientOptimization();
-        numOfEvaluations += optimizeMultiDimensions(tl, tol, maxNumOfIterations, sharedParams, fixedParams, textToPrint);
+        numOfEvaluations += optimizeMultiDimensions(tl, tol, maxNumOfIterations, sharedParams, fixedParams, textToPrint, baseNumberUpperBounds);
 
     }else{
         checkLegalUseOfGradientOptimization();
-        numOfEvaluations += useMixedOptimizers(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams, textToPrint);
+        numOfEvaluations += useMixedOptimizers(tl, tol, maxNumOfIterations, baseNumCandidates, sharedParams, fixedParams, textToPrint, baseNumberUpperBounds);
     }
         
     return numOfEvaluations;
@@ -579,7 +579,7 @@ void ChromosomeNumberOptimizer::checkLegalUseOfGradientOptimization(){
 }
 
 // /****************************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, bool mixed, unsigned int currentIterNum){
+unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, std::map<uint, uint> &baseNumberUpperBounds, bool mixed, unsigned int currentIterNum){
     DerivableSecondOrder* f = tl;
     ParameterList tmp = tl->getSubstitutionModelParameters();
     unique_ptr<AbstractNumericalDerivative> fnum;
@@ -671,7 +671,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
 }
 // /*******************************************************************************/
 
-unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint){
+unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, std::map<uint, uint> &baseNumberUpperBounds){
     std::vector<size_t> optimization = RandomTools::randMultinomial(maxNumOfIterations, probsForMixedOptimization_);
     unsigned int numOfEvaluations = 0;
     for (size_t i = 0; i < maxNumOfIterations; i++){
@@ -679,11 +679,11 @@ unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLik
         if (optimization[i] == 0){
             string text = "Optimizing with Brent\n";
             printLog(textToPrint, text);
-            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, 1, baseNumCandidates, sharedParams, fixedParams, textToPrint, true, (unsigned int)i);
+            numOfEvaluations += optimizeModelParametersOneDimension(tl, tol, 1, baseNumCandidates, sharedParams, fixedParams, textToPrint, baseNumberUpperBounds, true, (unsigned int)i);
         }else{
             string text = "Optimizing with Gradient Descent\n";
             printLog(textToPrint, text);
-            numOfEvaluations += optimizeMultiDimensions(tl, tol, 1, sharedParams, fixedParams, textToPrint, true, (unsigned int)i);
+            numOfEvaluations += optimizeMultiDimensions(tl, tol, 1, sharedParams, fixedParams, textToPrint, baseNumberUpperBounds, true, (unsigned int)i);
         }
         double currentLikValue = tl->getValue();
         if (std::abs(prevLikelihood-currentLikValue) < tol){
@@ -697,7 +697,7 @@ unsigned int ChromosomeNumberOptimizer::useMixedOptimizers(SingleProcessPhyloLik
 
 }
 // /*******************************************************************************/
-unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, bool mixed, unsigned curentIterNum){
+unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, std::map<uint, uint> &baseNumberBounds, bool mixed, unsigned curentIterNum){
 
     // Initialize optimizer
     string text;
@@ -788,7 +788,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
                 // baseNumber parameter
                 if (baseNumOptimizationMethod_ != "Brent"){
                     if (!std::count((*fixedParams)[paramNameAndType[nameOfParam].second].begin(), (*fixedParams)[paramNameAndType[nameOfParam].second].end(), ChromosomeSubstitutionModel::BASENUM)){
-                        optimizeBaseNum(tl, j, baseNumCandidates, &currentLikelihood, lowerBound, upperBound, nameOfParam, params, paramNameAndType[nameOfParam].second);
+                        optimizeBaseNum(tl, j, baseNumCandidates, &currentLikelihood, lowerBound, upperBound, nameOfParam, params, paramNameAndType[nameOfParam].second, baseNumberBounds);
                         text = "parameter value after optimization "+ std::to_string(tl->getLikelihoodCalculation()->getParameter(param.getName()).getValue())+ "\n";
                         printLog(textToPrint, text);
                         continue;
@@ -1106,7 +1106,7 @@ std::vector <string> ChromosomeNumberOptimizer::getNonFixedParams(SingleProcessP
 
 // /***************************************************************************************/
 void ChromosomeNumberOptimizer::optimizeBaseNum(SingleProcessPhyloLikelihood* tl, size_t index, std::vector <unsigned int> baseNumCandidates, double* currentLikelihood, double lowerBound, 
-                                                double upperBound, const string &paramName, ParameterList& params, uint model){
+                                                double upperBound, const string &paramName, ParameterList& params, uint model, std::map<uint, uint> &baseNumberUpperBounds){
 
     Function* func = tl;
     ParameterList substitutionParams = tl->getSubstitutionModelParameters();
@@ -1120,7 +1120,7 @@ void ChromosomeNumberOptimizer::optimizeBaseNum(SingleProcessPhyloLikelihood* tl
     
     for (size_t i = 0; i < baseNumCandidates.size(); i++){
         unsigned int baseNum = baseNumCandidates[i];
-        if (baseNum > baseNumberUpperBound_[model]){
+        if (baseNum > baseNumberUpperBounds[model]){
             break;
         }
         params.getParameter(paramName).setValue((double)baseNum);
@@ -1263,7 +1263,7 @@ void ChromosomeNumberOptimizer::optimizeFirstRound(std::map<int, std::vector<std
             omp_unset_lock(mutex);
 
         }      
-        fillVectorOfLikelihoods(lik, numOfIterationsNextRounds[0],  n, numOfPointsNextRounds[index], baseNumCandidates, updatedSharedParams, fixedParams, vectorOfLikelihoods, &text, mutex);
+        fillVectorOfLikelihoods(lik, numOfIterationsNextRounds[0],  n, numOfPointsNextRounds[index], baseNumCandidates, updatedSharedParams, fixedParams, vectorOfLikelihoods, &text, *baseNumberBounds, mutex);
    
     }
     if (mutex){
