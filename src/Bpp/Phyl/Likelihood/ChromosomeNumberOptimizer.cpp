@@ -2208,6 +2208,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
                 minDetaAICcNode = candidateShiftNodesIds[i];
                 likToDel = minAICcLik;
                 minAICcLik = candidateLik;
+                minAICc = AICc_candidate;
                 bestModelSharedParams = sharedParams;
                 improvedModelFound = true;
                 if (likToDel != prevLik){
