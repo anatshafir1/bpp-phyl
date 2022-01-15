@@ -420,18 +420,19 @@ void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<
   }
   std::vector<size_t> numOfParamsVector;
   auto baseNumParams = createCompositeParameter(baseNumRFunc_, "baseNumR", baseNumR);
-  //addCompositeParameter(baseNumParams);
   numOfParamsVector.push_back(baseNumParams.size());
+
   auto duplParams = createCompositeParameter(duplFunc_, "dupl", dupl);
-  //addCompositeParameter(duplParams);
   numOfParamsVector.push_back(duplParams.size());
+
   auto lossParams = createCompositeParameter(lossFunc_, "loss", loss);
-  //addCompositeParameter(lossParams);
   numOfParamsVector.push_back(lossParams.size());
+
   auto gainParams = createCompositeParameter(gainFunc_, "gain", gain);
-  //addCompositeParameter(gainParams);
   numOfParamsVector.push_back(gainParams.size());
+  
   auto demiParams = createCompositeParameter(demiFunc_, "demi", demi);
+  numOfParamsVector.push_back(demiParams.size());
   //addCompositeParameter(demiParams);
   //numOfParamsVector.push_back(demiParams.size());
   size_t maxSize = *max_element(numOfParamsVector.begin(), numOfParamsVector.end());
@@ -442,6 +443,11 @@ void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<
     if (i < duplParams.size()){
       addParameter_(duplParams[i]);
     }
+    //////////////////////////
+    if (i < demiParams.size()){
+      addParameter_(demiParams[i]);
+    }
+    /////////////////////////////////
     if (i < lossParams.size()){
       addParameter_(lossParams[i]);
     }
@@ -450,9 +456,9 @@ void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<
     }
 
   }
-  for (size_t i = 0; i < demiParams.size(); i++){
-    addParameter_(demiParams[i]);
-  }
+  // for (size_t i = 0; i < demiParams.size(); i++){
+  //   addParameter_(demiParams[i]);
+  // }
   if (gainFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
     gain_ = new compositeParameter(gainFunc_, "gain", gainParams);
 
