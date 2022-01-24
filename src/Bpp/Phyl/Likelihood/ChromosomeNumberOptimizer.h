@@ -68,6 +68,7 @@
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
 #include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Likelihood/UndirectedGraph.h>
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
 #include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
 #include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
@@ -111,6 +112,8 @@ namespace bpp
             vector <double> probsForMixedOptimization_;
             std::map<uint, vector<int>> fixedParams_;
             mutable std::map<int, std::vector<std::pair<uint, int>>> sharedParams_;
+            uint numOfShiftsForward_;
+            bool backwardPhaseStarted_;
             
             
 
@@ -138,7 +141,9 @@ namespace bpp
                     BrentBracketing_(),
                     probsForMixedOptimization_(),
                     fixedParams_(),
-                    sharedParams_()
+                    sharedParams_(),
+                    numOfShiftsForward_(),
+                    backwardPhaseStarted_()
             {}
 
             ChromosomeNumberOptimizer(const ChromosomeNumberOptimizer& opt):
@@ -160,7 +165,10 @@ namespace bpp
                 BrentBracketing_(opt.BrentBracketing_),
                 probsForMixedOptimization_(opt.probsForMixedOptimization_),
                 fixedParams_(opt.fixedParams_),
-                sharedParams_(opt.sharedParams_)
+                sharedParams_(opt.sharedParams_),
+                numOfShiftsForward_(opt.numOfShiftsForward_),
+                backwardPhaseStarted_(opt.backwardPhaseStarted_)
+
             {}
             ChromosomeNumberOptimizer& operator=(const ChromosomeNumberOptimizer& opt){
                 vectorOfLikelohoods_ = opt.vectorOfLikelohoods_;
@@ -182,6 +190,8 @@ namespace bpp
                 probsForMixedOptimization_ = opt.probsForMixedOptimization_;
                 fixedParams_ = opt.fixedParams_;
                 sharedParams_ = opt.sharedParams_;
+                numOfShiftsForward_ = opt.numOfShiftsForward_;
+                backwardPhaseStarted_ = opt.backwardPhaseStarted_;
                 return *this;
             }
             ChromosomeNumberOptimizer* clone() const { return new ChromosomeNumberOptimizer(*this); }
@@ -212,6 +222,7 @@ namespace bpp
                 standardOptimization_ = standardOptimization;
                 BrentBracketing_ =BrentBracketing;
                 probsForMixedOptimization_ = probsForMixedOptimization;
+                backwardPhaseStarted_ = false;
                 
 
             }
@@ -227,6 +238,7 @@ namespace bpp
             //void optimizeHeterogeneous();
             void optimize(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
             void optimizeInParallel(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
+            void optimizeBackwardsInParallel(double maxParsimony);
             //void optimizeInParallel(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds);
             vector<SingleProcessPhyloLikelihood*> getVectorOfLikelihoods(){return vectorOfLikelohoods_;}
             static vector <double> setFixedRootFrequencies(const std::string &path, std::shared_ptr<ChromosomeSubstitutionModel> chrModel);
@@ -234,6 +246,7 @@ namespace bpp
             //static std::map<uint, std::pair<int, std::map<int, vector<double>>>> getModelParameters(SingleProcessPhyloLikelihood* tl);
             // get the map of models and the corresponding nodes.
             static void getMutableMapOfModelAndNodeIds(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik, uint rootId = 0);
+            static void getMapOfModelAndNodeIdsBackward(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik, std::map<uint, uint> &modelsMap, std::map<uint, vector<uint>> &modelForMerge, uint rootId = 0);
             static std::map<uint, pair<int, std::map<int, std::vector<double>>>> getMapOfParamsForComplexModel(SingleProcessPhyloLikelihood* lik, std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames, uint numOfModels);
             static void updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>>* paramNameAndType, SingleProcessPhyloLikelihood* tl, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams = 0);
             //void writeOutputToFile() const;
@@ -243,6 +256,12 @@ namespace bpp
             static uint getModelFromParamName(string name);
             static int getTypeOfParamFromParamName(string name);
             static size_t getNumberOfFixedParams(SingleProcessPhyloLikelihood* lik, std::map<uint, vector<int>> &fixedParams);
+            void setIterNumForNextRound(std::vector<uint> iterNum){
+                numOfIterationsNextRounds_ = iterNum;
+            }
+            void setPointsNumForNextRound(std::vector<uint> pointsNum){
+                numOfPointsNextRounds_ = pointsNum;
+            }
 
 
         protected:
@@ -261,7 +280,7 @@ namespace bpp
             static void createMapOfSharedParameterNames(std::map<int, std::vector<std::pair<uint, int>>> &sharedParams, std::map<string, vector<std::pair<uint, int>>> &sharedParamsNames);
             void fillVectorOfLikelihoods(SingleProcessPhyloLikelihood* lik, uint numOfIterationsFirstCycle,  size_t currPoint, uint reqNumOfPoints, vector <uint> baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>& fixedParams, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string* text, std::map<uint, uint> &baseNumberUpperBounds, omp_lock_t* mutex = 0);
             void initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
-            void optimizeFirstRound(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string &text, std::map<uint, uint>* baseNumberBounds,  omp_lock_t* mutex = 0);
+            void optimizeFirstRound(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string* text, std::map<uint, uint>* baseNumberBounds, std::map<uint, uint>* mapOfModelsBackward, std::map<uint, pair<int, std::map<int, std::vector<double>>>>* prevModelParamsBackward, std::map<uint, vector<uint>>* modelsBackwards, omp_lock_t* mutex = 0);
             //void optimizeFirstRound2(SingleProcessPhyloLikelihood* prevLik, uint shiftNode, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string &text, std::map<uint, uint>* baseNumberBounds, omp_lock_t* mutex= 0);
             static void setRandomPoints(SingleProcessPhyloLikelihood* lik, uint nodeToSplit, std::map<int, std::vector<uint>>* sharedParams, std::map<int, std::vector<uint>>* updatedSharedParams, int numOfPoints);
             static void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName);
@@ -312,6 +331,21 @@ namespace bpp
             //void optimizeSingleHeterogeneousModel(size_t index, int maxNumOfModels, std::vector<uint> &candidateShiftNodesIds, vector<uint> &baseNumCandidates);
             void getValidCandidatesForShift(std::vector<uint> &candidateShiftNodesIds, int minCladeSize);
             void updateSharedParameters(std::map<int, vector<std::pair<uint, int>>> &sharedParams, uint prevShift, uint numOfShifts) const;
+
+            
+            /*********************************************************
+             * Functions for the Backward phase
+            **********************************************************/
+          void optimizeMergedModels(SingleProcessPhyloLikelihood* finalLikBackward, std::map<uint, vector<uint>> &modelsToBeMerged, vector<SingleProcessPhyloLikelihood*> &perPairOfModelsLikVec, std::map<std::pair<uint, uint>, double>* pairsOfLikelihoods, double maxParsimony, omp_lock_t* mutex);
+          size_t getMaxNumOfMergingModels(std::map<uint, vector<uint>> &modelsToMerge);
+          void mergeModels(std::map<uint, vector<uint>> modelsToMerge, SingleProcessPhyloLikelihood* lik, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>> &updatedSharedParams, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParamsPrevModel, std::map<uint, uint> &modelNums, std::map<uint, uint> &baseNumberBounds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams);
+          void updateSharedParametersBackwards(std::map<int, std::vector<std::pair<uint, int>>> &sharedParams, std::map<int, std::vector<std::pair<uint, int>>> &updatedSharedParams, std::map<uint,uint> &mapOfModels);
+          SingleProcessPhyloLikelihood* getBackwardLikObject(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &prevModelParamsBackward, std::map<uint, uint> &mapOfModelsBackward, std::map<uint, vector<uint>> &models, uint iteration, std::map<uint, uint>* baseNumberBounds);
+          pair<int, std::map<int, std::vector<double>>> getMeanParameters(std::map<uint, pair<int, std::map<int, std::vector<double>>>> &prevModelParamsBackward, vector<uint> modelsBackwards, uint modelForMerge);
+          
+          void getMapOfMergedModels(std::map<uint, uint> &mapOfModels, std::map<uint, vector<uint>> &modelsToMerge, SingleProcessPhyloLikelihood* prevLik);
+          void mergeMultipleModelClusters(SingleProcessPhyloLikelihood* finalLikBackward, std::map<uint, vector<uint>> &rootAndVerticesToMerge, double maxParsimony);
+          //mergeMultipleModelClusters(SingleProcessPhyloLikelihood* prevLik, std::map<uint, vector<uint>> &rootAndVerticesToMerge, double maxParsimony)
 
     };
 }

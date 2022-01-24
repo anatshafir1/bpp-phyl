@@ -1151,6 +1151,9 @@ double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* li
     // p (number of overall parameters)
     // k must maintain the constraint of the denominator -> throw detailed exception..
     double numOfParams = static_cast<double>(numOfModels) - 1 + static_cast<double>(numOfSubstitutionParams);
+    if ((backwardPhaseStarted_) && (numOfShiftsForward_ > numOfModels)){
+        numOfParams += static_cast<double>(numOfShiftsForward_-numOfModels);
+    }
     // sample size correction term
     auto denominator = (static_cast<double>(sampleSize)-numOfParams-1);
     if (denominator <= 0){
@@ -1228,17 +1231,15 @@ void ChromosomeNumberOptimizer::setNewModelAttributes(SingleProcessPhyloLikeliho
 }
 /***********************************************/
 
-void ChromosomeNumberOptimizer::optimizeFirstRound(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLikelihoods, string &text, std::map<uint, uint>* baseNumberBounds, omp_lock_t* mutex){
+void ChromosomeNumberOptimizer::optimizeFirstRound(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLikelihoods, string* text, std::map<uint, uint>* baseNumberBounds, std::map<uint, uint>* mapOfModelsBackward, std::map<uint, pair<int, std::map<int, std::vector<double>>>>* prevModelParamsBackward, std::map<uint, vector<uint>>* modelsBackwards, omp_lock_t* mutex){
     size_t index = min((int)numOfPointsNextRounds.size()-1, 1);
     vectorOfLikelihoods.reserve(numOfPointsNextRounds[index]);
     if (mutex){
         omp_set_lock(mutex);
-        //std::cout << "Within critical section: optimizeFirstRound(): fill base number" << std::endl;
     } 
     vector <unsigned int> baseNumCandidates;
     getBaseNumCandidates(baseNumCandidates, *baseNumberBounds);
     if (mutex){
-        //std::cout << "Out of critical section: optimizeFirstRound(): optimizeFirstRound(): fill base number" << std::endl;
         omp_unset_lock(mutex);
 
     }  
@@ -1247,36 +1248,94 @@ void ChromosomeNumberOptimizer::optimizeFirstRound(std::map<int, std::vector<std
     // If base number is one of the parameters
     log += "##################################\n";
     log += "*********  cycle 0  **************\n";
-    printLog(&text, log);  
+    printLog(text, log);  
     for (size_t n = 0; n < numOfPointsNextRounds[0]; n++){
         log = "Starting cycle with Point #";
         log += std::to_string(n) +"....\n";
-        printLog(&text, log);
+        printLog(text, log);
         if (mutex){
             omp_set_lock(mutex);
-            //std::cout << "Within critical section: optimizeFirstRound()" << std::endl;
         }    //std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, uint iteration
         //std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, uint iteration
-        auto lik = getSingleNewLikObject(updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, (uint)n, baseNumberBounds);
+        SingleProcessPhyloLikelihood* lik;
+        if (!(mapOfModelsBackward)){
+            lik = getSingleNewLikObject(updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, (uint)n, baseNumberBounds);
+        }else{
+            lik = getBackwardLikObject(updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, *prevModelParamsBackward, *mapOfModelsBackward, *modelsBackwards, (uint)n, baseNumberBounds);
+
+        }
+        //auto lik = getSingleNewLikObject(updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, (uint)n, baseNumberBounds);
         if (mutex){
-            //std::cout << "Out of critical section: optimizeFirstRound()" << std::endl;
             omp_unset_lock(mutex);
 
         }      
-        fillVectorOfLikelihoods(lik, numOfIterationsNextRounds[0],  n, numOfPointsNextRounds[index], baseNumCandidates, updatedSharedParams, fixedParams, vectorOfLikelihoods, &text, *baseNumberBounds, mutex);
+        fillVectorOfLikelihoods(lik, numOfIterationsNextRounds[0],  n, numOfPointsNextRounds[index], baseNumCandidates, updatedSharedParams, fixedParams, vectorOfLikelihoods, text, *baseNumberBounds, mutex);
    
     }
     if (mutex){
         omp_set_lock(mutex);
-        //std::cout << "Within critical section2: optimizeFirstRound()" << std::endl;
     } 
     sort(vectorOfLikelihoods.begin(), vectorOfLikelihoods.end(), compareLikValues);
     if (mutex){
-        //std::cout << "Out of critical section2: optimizeFirstRound()" << std::endl;
         omp_unset_lock(mutex);
 
     }
-    printLikelihoodVectorValues(vectorOfLikelihoods, &text, 0);
+    printLikelihoodVectorValues(vectorOfLikelihoods, text, 0);
+
+}
+/***********************************************/
+size_t ChromosomeNumberOptimizer::getMaxNumOfMergingModels(std::map<uint, vector<uint>> &modelsToMerge){
+    size_t maxNumOfModels = 0;
+    auto it = modelsToMerge.begin();
+    while (it != modelsToMerge.end()){
+        auto sizeOfMergedCluster = modelsToMerge[it->first].size();
+        if (sizeOfMergedCluster == 0){
+            it ++;
+            continue;
+        }
+        sizeOfMergedCluster += 1;
+        if (sizeOfMergedCluster > maxNumOfModels){
+            maxNumOfModels = sizeOfMergedCluster;
+        }
+ 
+        it ++;
+    }
+    return maxNumOfModels;
+}
+/***********************************************/
+SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getBackwardLikObject(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &prevModelParams, std::map<uint, uint> &mapOfModelsToMerge, std::map<uint, vector<uint>> &modelsToMerge, uint iteration, std::map<uint, uint>* baseNumberBounds){
+    SingleProcessPhyloLikelihood* newLik;
+    size_t maxNumOfMergingModels = getMaxNumOfMergingModels(modelsToMerge);
+    if (iteration <= maxNumOfMergingModels){
+        auto it = modelsToMerge.begin();
+        while(it != modelsToMerge.end()){
+            if (modelsToMerge[it->first].size() == 0){
+                it ++;
+                continue;
+            }
+            if (iteration < modelsToMerge[it->first].size() + 1){
+                if (iteration == modelsToMerge[it->first].size()){
+                    modelParams[mapOfModelsToMerge[it->first]] = prevModelParams[it->first];  
+                }else{
+                    modelParams[mapOfModelsToMerge[it->first]] = prevModelParams[modelsToMerge[it->first][iteration]];
+
+                }
+                
+            }else{
+                // get mean for each parameter
+                modelParams[mapOfModelsToMerge[it->first]] = getMeanParameters(prevModelParams, modelsToMerge[it->first], it->first);
+            }
+
+            it ++;
+        }
+
+        newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, updatedSharedParams);         
+
+    }else{
+            // setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
+        newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
+    }
+    return newLik;
 
 }
 /***********************************************/
@@ -1503,6 +1562,7 @@ void ChromosomeNumberOptimizer::aliasParametersInSubstitutionProcess(std::map<ui
         auto paramNum = paramNumIt->first;
         auto pairsOfModelsAndTypes = (*updatedSharedParams)[paramNum]; // vector<pair<uint, int>>
         if (pairsOfModelsAndTypes.size() < 2){
+            paramNumIt ++;
             continue;
         }
         uint firstModel = pairsOfModelsAndTypes[0].first;// vector<pair<uint, int>>[0]-> pair<uint, int>.first->uint
@@ -2011,8 +2071,7 @@ void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProce
     omp_unset_lock(&mutex);
     uint numOfModels =  static_cast<uint>(lik->getSubstitutionProcess().getNumberOfModels());
     string textToPrint = "";
-    //optimizeFirstRound2(lik, candidateShiftNodesIds[i], &sharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, numOfPointsNextRounds_, numOfIterationsNextRounds_, perCandidateLikVec, textToPrint, &baseNumberBounds, &mutex);
-    optimizeFirstRound(&sharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, numOfPointsNextRounds_, numOfIterationsNextRounds_, perCandidateLikVec, textToPrint, &baseNumberBounds, &mutex);
+    optimizeFirstRound(&sharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, numOfPointsNextRounds_, numOfIterationsNextRounds_, perCandidateLikVec, &textToPrint, &baseNumberBounds, 0, 0, 0, &mutex);
 
     optimizeMultiProcessModel(&sharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberBounds, &perCandidateLikVec, &textToPrint, &mutex);
     //std::cout << "After optimizeMultiProcessModel: " << i << std::endl;
@@ -2066,13 +2125,11 @@ void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProce
 //         printLog(&text, log);
 //         if (mutex){
 //             omp_set_lock(mutex);
-//             std::cout << "Within critical section: optimizeFirstRound()" << std::endl;
 //         }    //std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, uint iteration
 //         //std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, uint iteration
 //         setNewModelAttributes(prevLik, shiftNode, &sharedParams_, updatedSharedParams, fixedParams, &modelParams, &mapModelNodesIds, baseNumberBounds);
 //         auto lik = getSingleNewLikObject(updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, n, baseNumberBounds);
 //         if (mutex){
-//             std::cout << "Out of critical section: optimizeFirstRound()" << std::endl;
 //             omp_unset_lock(mutex);
 
 //         }      
@@ -2081,11 +2138,9 @@ void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProce
 //     }
 //     if (mutex){
 //         omp_set_lock(mutex);
-//         std::cout << "Within critical section2: optimizeFirstRound()" << std::endl;
 //     } 
 //     sort(vectorOfLikelihoods.begin(), vectorOfLikelihoods.end(), compareLikValues);
 //     if (mutex){
-//         std::cout << "Out of critical section2: optimizeFirstRound()" << std::endl;
 //         omp_unset_lock(mutex);
 
 //     }
@@ -2359,5 +2414,366 @@ uint ChromosomeNumberOptimizer::getNumberOfParametersPerParamType(int paramType,
     }
     return numOfParams;
 
+
+}
+/*********************************************************
+* Functions for the Backward phase
+**********************************************************/
+
+void ChromosomeNumberOptimizer::getMapOfMergedModels(std::map<uint, uint> &mapOfModels, std::map<uint, vector<uint>> &modelsToMerge, SingleProcessPhyloLikelihood* prevLik){
+    auto prevNumOfModels = static_cast<uint>(prevLik->getSubstitutionProcess().getNumberOfModels());
+    vector<uint> modelsAfterMerge;
+    vector<uint> removedModels;
+    auto it = modelsToMerge.begin();
+    while(it != modelsToMerge.end()){
+        auto modelsPerClusterToRemove = modelsToMerge[it->first];
+        for (size_t i = 0; i < modelsPerClusterToRemove.size(); i++){
+            removedModels.push_back(modelsPerClusterToRemove[i]);
+        }
+        it++;
+    }
+    for (uint i = 1; i <= prevNumOfModels; i++){
+        if (std::find(removedModels.begin(), removedModels.end(), i) == removedModels.end()){
+            modelsAfterMerge.push_back(i);
+        }
+    }
+    
+    for (uint i = 1; i <= modelsAfterMerge.size(); i++){
+        mapOfModels[modelsAfterMerge[i-1]] = i;
+    }
+
+}
+
+void ChromosomeNumberOptimizer::mergeModels(std::map<uint, vector<uint>> modelsToMerge, SingleProcessPhyloLikelihood* lik, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>> &updatedSharedParams, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParamsPrevModel, std::map<uint, uint> &modelNums, std::map<uint, uint> &baseNumberBounds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams){
+    getMapOfMergedModels(modelNums, modelsToMerge, lik);
+    // updating shared and fixed parameters
+    updateSharedParametersBackwards(sharedParams_, updatedSharedParams, modelNums);
+    auto itModelMap = modelNums.begin();
+    while (itModelMap != modelNums.end()){
+        fixedParams[modelNums[itModelMap->first]] = fixedParams_[itModelMap->first];
+        itModelMap ++;
+    }
+
+    // setting nodes partitions
+    
+    getMapOfModelAndNodeIdsBackward(mapModelNodesIds, lik, modelNums, modelsToMerge);
+
+    // getting model parameters
+    
+    
+    auto itModel = modelNums.begin();
+    while (itModel != modelNums.end()){
+        modelParams[modelNums[itModel->first]] = modelParamsPrevModel[itModel->first];
+        auto branchProcess = lik->getSubstitutionProcess().getModel(itModel->first);
+        baseNumberBounds[modelNums[static_cast<uint>(itModel->first)]] = dynamic_cast<const ChromosomeSubstitutionModel*>(branchProcess)->getMaxChrRange();
+        itModel++;
+    }
+
+}
+////////////////////////////////////////////////////////////////////////////////////////
+void ChromosomeNumberOptimizer::updateSharedParametersBackwards(std::map<int, std::vector<std::pair<uint, int>>> &sharedParams, std::map<int, std::vector<std::pair<uint, int>>> &updatedSharedParams, std::map<uint, uint> &mapOfModels){
+
+    auto paramNumIt = sharedParams.begin();
+    // removing the models that have to be merged
+    while(paramNumIt != sharedParams.end()){
+        int paramNum = paramNumIt->first;
+        auto modelsAndTypes = sharedParams[paramNum];
+        for (size_t i = 0; i < modelsAndTypes.size(); i++){
+            uint model = sharedParams[paramNum][i].first;
+            int type = sharedParams[paramNum][i].second;
+            if (mapOfModels.find(model) != mapOfModels.end()){            
+                std::pair<uint, int> modelAndType(mapOfModels[model], type);
+                updatedSharedParams[paramNum].push_back(modelAndType);
+            }
+        }
+        paramNum++;
+
+    }
+    return;
+
+}
+// model4 -> model3 -> model2 -> model1
+// Example:
+//  1 2 3 4 5 6
+//  1 2 2 3 4 5
+//  1 2 2 1 3 4
+//  1 2 2 1 3 3
+// map: 1->1, 2->2, 3->4, 4->5, 5->6
+// map: 1->1, 2->2, 1->3->4, 4->5->6
+void ChromosomeNumberOptimizer::getMapOfModelAndNodeIdsBackward(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik, std::map<uint, uint> &modelsMap, std::map<uint, vector<uint>> &modelsToMerge, uint rootId){
+    uint numOfModels = static_cast<uint>(lik->getSubstitutionProcess().getNumberOfModels());
+    if (rootId){
+        mapModelNodesIds[modelsMap[1]].push_back(rootId);
+    }
+    // setting a map which will map the models that should be merged to the model they are merged to
+    std::map<uint, uint> mapMergedToRemained;
+    auto itMerged = modelsToMerge.begin();
+    while(itMerged != modelsToMerge.end()){
+        auto removedModels = modelsToMerge[itMerged->first];
+        for (size_t j = 0; j < removedModels.size(); j++){
+            auto removedModel = removedModels[j];
+            mapMergedToRemained[removedModel] = itMerged->first;
+        }      
+        itMerged ++;
+    }
+    for (uint i = 1; i <= numOfModels; i++){
+        auto vectorOfNodes = lik->getSubstitutionProcess().getNodesWithModel(i);
+        auto it = modelsMap.find(i);
+        uint model;
+        if (it == modelsMap.end()){
+            model = modelsMap[mapMergedToRemained[i]];
+        }else{
+            model = modelsMap[i];
+        }
+        for (size_t j = 0; j < vectorOfNodes.size(); j++){
+            mapModelNodesIds[model].push_back(vectorOfNodes[j]);
+        }
+
+    }
+}
+
+pair<int, std::map<int, std::vector<double>>> ChromosomeNumberOptimizer::getMeanParameters(std::map<uint, pair<int, std::map<int, std::vector<double>>>> &prevModelParams, vector<uint> modelsToMerge, uint modelForMerge){
+    std::pair<int, std::map<int, std::vector<double>>> meanValues;
+    vector<int> baseNumbers;
+    for (size_t i = 0; i < modelsToMerge.size(); i++){
+        auto modelParams = prevModelParams[modelsToMerge[i]];
+        if (i == 0){
+            baseNumbers.push_back(modelParams.first);
+            meanValues.second = modelParams.second;
+        }else{
+            baseNumbers.push_back(modelParams.first);
+            auto it = modelParams.second.begin();
+            while(it != modelParams.second.end()){
+                for (size_t j = 0; j < modelParams.second[it->first].size(); j++){
+                    meanValues.second[it->first][j] += modelParams.second[it->first][j];
+                }               
+                it ++;
+            }
+
+        }
+
+    }
+    auto modelParamsFirstModel = prevModelParams[modelForMerge];
+    baseNumbers.push_back(modelParamsFirstModel.first);
+    auto itTypeFirstModel = modelParamsFirstModel.second.begin();
+    while (itTypeFirstModel != modelParamsFirstModel.second.end()){
+        for (size_t j = 0; j < modelParamsFirstModel.second[itTypeFirstModel->first].size(); j++){
+            meanValues.second[itTypeFirstModel->first][j] += modelParamsFirstModel.second[itTypeFirstModel->first][j];
+        }
+        itTypeFirstModel++;
+    }
+    sort(baseNumbers.begin(), baseNumbers.end());
+    size_t midIndex = static_cast<size_t>(floor((double)(baseNumbers.size())/2));
+    meanValues.first = baseNumbers[midIndex];
+    auto itMeanVals = meanValues.second.begin();
+    while(itMeanVals != meanValues.second.end()){
+        for (size_t j = 0; j < meanValues.second[itMeanVals->first].size(); j++){
+            meanValues.second[itMeanVals->first][j] /= (double)(modelsToMerge.size()+1);
+
+        }
+       
+        itMeanVals ++;
+    }
+    return meanValues;
+
+}
+
+void ChromosomeNumberOptimizer::optimizeBackwardsInParallel(double maxParsimony){
+    backwardPhaseStarted_ = true;
+    SingleProcessPhyloLikelihood* finalLikForward = vectorOfLikelohoods_[0];
+    std::map<int, vector<std::pair<uint, int>>> sharedParams = sharedParams_;
+    std::map<uint, vector<int>> fixedParams = fixedParams_;
+
+    uint numOfClusters = static_cast<uint>(finalLikForward->getSubstitutionProcess().getNumberOfModels());
+    if (numOfClusters <= 2){
+        return;
+    }
+    auto finalLikBackward = finalLikForward;
+    numOfShiftsForward_ = static_cast<uint>(finalLikBackward->getSubstitutionProcess().getNumberOfModels());
+    size_t numOfFixedParams = getNumberOfFixedParams(finalLikForward, fixedParams_); 
+    double AICc_best = calculateAICc(finalLikForward, numOfFixedParams);
+    bool areThereAreStillClusters = (numOfClusters > 0);
+    while(areThereAreStillClusters){
+        finalLikBackward = vectorOfLikelohoods_[0];
+        std::map<std::pair<uint, uint>, double> pairsOfLikelihoods;
+        uint numOfModels = static_cast<uint>(finalLikBackward->getSubstitutionProcess().getNumberOfModels());
+
+        std::vector<std::pair<uint, uint>> pairsOfModels;
+        // we don't have to start from the background model, hence we start from model 2.
+        for (uint i = 2; i <= numOfModels-1; i++){
+            for (uint j = i+1; j <= numOfModels; j++){
+                std::pair<uint, uint> pairOfModels(i, j);
+                pairsOfModels.push_back(pairOfModels);
+            }
+        }
+        omp_lock_t mutex;
+        omp_init_lock(&mutex);
+        #pragma omp parallel for schedule(dynamic)
+        for (size_t i = 0; i < pairsOfModels.size(); i++){
+            vector<SingleProcessPhyloLikelihood*> perPairOfModelsLikVec;
+            std::map<uint, vector<uint>> modelsToBeMerged;
+            modelsToBeMerged[pairsOfModels[i].first].push_back(pairsOfModels[i].second);
+            optimizeMergedModels(finalLikBackward, modelsToBeMerged, perPairOfModelsLikVec, &pairsOfLikelihoods, maxParsimony, &mutex);
+
+        }
+        omp_destroy_lock(&mutex);
+        // auto it = pairsOfLikelihoods.begin();
+        // while(it != pairsOfLikelihoods.end()){
+        //     std::cout << "\tMerging models: " << it->first.first << ", " << it->first.second << std::endl;
+        //     //std::cout << "optimized log likelihood is: " <<  pairsOfLikelihoods[it->first].first->getValue() << std::endl;
+        //     //printLikParameters(pairsOfLikelihoods[it->first].first, 1, 0);
+        //     //std::cout << "Final AICc is: " << pairsOfLikelihoods[it->first].second << std::endl;
+        //     it++;
+        // }
+        UndirectedGraph* G = new UndirectedGraph();
+        for (size_t i = 1; i <= finalLikBackward->getSubstitutionProcess().getNumberOfModels(); i++){
+            Vertex* modelNode = new Vertex(static_cast<uint>(i));
+            G->addNewOrphanVertex(modelNode);
+
+        }
+        auto itEdges = pairsOfLikelihoods.begin();
+        while(itEdges != pairsOfLikelihoods.end()){
+            auto AICc_candidate = pairsOfLikelihoods[itEdges->first];
+            if (AICc_best - AICc_candidate > ChromEvolOptions::deltaAICcThreshold_){
+                G->addEdgeBetweenTwoNodes(itEdges->first.first, itEdges->first.second,  AICc_candidate);
+
+            }
+            
+            itEdges ++;
+        }
+
+        std::map<uint, vector<Vertex*>> clusters;
+        std::map<uint, vector<std::pair<uint, uint>>> maxEdges;
+        G->countNumOfVerticesInClusters(clusters, maxEdges);
+        auto fullyConectedClusters = G->findFullyConnectedClusters(clusters);
+        areThereAreStillClusters = G->hasEdges();
+        if (!areThereAreStillClusters){
+            break;
+        }
+        // now checking the fully connected clusters
+        // Iterate over each cluster, and merge the relevant models
+        auto clusterRoots = G->getClusterRoots();
+        std::map<uint, std::vector<uint>> rootAndVerticesToMerge;
+        //SingleProcessPhyloLikelihood* better_lik = 0;
+        for (size_t i = 0; i < clusterRoots.size(); i++){
+            vector<SingleProcessPhyloLikelihood*> perClusterOfModelsLikVec;
+            auto fullyConnected = fullyConectedClusters[clusterRoots[i]];
+            //std::vector<uint> clusterNodes = G->getNodesIds(clusterRoots[i]);
+            std::vector<uint> modelsToBeMerged;
+            if (fullyConnected){
+                for (size_t j = 0; j < clusters[clusterRoots[i]].size(); j++){
+                    if (clusters[clusterRoots[i]][j]->getId() != clusterRoots[i]){
+                        modelsToBeMerged.push_back(clusters[clusterRoots[i]][j]->getId());
+                    }
+                    
+                }
+                rootAndVerticesToMerge[clusterRoots[i]] = modelsToBeMerged;
+                               
+            }else{
+                // bestEdge is a vector of best edges with the best AICc score
+                // for now I will just use the first one (a random choice)        
+                auto bestEdge = maxEdges[clusterRoots[i]];
+                uint firstModel;
+                uint secondModel;
+                if (bestEdge[0].first < bestEdge[0].second){
+                    firstModel = bestEdge[0].first;
+                    secondModel = bestEdge[0].second;
+
+                }else{
+                    firstModel = bestEdge[0].second;
+                    secondModel = bestEdge[0].first;
+                }
+                modelsToBeMerged.push_back(secondModel);
+                rootAndVerticesToMerge[firstModel] = modelsToBeMerged;
+            }
+
+
+        }
+        auto likToDel = finalLikBackward;
+        vectorOfLikelohoods_.pop_back();
+        mergeMultipleModelClusters(finalLikBackward, rootAndVerticesToMerge, maxParsimony);//TODO)
+        deleteLikObject(likToDel);
+        delete G;
+        // Delete all the unnecessary likelihood objects from the pairs map
+        // HERE: TODO!!
+
+        
+
+    }
+
+}
+void ChromosomeNumberOptimizer::optimizeMergedModels(SingleProcessPhyloLikelihood* prevLik, std::map<uint, vector<uint>> &modelsToBeMerged, vector<SingleProcessPhyloLikelihood*> &perPairOfModelsLikVec, std::map<std::pair<uint, uint>, double>* pairsOfLikelihoods, double parsimonyBound, omp_lock_t* mutex){
+    std::pair<uint, uint> pairOfMergedModels;
+    uint numOfMerged = 0;
+
+    auto itMergedModels = modelsToBeMerged.begin();
+    while (itMergedModels != modelsToBeMerged.end()){
+        if (pairsOfLikelihoods){
+            pairOfMergedModels = std::pair<uint, uint>(itMergedModels->first, modelsToBeMerged[itMergedModels->first][0]);
+        }
+        numOfMerged += static_cast<uint>(modelsToBeMerged[itMergedModels->first].size());
+        sort(modelsToBeMerged[itMergedModels->first].begin(), modelsToBeMerged[itMergedModels->first].end());
+        itMergedModels++;
+    }
+    uint numOfModels = static_cast<uint>(prevLik->getSubstitutionProcess().getNumberOfModels())-numOfMerged;
+    std::map<uint, vector<int>> fixedParams;
+    std::map<int, std::vector<std::pair<uint, int>>> updatedSharedParams;
+    std::map<uint, std::vector<uint>> mapModelNodesIds;
+    std::map<uint, pair<int, std::map<int, std::vector<double>>>> modelParams;
+    std::map<uint, uint> mapOfModels;
+    std::map<uint, uint> baseNumberBounds;
+    std::string textToPrint = "";
+
+    uint numOfModelsPrevModel = static_cast<uint>(prevLik->getSubstitutionProcess().getNumberOfModels());
+    std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames;//parameter type, num of model, related parameters
+    ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(typeWithParamNames, 0, prevLik, &sharedParams_);   
+    std::map<uint, pair<int, std::map<int, std::vector<double>>>> modelParamsPrevModel = getMapOfParamsForComplexModel(prevLik, typeWithParamNames, numOfModelsPrevModel);
+    omp_set_lock(mutex);
+    mergeModels(modelsToBeMerged, prevLik, fixedParams, updatedSharedParams, mapModelNodesIds, modelParamsPrevModel, mapOfModels, baseNumberBounds, modelParams);
+    omp_unset_lock(mutex);
+    optimizeFirstRound(&updatedSharedParams, fixedParams, parsimonyBound, mapModelNodesIds, modelParams, numOfModels, numOfPointsNextRounds_, numOfIterationsNextRounds_, perPairOfModelsLikVec, &textToPrint, &baseNumberBounds, &mapOfModels, &modelParamsPrevModel, &modelsToBeMerged, mutex);
+    optimizeMultiProcessModel(&updatedSharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberBounds, &perPairOfModelsLikVec, &textToPrint, mutex);
+
+    size_t numOfFixedParams = getNumberOfFixedParams(perPairOfModelsLikVec[0], fixedParams); 
+    double AICc = calculateAICc(perPairOfModelsLikVec[0], numOfFixedParams);
+    auto modelToDel = perPairOfModelsLikVec.back();
+    
+    omp_set_lock(mutex);
+    if (pairsOfLikelihoods){
+        (*pairsOfLikelihoods)[pairOfMergedModels] = AICc;
+
+    }
+    std::cout << "\tMerging models: " << pairOfMergedModels.first << ", " << pairOfMergedModels.second << std::endl;
+    std::cout << textToPrint << std::endl; 
+    //std::cout << "optimized log likelihood is: " <<  perPairOfModelsLikVec[0]->getValue() << std::endl;
+    printLikParameters(perPairOfModelsLikVec[0], 1, 0);
+    std::cout << "Final AICc is: " << AICc << std::endl;
+    deleteLikObject(modelToDel);
+    
+    omp_unset_lock(mutex);
+
+}
+//************************************************************************************/
+void ChromosomeNumberOptimizer::mergeMultipleModelClusters(SingleProcessPhyloLikelihood* prevLik, std::map<uint, vector<uint>> &rootAndVerticesToMerge, double maxParsimony){
+
+
+    std::map<uint, vector<int>> fixedParams;
+    std::map<int, std::vector<std::pair<uint, int>>> updatedSharedParams;
+    std::map<uint, std::vector<uint>> mapModelNodesIds;
+    std::map<uint, pair<int, std::map<int, std::vector<double>>>> modelParams;
+    std::map<uint, uint> mapOfModels;
+    std::map<uint, uint> baseNumberBounds;
+
+    uint numOfModelsPrevModel = static_cast<uint>(prevLik->getSubstitutionProcess().getNumberOfModels());
+    std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames;//parameter type, num of model, related parameters
+    ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(typeWithParamNames, 0, prevLik, &sharedParams_);   
+    std::map<uint, pair<int, std::map<int, std::vector<double>>>> modelParamsPrevModel = getMapOfParamsForComplexModel(prevLik, typeWithParamNames, numOfModelsPrevModel);
+
+    mergeModels(rootAndVerticesToMerge, prevLik, fixedParams, updatedSharedParams, mapModelNodesIds, modelParamsPrevModel, mapOfModels, baseNumberBounds, modelParams);
+    auto numOfModels = static_cast<uint>(mapOfModels.size());
+    optimizeFirstRound(&updatedSharedParams, fixedParams, maxParsimony, mapModelNodesIds, modelParams, numOfModels, numOfPointsNextRounds_, numOfIterationsNextRounds_, vectorOfLikelohoods_, 0, &baseNumberBounds, &mapOfModels, &modelParamsPrevModel, &rootAndVerticesToMerge, 0);
+    optimizeMultiProcessModel(&updatedSharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberBounds, 0, 0, 0);
+    sharedParams_ = updatedSharedParams;
+    fixedParams_ = fixedParams;
 
 }

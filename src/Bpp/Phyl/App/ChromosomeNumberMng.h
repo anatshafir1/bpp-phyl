@@ -159,7 +159,7 @@ namespace bpp{
             void writeOutputToFile(ChromosomeNumberOptimizer* chrOptimizer) const;
             void printLikParameters(ChromosomeNumberOptimizer* chrOptimizer, SingleProcessPhyloLikelihood* lik, ofstream &outFile) const;
             uint findMinCladeSize(std::map<uint, vector<uint>> mapModelNodesIds) const;
-            std::map<uint, uint> findMRCAForEachModelNodes(std::map<uint, vector<uint>> mapOfModelsAndNodes) const;
+            std::map<uint, std::vector<uint>> findMRCAForEachModelNodes(std::map<uint, vector<uint>> mapOfModelsAndNodes) const;
             void writeTreeWithCorrespondingModels(PhyloTree tree, std::map<uint, vector<uint>> &modelAndNodes) const;
 
         protected:

@@ -371,6 +371,13 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
     //if (ChromEvolOptions::optimizationMethod_ == "Brent"){
         //calculateDerivatives  = false;
     //}
+    vector<uint> numOfIterationsForBackward = ChromEvolOptions::OptIterNumNextRounds_;
+    vector<uint> numOfPointsForForward = ChromEvolOptions::OptPointsNumNextRounds_;
+    if (!ChromEvolOptions::forwardPhase_){
+        ChromEvolOptions::OptIterNumNextRounds_ = {0};
+        ChromEvolOptions::OptPointsNumNextRounds_ = {1};
+
+    }
     std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
     ChromosomeNumberOptimizer* opt = new ChromosomeNumberOptimizer(tree_, alphabet_, vsc_, maxBaseNumTransition);
     //opt->initModels(complexParamsValues, parsimonyBound, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], ChromEvolOptions::fixedFrequenciesFilePath_, ChromEvolOptions::fixedParams_, ChromEvolOptions::mapModelNodesIds_);
@@ -390,6 +397,14 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
         opt->optimize(complexParamsValues, parsimonyBound, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], ChromEvolOptions::fixedFrequenciesFilePath_, ChromEvolOptions::fixedParams_ ,ChromEvolOptions::mapModelNodesIds_);
 
     }
+    ChromEvolOptions::OptIterNumNextRounds_ = numOfIterationsForBackward;
+    ChromEvolOptions::OptPointsNumNextRounds_ = numOfPointsForForward;
+    opt->setIterNumForNextRound(ChromEvolOptions::OptIterNumNextRounds_);
+    opt->setPointsNumForNextRound(ChromEvolOptions::OptPointsNumNextRounds_);
+    if (ChromEvolOptions::backwardPhase_){
+        opt->optimizeBackwardsInParallel(parsimonyBound);
+    }
+
 
     time(&t2);
     std::cout <<"**** **** Total running time of the optimization procedure is: "<< (t2-t1) <<endl;
@@ -1117,7 +1132,10 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
     auto modelAndRepresentitives = findMRCAForEachModelNodes(mapModelNodesIds);
     outFile << "Shifting nodes are: " << std::endl;
     for (uint i = 1; i <= numOfModels; i++){
-        outFile << "# Model $" << i << " = " << "N" << modelAndRepresentitives[i] << std::endl;
+        for (size_t j = 0; j < modelAndRepresentitives[i].size(); j++){
+            outFile << "# Model $" << i << " = " << "N" << modelAndRepresentitives[i][j] << std::endl;
+        }
+        
     }
     writeTreeWithCorrespondingModels(*tree_, mapModelNodesIds);
 
@@ -1150,23 +1168,22 @@ void ChromosomeNumberMng::writeTreeWithCorrespondingModels(PhyloTree tree, std::
 
 }
 /******************************************************************************/
-std::map<uint, uint> ChromosomeNumberMng::findMRCAForEachModelNodes(std::map<uint, vector<uint>> mapOfModelsAndNodes) const{
-    std::map <uint, uint> modelWithRepresentitives;
+std::map<uint, std::vector<uint>> ChromosomeNumberMng::findMRCAForEachModelNodes(std::map<uint, vector<uint>> mapOfModelsAndNodes) const{
+    std::map <uint, std::vector<uint>> modelWithRepresentitives;
     auto it = mapOfModelsAndNodes.begin();
     while (it != mapOfModelsAndNodes.end()){
         auto nodes = mapOfModelsAndNodes[it->first];
         for (size_t i = 0; i < nodes.size(); i++){
             uint nodeId = nodes[i];
             if (nodeId == tree_->getRootIndex()){
-                modelWithRepresentitives[it->first] = nodeId;
+                modelWithRepresentitives[it->first].push_back(nodeId);
                 break;
             }
             auto edgeIndex =  tree_->getIncomingEdges(nodeId)[0]; 
             auto fatherIndex = tree_->getFatherOfEdge(edgeIndex);
             if (std::find(nodes.begin(), nodes.end(), fatherIndex) == nodes.end()){
                 // if the node has no father in the list, this is the representitive in the current model
-                modelWithRepresentitives[it->first] = nodeId;
-                break;
+                modelWithRepresentitives[it->first].push_back(nodeId);
             }
 
         }

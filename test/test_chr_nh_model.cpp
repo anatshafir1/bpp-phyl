@@ -36,23 +36,22 @@ int main(){
     //unique_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("(((A:0.1, B:0.2):0.3,C:0.15):0.25,(D:0.35,(E:0.26,F:0.05):0.12):0.16);", false, "", false, false));
     unique_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("((sp1:1,(sp2:0.5,sp3:0.5):0.5):2,(sp4:1.5,(sp5:0.9,sp6:0.9):0.6):1.5);", false, "", false, false));
     ParametrizablePhyloTree parTree(*pTree);
-    ChromosomeAlphabet* alpha = new ChromosomeAlphabet(1, 50);
-    // VectorSiteContainer* vsc = new VectorSiteContainer(alpha);
-    const Alphabet* alphabet = static_cast<const Alphabet*>(alpha);
+    ChromosomeAlphabet* alpha = new ChromosomeAlphabet(1,4);
+    VectorSiteContainer* vsc = new VectorSiteContainer(alpha);
         
     // setting sequence data
-    // BasicSequence seq1 = BasicSequence("sp1", "2", alphabet);
-    // BasicSequence seq2 = BasicSequence("sp2", "4", alphabet);
-    // BasicSequence seq3 = BasicSequence("sp3", "3", alphabet);
-    // BasicSequence seq4 = BasicSequence("sp4", "4", alphabet);
-    // BasicSequence seq5 = BasicSequence("sp5", "4", alphabet);
-    // BasicSequence seq6 = BasicSequence("sp6", "3", alphabet);
-    // vsc->addSequence(seq1);
-    // vsc->addSequence(seq2);
-    // vsc->addSequence(seq3);
-    // vsc->addSequence(seq4);
-    // vsc->addSequence(seq5);
-    // vsc->addSequence(seq6);
+    BasicSequence seq1 = BasicSequence("sp1", "2", alpha);
+    BasicSequence seq2 = BasicSequence("sp2", "4", alpha);
+    BasicSequence seq3 = BasicSequence("sp3", "3", alpha);
+    BasicSequence seq4 = BasicSequence("sp4", "4", alpha);
+    BasicSequence seq5 = BasicSequence("sp5", "4", alpha);
+    BasicSequence seq6 = BasicSequence("sp6", "3", alpha);
+    vsc->addSequence(seq1);
+    vsc->addSequence(seq2);
+    vsc->addSequence(seq3);
+    vsc->addSequence(seq4);
+    vsc->addSequence(seq5);
+    vsc->addSequence(seq6);
 
     // setting first model
     std::vector<double> gain1;
@@ -61,12 +60,11 @@ int main(){
     loss1.push_back(1);
     std::vector<double> dupl1;
     dupl1.push_back(3);
-    int baseNumber1 = 7;
-    std::vector<double> baseNumR1;
-    baseNumR1.push_back(0.5);
+    int baseNumber1 = IgnoreParam;
+
 
     std::vector<int> rateFuncType;
-    rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
+    rateFuncType.push_back(ChromosomeNumberDependencyFunction::IGNORE);
     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
@@ -77,97 +75,128 @@ int main(){
     mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss1;
     mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl1;
     mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = vector<double>();
-    mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = baseNumR1;
+    mapOfParamsModel1[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = vector<double>();
 
-    std::shared_ptr<ChromosomeSubstitutionModel> chrModel1 = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel1, baseNumber1, 21, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType);
-    std::cout << "*** *** *** Model is:" << std::endl;
-    chrModel1->correctBaseNumForSimulation(20);
-    RowMatrix <double> matrix = chrModel1->getGenerator();
-    for (size_t i = 0; i < matrix.getNumberOfRows(); i++){
-        for (size_t j = 0; j < matrix.getNumberOfColumns(); j++){
-            std::cout << matrix(i, j) << "\t";
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel1 = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel1, baseNumber1, 0, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType);
+    //std::cout << "*** *** *** Model is:" << std::endl;
+    //chrModel1->correctBaseNumForSimulation(20);
+    // RowMatrix <double> matrix = chrModel1->getGenerator();
+    // for (size_t i = 0; i < matrix.getNumberOfRows(); i++){
+    //     for (size_t j = 0; j < matrix.getNumberOfColumns(); j++){
+    //         std::cout << matrix(i, j) << "\t";
 
-        }
-        std::cout << endl;
-    }
+    //     }
+    //     std::cout << endl;
+    // }
 
     // setting the second model
-    // std::vector<double> gain2;
-    // gain2.push_back(5.31089);
-    // std::vector<double> loss2;
-    // loss2.push_back(1.9216);
-    // std::vector<double> dupl2;
-    // dupl2.push_back(0.55745);
-    // int baseNumber2 = IgnoreParam;
+    std::vector<double> gain2;
+    gain2.push_back(5.31089);
+    std::vector<double> loss2;
+    loss2.push_back(1.9216);
+    std::vector<double> dupl2;
+    dupl2.push_back(0.55745);
+    int baseNumber2 = IgnoreParam;
 
-    // std::map<int, std::vector<double>> mapOfParamsModel2;
-    // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain2;
-    // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss2;
-    // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl2;
-    // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = vector<double>();
-    // mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = vector<double>();
-    // std::vector<int> rateFuncType2 = rateFuncType;
 
-    // std::shared_ptr<ChromosomeSubstitutionModel> chrModel2 = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel2, baseNumber2, 0, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType2);
+    std::map<int, std::vector<double>> mapOfParamsModel2;
+    mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain2;
+    mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss2;
+    mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl2;
+    mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = vector<double>();
+    mapOfParamsModel2[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = vector<double>();
+    std::vector<int> rateFuncType2 = rateFuncType;
 
-    // vector<shared_ptr<PhyloNode> > nodes = pTree->getAllNodes();
-    // size_t nbNodes = nodes.size();
-    // vector<shared_ptr<PhyloNode>> subtreeNodes;
-    // vector<uint> leavesUnderNode;
-    // vector<string> subtreeLeaves = {"sp2", "sp3"};
-    // for (size_t i = 0; i < nbNodes; i++){
-    //     uint nodeId = pTree->getNodeIndex(nodes[i]);
-    //     if (nodeId == pTree->getRootIndex()){
-    //         continue;
-    //     }
-    //     if (pTree->isLeaf(nodeId)){
-    //         continue;
-    //     }
-    //     subtreeNodes = pTree->getSubtreeNodes(pTree->getNode(nodeId));
-    //     if (subtreeNodes.size() == 3){
-    //         leavesUnderNode = pTree->getLeavesUnderNode(nodeId);
-    //         vector<string> leavesUnderNodeNames;
-    //         for (size_t k = 0; k < leavesUnderNode.size(); k++){
-    //             string leafName = pTree->getNode(leavesUnderNode[k])->getName();
-    //             leavesUnderNodeNames.push_back(leafName);
-    //         }
-    //         bool notFound = false;
-    //         for (size_t j = 0; j < subtreeLeaves.size(); j++){
-    //             auto it = std::find(leavesUnderNodeNames.begin(), leavesUnderNodeNames.end(), subtreeLeaves[j]);
-    //             if (it == leavesUnderNodeNames.end()){
-    //                 notFound = true;
-    //                 break;
-    //             }
-    //         }
-    //         if (!(notFound)){
-    //             break;
-    //         }
-    //     }
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel2 = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel2, baseNumber2, 0, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType2);
+
+    vector<shared_ptr<PhyloNode> > nodes = pTree->getAllNodes();
+    size_t nbNodes = nodes.size();
+    vector<shared_ptr<PhyloNode>> subtreeNodes;
+    vector<uint> leavesUnderNode;
+    vector<string> subtreeLeaves = {"sp2", "sp3"};
+    for (size_t i = 0; i < nbNodes; i++){
+        uint nodeId = pTree->getNodeIndex(nodes[i]);
+        if (nodeId == pTree->getRootIndex()){
+            continue;
+        }
+        if (pTree->isLeaf(nodeId)){
+            continue;
+        }
+        subtreeNodes = pTree->getSubtreeNodes(pTree->getNode(nodeId));
+        if (subtreeNodes.size() == 3){
+            leavesUnderNode = pTree->getLeavesUnderNode(nodeId);
+            vector<string> leavesUnderNodeNames;
+            for (size_t k = 0; k < leavesUnderNode.size(); k++){
+                string leafName = pTree->getNode(leavesUnderNode[k])->getName();
+                leavesUnderNodeNames.push_back(leafName);
+            }
+            bool notFound = false;
+            for (size_t j = 0; j < subtreeLeaves.size(); j++){
+                auto it = std::find(leavesUnderNodeNames.begin(), leavesUnderNodeNames.end(), subtreeLeaves[j]);
+                if (it == leavesUnderNodeNames.end()){
+                    notFound = true;
+                    break;
+                }
+            }
+            if (!(notFound)){
+                break;
+            }
+        }
         
-    // }
-    // // split nodes into models
-    // vector<uint> model2NodeIds = pTree->getNodeIndexes(subtreeNodes);
-    // vector<uint> model1NodeIds;
-    // for (size_t i = 0; i < nbNodes; i++){
-    //     if (pTree->getRootIndex() == pTree->getNodeIndex(nodes[i])){
-    //         continue;
-    //     }
-    //     auto it = std::find(model2NodeIds.begin(), model2NodeIds.end(), pTree->getNodeIndex(nodes[i]));
-    //     if (it == model2NodeIds.end()){
-    //         model1NodeIds.push_back(pTree->getNodeIndex(nodes[i]));
-    //     }
+    }
+    // split nodes into models
+    vector<uint> model2NodeIds = pTree->getNodeIndexes(subtreeNodes);
+    vector<uint> model1NodeIds;
+    for (size_t i = 0; i < nbNodes; i++){
+        if (pTree->getRootIndex() == pTree->getNodeIndex(nodes[i])){
+            continue;
+        }
+        auto it = std::find(model2NodeIds.begin(), model2NodeIds.end(), pTree->getNodeIndex(nodes[i]));
+        if (it == model2NodeIds.end()){
+            model1NodeIds.push_back(pTree->getNodeIndex(nodes[i]));
+        }
 
-    // }
-    // DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
-    // NonHomogeneousSubstitutionProcess* subProSim = new NonHomogeneousSubstitutionProcess(rdist, &parTree);
-    // subProSim->addModel(chrModel1, model1NodeIds);
-    // subProSim->addModel(chrModel2, model2NodeIds);
-    // subProSim->aliasParameters("Chromosome.gain0_1","Chromosome.loss0_1");
-    // Context context;
-    // SubstitutionProcess* nsubPro=subProSim->clone();
-    // auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc, *nsubPro, true);
-    // SingleProcessPhyloLikelihood ntl(context, lik, lik->getParameters());
-    // std::cout << "likelihood is: " << ntl.getValue() << std::endl;
+    }
+    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    NonHomogeneousSubstitutionProcess* subProSim = new NonHomogeneousSubstitutionProcess(rdist, &parTree);
+    subProSim->addModel(chrModel1, model1NodeIds);
+    subProSim->addModel(chrModel2, model2NodeIds);
+    //subProSim->aliasParameters("Chromosome.gain0_1","Chromosome.loss0_1");
+    Context context;
+    SubstitutionProcess* nsubPro=subProSim->clone();
+    auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc, *nsubPro, true);
+    SingleProcessPhyloLikelihood ntl(context, lik, lik->getParameters());
+    std::cout << "likelihood is: " << ntl.getValue() << std::endl;
+
+    // set homogeneous model
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel1Homo = std::make_shared<ChromosomeSubstitutionModel>(alpha, mapOfParamsModel1, baseNumber1, 0, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType);
+    DiscreteDistribution* rdistHomo = new GammaDiscreteRateDistribution(1, 1.0);
+    auto treeHomo = pTree->clone();
+    ParametrizablePhyloTree parTreeHomo(*treeHomo);
+    NonHomogeneousSubstitutionProcess* subProSimHomo = NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(chrModel1Homo, rdistHomo, &parTreeHomo);
+    Context contextHomo;
+    SubstitutionProcess* nsubProHomo=subProSimHomo->clone();
+    auto likHomo = std::make_shared<LikelihoodCalculationSingleProcess>(contextHomo, *vsc, *nsubProHomo, true);
+    SingleProcessPhyloLikelihood ntlHomo(contextHomo, likHomo, likHomo->getParameters());
+    std::cout << "likelihood is for homogeneous model: " << ntlHomo.getValue() << std::endl;
+
+    // merge two models into one
+    subProSim->aliasParameters("Chromosome.gain0_1","Chromosome.gain0_2");
+    subProSim->aliasParameters("Chromosome.loss0_1","Chromosome.loss0_2");
+    subProSim->aliasParameters("Chromosome.dupl0_1","Chromosome.dupl0_2");
+    SubstitutionProcess* nsubProMerged=subProSim->clone();
+    auto likMerged = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc, *nsubProMerged, true);
+    SingleProcessPhyloLikelihood ntlMerged(context, likMerged, likMerged->getParameters());
+    std::cout << "likelihood is: " << ntlMerged.getValue() << std::endl;
+
+
+    //static NonHomogeneousSubstitutionProcess* createHomogeneousSubstitutionProcess(
+      //std::shared_ptr<BranchModel> model,
+      //DiscreteDistribution* rdist,
+      //ParametrizablePhyloTree* tree,
+      //std::shared_ptr<FrequencySet> rootFreqs = 0,
+      //std::shared_ptr<ModelScenario> scenario = 0
+
     // ParameterList substitutionModelParams = ntl.getSubstitutionModelParameters();
     // std::vector<std::string> paramsNames = substitutionModelParams.getParameterNames();
     // for (size_t i = 0; i < paramsNames.size(); i++){

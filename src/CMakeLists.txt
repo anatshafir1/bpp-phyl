@@ -64,6 +64,7 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/RNonHomogeneousMixedTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/RNonHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/TreeLikelihoodTools.cpp
+  Bpp/Phyl/Likelihood/UndirectedGraph.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/BackwardLikelihoodTree.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/CollectionNodes.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/DataFlow.cpp

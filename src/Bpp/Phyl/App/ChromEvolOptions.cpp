@@ -55,6 +55,8 @@ std::vector<uint> ChromEvolOptions::initialModelNodes_;
 std::vector<string> ChromEvolOptions::globalParams_;
 bool ChromEvolOptions::parallelization_;
 int ChromEvolOptions::maxChrInferred_;
+bool ChromEvolOptions::backwardPhase_;
+bool ChromEvolOptions::forwardPhase_;
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
     initDefaultParameters();
@@ -93,6 +95,8 @@ void ChromEvolOptions::initDefaultParameters(){
     deltaAICcThreshold_ = 2;
     parallelization_ = false;
     maxChrInferred_ = maxChrNum_;
+    backwardPhase_ = true;
+    forwardPhase_ = true;
     
 
 }
@@ -211,6 +215,9 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     heterogeneousModel_ = ApplicationTools::getBooleanParameter("_heterogeneousModel", ChromEvol.getParams(), heterogeneousModel_, "", true, 0);
     deltaAICcThreshold_ = ApplicationTools::getDoubleParameter("_deltaAICcThreshold", ChromEvol.getParams(), deltaAICcThreshold_, "", true, 0);
     maxChrInferred_ = ApplicationTools::getIntParameter("_maxChrInferred", ChromEvol.getParams(), maxChrInferred_, "", true, 0);
+    forwardPhase_ = ApplicationTools::getBooleanParameter("_forwardPhase", ChromEvol.getParams(), forwardPhase_, "", true, 0);
+    backwardPhase_ = ApplicationTools::getBooleanParameter("_backwardPhase", ChromEvol.getParams(), backwardPhase_, "", true, 0);
+
 
 }
 /************************************************************************/
