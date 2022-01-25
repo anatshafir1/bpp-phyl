@@ -402,7 +402,7 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
     opt->setIterNumForNextRound(ChromEvolOptions::OptIterNumNextRounds_);
     opt->setPointsNumForNextRound(ChromEvolOptions::OptPointsNumNextRounds_);
     if (ChromEvolOptions::backwardPhase_){
-        opt->optimizeBackwardsInParallel(parsimonyBound);
+        opt->optimizeBackwards(parsimonyBound, ChromEvolOptions::parallelization_);
     }
 
 
