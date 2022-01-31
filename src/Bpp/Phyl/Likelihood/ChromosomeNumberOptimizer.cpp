@@ -449,7 +449,17 @@ void ChromosomeNumberOptimizer::printLikelihoodVectorValues(std::vector <SingleP
         std::cout << textToPrint;
     }
 }
+/********************************************************************************/
+std::vector<double> ChromosomeNumberOptimizer::getRootFrequencies(SingleProcessPhyloLikelihood* lik) const{
+    std::vector<double> rootFreqs;
+    ValueRef <Eigen::RowVectorXd> rootFreqVector = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
+    for (size_t s = 0; s < (size_t)rootFreqVector->getTargetValue().size(); s ++){
+        rootFreqs.push_back(rootFreqVector.get()->getTargetValue()[s]);
 
+    }
+    return rootFreqs;
+
+}
 // /******************************************************************************/
 void ChromosomeNumberOptimizer::printRootFrequencies(SingleProcessPhyloLikelihood* lik, ofstream &outFile) const{
     ValueRef <Eigen::RowVectorXd> rootFreqVector = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
@@ -959,6 +969,40 @@ size_t ChromosomeNumberOptimizer::getNumberOfFixedParams(SingleProcessPhyloLikel
 
 }
 /*******************************************************************************/
+std::string ChromosomeNumberOptimizer::getFunctionName(int func){
+    std::string functionName;
+    switch(func)
+    {
+    case ChromosomeNumberDependencyFunction::CONSTANT:
+        functionName = "CONST";
+        break;
+    case ChromosomeNumberDependencyFunction::LINEAR:
+        functionName = "LINEAR";
+        break;
+    case ChromosomeNumberDependencyFunction::LINEAR_BD:
+        functionName = "LINEAR_BD";
+        break;
+    case ChromosomeNumberDependencyFunction::EXP:
+        functionName = "EXP";
+        break;
+    case ChromosomeNumberDependencyFunction::POLYNOMIAL:
+        functionName = "POLYNOMIAL";
+        break;
+    case ChromosomeNumberDependencyFunction::LOGNORMAL:
+        functionName = "LOGNORMAL";
+        break;
+    case ChromosomeNumberDependencyFunction::REVERSE_SIGMOID:
+        functionName = "REVERSE_SIGMOID";
+        break;
+    case ChromosomeNumberDependencyFunction::IGNORE:
+        functionName = "IGNORE";
+        break;
+    default:
+        throw Exception("ChromEvolOptions::getFunctionName: parameter not found !!!");
+    }
+    return functionName;
+}
+/*******************************************************************************/
 string ChromosomeNumberOptimizer::getStringParamName(int type){
     string strName;
     if (type == ChromosomeSubstitutionModel::BASENUM){
@@ -1168,6 +1212,13 @@ double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* li
     //return AICc;
     return AICc;
 
+}
+/***********************************************/
+void ChromosomeNumberOptimizer::setInitialModelRepresentitives(std::map<uint, vector<uint>> &initialPartition){
+    auto numOfModels = static_cast<uint>(initialPartition.size());
+    for (uint i = 0; i < numOfModels; i++){
+        prevModelsPartitions_[numOfModels].push_back(initialPartition[i+1][0]);
+    }
 }
 /***********************************************/
 void ChromosomeNumberOptimizer::setParamsNameInForMultiProcess(std::map<uint, std::map<int, vector<string>>> &mapOfParamsNamesPerModelType, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams){
@@ -1982,6 +2033,14 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
             // leave only the best one
             clearVectorOfLikelihoods(1);
             firstIteration = false;
+            if ((prevModelsAICcLikValues_.empty()) && (ChromEvolOptions::heterogeneousModel_)){
+                size_t numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams_); 
+                double AICc = calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
+                std::pair<double, double> AICcAndLik(AICc, vectorOfLikelohoods_[0]->getValue());
+                prevModelsAICcLikValues_[ChromEvolOptions::numOfModels_] = AICcAndLik;
+                getParameterNamesAndValues(vectorOfLikelohoods_[0], ChromEvolOptions::numOfModels_);
+                prevModelsRootFrequencies_[ChromEvolOptions::numOfModels_] = getRootFrequencies(vectorOfLikelohoods_[0]);
+            }
             numOfShifts ++;
             continue;
 
@@ -1995,15 +2054,6 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
         size_t numOfFixedParams = getNumberOfFixedParams(minAICcLik, fixedParams_); 
         double initialAICc = calculateAICc(minAICcLik, numOfFixedParams);
         uint minDetaAICcNode;
-        //double minAICc = initialAICc;
-        //std::vector<SingleProcessPhyloLikelihood*> newShiftLikCandidates;
-        // initialize the vector with the required number of elements
-        //newShiftLikCandidates.resize(candidateShiftNodesIds.size());
-        // vector<PhyloTree*> trees;
-        // for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
-        //     trees.push_back(tree_->clone());
-        // }
-        
         std::cout << "*** *** *** Starting considering " << numOfShifts << " shifts *** *** ***" << std::endl;
         //omp_set_num_threads(4);
         SingleProcessPhyloLikelihood* bestLikAmongCandidates = 0;
@@ -2033,6 +2083,12 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
             updateSharedParameters(sharedParams, prevShiftOfBest, numOfShifts);
             sharedParams_ = sharedParams;
             fixedParameters[numOfShifts] = fixedParameters[prevShiftOfBest];
+            prevModelsPartitions_[numOfShifts] = prevModelsPartitions_[numOfShifts-1];
+            prevModelsPartitions_[numOfShifts].push_back(minDetaAICcNode);
+            std::pair<double, double> AICcAndLik(bestAICcScore, minAICcLik->getValue());
+            prevModelsAICcLikValues_[numOfShifts] = AICcAndLik;
+            prevModelsRootFrequencies_[numOfShifts] = getRootFrequencies(minAICcLik);
+            getParameterNamesAndValues(minAICcLik, numOfShifts);
             fixedParams_ = fixedParameters;
             numOfShifts ++;
             vectorOfLikelohoods_.push_back(minAICcLik);
@@ -2049,6 +2105,17 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
 
     //initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, vector<uint>>* sharedParams, std::map<uint, vector<int>> &fixedParameters)
 
+}
+/**********************************************************************************************/
+void ChromosomeNumberOptimizer::getParameterNamesAndValues(SingleProcessPhyloLikelihood* lik, uint numOfModels){
+     auto params = lik->getSubstitutionModelParameters();
+     for (size_t i = 0; i < params.size(); i++){
+         auto paramName = params[i].getName();
+         double value = lik->getLikelihoodCalculation()->getParameter(paramName).getValue();
+         std::pair<string, double> paramAndValue(paramName, value);
+         prevModelParams_[numOfModels].push_back(paramAndValue);
+
+     }
 }
 /**********************************************************************************************/
 void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProcessPhyloLikelihood* lik, vector<uint> &candidateShiftNodesIds, size_t i, uint numOfShifts, double parsimonyBound, uint numOfPoints, SingleProcessPhyloLikelihood** bestCandidateLik, double* bestAICc, uint* minAICcNode){
@@ -2227,6 +2294,14 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
             clearVectorOfLikelihoods(1);
             //minAICcLik = vectorOfLikelohoods_[0];
             firstIteration = false;
+            if ((prevModelsAICcLikValues_.empty()) && (ChromEvolOptions::heterogeneousModel_)){
+                size_t numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams_); 
+                double AICc = calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
+                std::pair<double, double> AICcAndLik(AICc, vectorOfLikelohoods_[0]->getValue());
+                prevModelsAICcLikValues_[ChromEvolOptions::numOfModels_] = AICcAndLik;
+                getParameterNamesAndValues(vectorOfLikelohoods_[0], ChromEvolOptions::numOfModels_);
+                prevModelsRootFrequencies_[ChromEvolOptions::numOfModels_] = getRootFrequencies(vectorOfLikelohoods_[0]);
+            }
             numOfShifts ++;
             continue;
 
@@ -2286,6 +2361,12 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
             deltaAICcImproved = true;
             sharedParams_ = bestModelSharedParams;
             fixedParams_ = fixedParams;
+            prevModelsPartitions_[numOfShifts] = prevModelsPartitions_[numOfShifts-1];
+            prevModelsPartitions_[numOfShifts].push_back(minDetaAICcNode);
+            std::pair<double, double> AICcAndLik(minAICc, minAICcLik->getValue());
+            prevModelsAICcLikValues_[numOfShifts] = AICcAndLik;
+            prevModelsRootFrequencies_[numOfShifts] = getRootFrequencies(minAICcLik);
+            getParameterNamesAndValues(minAICcLik, numOfShifts);
             numOfShifts ++;
         }else{
             deltaAICcImproved = false;
@@ -2304,70 +2385,9 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
     }
      std::cout << "*** Final best model: " << vectorOfLikelohoods_[0]->getValue() << std::endl;
 
-    //initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, int seed, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, vector<uint>>* sharedParams, std::map<uint, vector<int>> &fixedParameters)
 
 }
-/**********************************************************************************************/
-// void ChromosomeNumberOptimizer::optimizeSingleHeterogeneousModel(size_t index, int maxNumOfModels, std::vector<uint> &candidateShiftNodesIds, vector<uint> &baseNumCandidates){
-//     auto lik = vectorOfLikelohoods_[index];
-//     vectorOfLikelohoods_[index] = 0;
-//     bool deltaAICcImproved = true;
-//     SingleProcessPhyloLikelihood* minAICcLik = lik;
-//     uint numOfShifts = ChromEvolOptions::numOfModels_;
-//     if ((baseNumOptimizationMethod_ != "Brent") && (optimizeBaseNumber_)){
-//         uint maxBaseNumCandidate = getMaxBaseNumAmongModels(baseNumberUpperBound_);
-//         fillVectorOfBaseNumCandidates(baseNumCandidates, lowerBoundBaseNumber, maxBaseNumCandidate);
 
-//     }
-//     std::map<int, std::vector<uint>> sharedParams = ChromEvolOptions::sharedParameters_;
-//     std::map<uint, vector<int>> fixedParameters = ChromEvolOptions::fixedParams_;
-//     while((deltaAICcImproved) && (numOfShifts < (size_t)maxNumOfModels)){
-//         if (candidateShiftNodesIds.size() == 0){
-//             break;
-//         }
-//         uint minDetaAICcNode;
-//         bool improvedModelFound = false;
-//         double initialAICc = calculateAICc(minAICcLik);
-//         double minAICc = initialAICc;
-//         for (size_t i = 0; i < candidateShiftNodesIds.size(); i++){
-//             uint prevShift = static_cast<uint>(lik->getSubstitutionProcess().getModelNumberForNode(candidateShiftNodesIds[i]));
-//             updateSharedParameters(sharedParams, prevShift, numOfShifts);
-//             fixedParameters[numOfShifts + 1] = fixedParameters[prevShift];
-
-//             SingleProcessPhyloLikelihood* candidateLik = getNewLikObject(lik, candidateShiftNodesIds[i], &ChromEvolOptions::sharedParameters_);
-//             optimizeModelParameters(candidateLik, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, baseNumCandidates, &sharedParams, &fixedParameters);
-//             double AICc_candidate =  calculateAICc(candidateLik);
-//             SingleProcessPhyloLikelihood* likToDel;
-//             if ((initialAICc - AICc_candidate > ChromEvolOptions::deltaAICcThreshold_) && (AICc_candidate < minAICc)){
-//                 minDetaAICcNode = candidateShiftNodesIds[i];
-//                 likToDel = minAICcLik;
-//                 minAICcLik = candidateLik;
-//                 sharedParams_ = sharedParams;
-//                 improvedModelFound = true;                           
-//             }else{
-//                 likToDel = candidateLik;
-//             }
-//             deleteLikObject(likToDel);
-//         }
-//         if (improvedModelFound){
-//             deltaAICcImproved = true;
-//             numOfShifts ++;
-//         }else{
-//             deltaAICcImproved = false;
-//         }   
-        
-//         candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
-
-//     }
-//     // no iteration
-//     vectorOfLikelohoods_[index] = minAICcLik;
-    
-// }
-/**********************************************************************************************/
-void ChromosomeNumberOptimizer::setRandomPoints(SingleProcessPhyloLikelihood* lik, uint nodeToSplit, std::map<int, std::vector<uint>>* sharedParams, std::map<int, std::vector<uint>>* updatedSharedParams, int numOfPoints){
-    
-
-}
 /**********************************************************************************************/
 void ChromosomeNumberOptimizer::getValidCandidatesForShift(std::vector<uint> &candidateShiftNodesIds, int minCladeSize){
     vector<shared_ptr<PhyloNode>> nodes = tree_->getAllNodes();
@@ -2486,7 +2506,7 @@ void ChromosomeNumberOptimizer::updateSharedParametersBackwards(std::map<int, st
                 updatedSharedParams[paramNum].push_back(modelAndType);
             }
         }
-        paramNum++;
+        paramNumIt++;
 
     }
     return;

@@ -367,10 +367,6 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
     if (ChromEvolOptions::maxParsimonyBound_){
         getMaxParsimonyUpperBound(&parsimonyBound);
     }
-    //bool calculateDerivatives = true;
-    //if (ChromEvolOptions::optimizationMethod_ == "Brent"){
-        //calculateDerivatives  = false;
-    //}
     vector<uint> numOfIterationsForBackward = ChromEvolOptions::OptIterNumNextRounds_;
     vector<uint> numOfPointsForForward = ChromEvolOptions::OptPointsNumNextRounds_;
     if (!ChromEvolOptions::forwardPhase_){
@@ -390,6 +386,10 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
     time_t t1;
     time(&t1);
     time_t t2;
+    std::map<uint, vector<uint>> mapOfNodesWithRoot = ChromEvolOptions::mapModelNodesIds_;
+    mapOfNodesWithRoot[1].push_back(tree_->getRootIndex());
+    auto modelAndRepresentitives = findMRCAForEachModelNodes(mapOfNodesWithRoot);
+    opt->setInitialModelRepresentitives(modelAndRepresentitives);
     if (ChromEvolOptions::parallelization_){
         opt->optimizeInParallel(complexParamsValues, parsimonyBound, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], ChromEvolOptions::fixedFrequenciesFilePath_, ChromEvolOptions::fixedParams_ ,ChromEvolOptions::mapModelNodesIds_);
 
@@ -417,7 +417,7 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
        
 }
 /******************************************************************************************************/
-void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const{
+void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer, int* inferredRootState) const{
     vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = optimizer->getVectorOfLikelihoods();
     // get the best likelihood
     SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
@@ -473,12 +473,17 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOpti
             cout << "   ----> N-" << nodeId <<" states are: " << endl;
             for (size_t s = 0; s < ancestors[nodeId].size(); s++){
                 cout << "           state: "<< ancestors[nodeId][s] + alphabet_->getMin() << endl;
+                if (tree_->getRootIndex() == nodeId){
+                    *inferredRootState = static_cast<int>(ancestors[nodeId][s]+ alphabet_->getMin());
+                }
             }
         }else{
             cout << "   ----> " << (tree_->getNode(nodeId))->getName() << " states are: " << endl;
             for (size_t s = 0; s < ancestors[nodeId].size(); s++){
                 cout << "           state: "<< ancestors[nodeId][s]+ alphabet_->getMin() << endl;
+
             }
+
         }
         it++;
     }
@@ -640,9 +645,11 @@ void ChromosomeNumberMng::runChromEvol(){
     ////////////////////////////////////////////////////////////////
     // !!!!! Note !!!!! The first model should be the root model!!!
     ////////////////////////////////////////////////////////////////
-    writeOutputToFile(chrOptimizer);
+    
     // get joint ML ancestral reconstruction
-    getJointMLAncestralReconstruction(chrOptimizer);
+    int inferredRootState;
+    getJointMLAncestralReconstruction(chrOptimizer, &inferredRootState);
+    writeOutputToFile(chrOptimizer, inferredRootState);
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
     const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "ancestorsProbs.txt";
     getMarginalAncestralReconstruction(chrOptimizer, outFilePath);
@@ -1104,7 +1111,7 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
     delete expCalculator;
 }
 /******************************************************************************/
-void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimizer) const{
+void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimizer, int &inferredRootState) const{
     double AICc = chrOptimizer->getAICOfBestModel();
     auto bestLik = chrOptimizer->getVectorOfLikelihoods()[0];
     std::map<uint, std::vector<uint>> mapModelNodesIds;
@@ -1115,25 +1122,33 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
     if (outPath != "none"){
         outFile.open(outPath);
     }
-    outFile << "Min allowed chromosome number  = " << alphabet_->getMin() << std::endl;
-    outFile << "Max allowed chromosome number = " << alphabet_->getMax() << std::endl;
-    auto originalTreeLength = getOriginalTreeLength(ChromEvolOptions::treeFilePath_);
-    outFile << "Original tree length was: " << originalTreeLength <<std::endl;
-    outFile << "Tree scaling factor is: " << tree_->getTotalLength()/originalTreeLength << std::endl;
-    outFile << "tree Length was scaled to: " << tree_->getTotalLength() << std::endl;
+    outFile << "#################################################" << std::endl;
+    outFile << "Running parameters" << std::endl;
+    outFile << "#################################################" << std::endl;
+    writeRunningParameters(outFile);
+    outFile << "#################################################" << std::endl;
+    outFile << "Best chosen model" <<std::endl;
+    outFile << "#################################################" << std::endl;
+
+
     auto numOfModels = bestLik->getSubstitutionProcess().getNumberOfModels();
     outFile << "Number of models in the best model = " << numOfModels << std::endl;
-    outFile << "Min clade size specified in the parameter file = " << ChromEvolOptions::minCladeSize_ << std::endl;
     // not all the assignements of the nodes induce clades, therefore the min clade size will represent the 
     // number of species under a specific model (better ask Itay)
     // ChromosomeNumberOptimizer::getMutableMapOfModelAndNodeIds(mapModelNodesIds, bestLik);
     uint minSizeOfClade = findMinCladeSize(mapModelNodesIds);
     outFile << "Min clade size in the best model = " << minSizeOfClade << std::endl;
+    outFile << "Root node is: " << "N" << tree_->getRootIndex() << std::endl;
+    outFile << "Ancestral chromosome number at the root: " << inferredRootState <<std::endl;
     auto modelAndRepresentitives = findMRCAForEachModelNodes(mapModelNodesIds);
     outFile << "Shifting nodes are: " << std::endl;
     for (uint i = 1; i <= numOfModels; i++){
         for (size_t j = 0; j < modelAndRepresentitives[i].size(); j++){
-            outFile << "# Model $" << i << " = " << "N" << modelAndRepresentitives[i][j] << std::endl;
+            if (modelAndRepresentitives[i][j] == tree_->getRootIndex()){
+                outFile << "# Model $" << i << " = " << "N" << modelAndRepresentitives[i][j] << " (the root)" << std::endl;
+            }else{
+                outFile << "# Model $" << i << " = " << "N" << modelAndRepresentitives[i][j] << std::endl;
+            }        
         }
         
     }
@@ -1142,9 +1157,233 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
     chrOptimizer->printRootFrequencies(bestLik, outFile);
     printLikParameters(chrOptimizer, bestLik, outFile);
     outFile << "AICc of the best model = "<< AICc << std::endl;
+    auto previousModelsPartitions = chrOptimizer->getPreviousModelsPartitions();
+    auto previousModelsAICcAndLik = chrOptimizer->getPreviousModelsAICcValues();
+    auto previousModelsParameters = chrOptimizer->getPreviousModelsParameters();
+    auto previousRootFrequencies = chrOptimizer->getPrevModelsRootFreqs();
+    uint initialNumOfModels = ChromEvolOptions::numOfModels_;
+    if (!previousModelsAICcAndLik.empty()){
+        outFile << "#################################################" << std::endl;
+        outFile << "Previous best chosen models in the forward phase" <<std::endl;
+        outFile << "#################################################" << std::endl;
+        for (size_t i = 0; i < previousModelsParameters.size(); i++){
+            uint model = (uint)i + initialNumOfModels;
+            outFile << "*** Number of shifts: " << model-1 << " ***" << std::endl;
+            outFile << "Shifting nodes are:" << std::endl;
+            for (size_t j = 0; j < previousModelsPartitions[model].size(); j++){
+                if (tree_->getRootIndex() == previousModelsPartitions[model][j]){
+                    outFile << "\tModel $" << j + 1 << " = " << "N" << previousModelsPartitions[model][j] << " (the root)" << std::endl;
+                }else{
+                    outFile << "\tModel $" << j + 1 << " = " << "N" << previousModelsPartitions[model][j] << std::endl;
+
+                }
+            }
+            outFile << "Ancestral probabilities at the root are:" << std::endl;
+            outFile << "\t";
+            auto rootFreqs = previousRootFrequencies[model];
+            for (size_t j= 0; j < rootFreqs.size(); j++){
+                if (j == rootFreqs.size() -1){
+                    outFile << "F[" << j + alphabet_->getMin() << "] = " << rootFreqs[j] << endl;
+                }else{
+                    outFile << "F[" << j + alphabet_->getMin() << "] = " << rootFreqs[j] << "\t";
+
+                }   
+            }
+            outFile << "Model parameters are:" << std::endl;
+            for (size_t j = 0; j < (previousModelsParameters[model]).size(); j++){
+                 outFile << "\t" << (previousModelsParameters[model])[j].first << " = " << (previousModelsParameters[model])[j].second << std::endl;
+            }
+            outFile << "AICc of the best model with " << model-1 << " shifts = " << (previousModelsAICcAndLik[model]).first << std::endl;
+            outFile << "Log likelihood = " << (previousModelsAICcAndLik[model]).second << std::endl;
+            outFile << "\n";
+            
+        }
+
+
+    }
+
+
     outFile.close();
 
 }
+void ChromosomeNumberMng::writeRunningParameters(ofstream &outFile) const{
+    outFile << "Min allowed chromosome number  = " << alphabet_->getMin() << std::endl;
+    outFile << "Max allowed chromosome number = " << alphabet_->getMax() << std::endl;
+    outFile <<"Number of tips in the tree = " << tree_->getAllLeavesNames().size() << std::endl;
+    auto originalTreeLength = getOriginalTreeLength(ChromEvolOptions::treeFilePath_);
+    outFile << "Initial number of models was set to : " << ChromEvolOptions::numOfModels_ << std::endl;
+    outFile << "Max number of models was set to ";
+    if ((ChromEvolOptions::heterogeneousModel_) && (ChromEvolOptions::maxNumOfModels_ == 1)){
+        outFile << "be inferred in the forward phase (i.e., indefinite)" << std::endl;
+    }else{
+       outFile << ChromEvolOptions::maxNumOfModels_ << std::endl; 
+    }
+    outFile << "The inferred model was set to be : ";
+    if (ChromEvolOptions::heterogeneousModel_){
+        outFile << "heterogeneous" << std::endl;
+    }else{
+        outFile << "homogeneous" << std::endl;
+    }
+    outFile << "_branchMul was set to: " << ChromEvolOptions::branchMul_ << std::endl;
+    outFile << "_treeLength was set to: " << ChromEvolOptions::treeLength_ << std::endl;
+    outFile << "Original tree length was: " << originalTreeLength <<std::endl;
+    outFile << "Tree scaling factor is: " << tree_->getTotalLength()/originalTreeLength << std::endl;
+    outFile << "tree Length was scaled to: " << tree_->getTotalLength() << std::endl;
+    outFile << "Min clade size specified in the parameter file = " << ChromEvolOptions::minCladeSize_ << std::endl;
+    outFile << "_OptPointsNum was set to: ";
+    for (size_t i = 0; i < ChromEvolOptions::OptPointsNum_.size(); i++){
+        if (i != ChromEvolOptions::OptPointsNum_.size()-1){
+            outFile << ChromEvolOptions::OptPointsNum_[i]  << ", "; 
+        }else{
+            outFile << ChromEvolOptions::OptPointsNum_[i]  <<std::endl; 
+        }
+    }
+    outFile << "_OptIterNum was set to: ";
+    for (size_t i = 0; i < ChromEvolOptions::OptIterNum_.size(); i++){
+        if (i != ChromEvolOptions::OptIterNum_.size()-1){
+            outFile << ChromEvolOptions::OptIterNum_[i]  << ", "; 
+        }else{
+            outFile << ChromEvolOptions::OptIterNum_[i]  <<std::endl; 
+        }
+    }
+    if (ChromEvolOptions::heterogeneousModel_){
+        outFile << "_OptPointsNumNextRounds was set to: ";
+        for (size_t i = 0; i < ChromEvolOptions::OptPointsNumNextRounds_.size(); i++){
+            if (i != ChromEvolOptions::OptPointsNumNextRounds_.size()-1){
+                outFile << ChromEvolOptions::OptPointsNumNextRounds_[i]  << ", "; 
+            }else{
+                outFile << ChromEvolOptions::OptPointsNumNextRounds_[i]  <<std::endl; 
+            }
+        }
+        outFile << "_OptIterNumNextRounds was set to: ";
+        for (size_t i = 0; i < ChromEvolOptions::OptIterNumNextRounds_.size(); i++){
+            if (i != ChromEvolOptions::OptIterNumNextRounds_.size()-1){
+                outFile << ChromEvolOptions::OptIterNumNextRounds_[i]  << ", "; 
+            }else{
+                outFile << ChromEvolOptions::OptIterNumNextRounds_[i]  <<std::endl; 
+            }
+        }
+        std::cout << "delta AICc threshold was set to: " << ChromEvolOptions::deltaAICcThreshold_ << std::endl;
+
+    }
+    outFile << "Optimization method was set to: " << ChromEvolOptions::optimizationMethod_ << std::endl;
+    outFile << "_probsForMixedOptimization was set to: ";
+    for (size_t i = 0; i < ChromEvolOptions::probsForMixedOptimization_.size(); i++){
+        if (i == ChromEvolOptions::probsForMixedOptimization_.size()-1){
+            outFile << ChromEvolOptions::probsForMixedOptimization_[i] << " for gradient descent" << std::endl;
+        }else{
+            outFile << ChromEvolOptions::probsForMixedOptimization_[i] << " for Brent "<< ", ";
+        }
+    }
+    outFile << "Seed was set to: " << ChromEvolOptions::seed_ << std::endl;
+    outFile << "Base number optimization method as set to: " << ChromEvolOptions::baseNumOptimizationMethod_ << std::endl;
+    outFile << "Root frequencies were set to: " << ChromEvolOptions::rootFreqs_ << std::endl;
+    outFile << "_maxParsimonyBound was set to: ";
+    if (ChromEvolOptions::maxParsimonyBound_){
+        outFile << "true" << std::endl; 
+    }else{
+        outFile << "false" << std::endl;
+    }
+    outFile << "_simulateData was set to: ";
+    if (ChromEvolOptions::simulateData_){
+        outFile << "true" << std::endl; 
+    }else{
+        outFile << "false" << std::endl;
+    }
+    if (ChromEvolOptions::simulateData_){
+        outFile << "_maxBaseNumTransition set to:" << std::endl;
+        for (uint m = 1; m <= (uint)ChromEvolOptions::numOfModels_; m++){
+            outFile << "\t" << "Model #" << m << ": " << ChromEvolOptions::maxBaseNumTransition_[m] << std::endl;
+        }
+        outFile << "_maxChrInferred is set to: " << ChromEvolOptions::maxChrInferred_ << std::endl;
+    }
+    outFile << "Number of simulations for the expectation computation is set to: " << ChromEvolOptions::NumOfSimulations_ << std::endl;
+    outFile << "_parallelization was set to: ";
+    if (ChromEvolOptions::parallelization_){
+        outFile << "true" << std::endl;
+    }else{
+        outFile << "false" << std::endl;
+    }
+    outFile << "Initial parameters were set to:" << std::endl;
+    for (uint i = 1; i <= (uint)ChromEvolOptions::numOfModels_; i++){
+        for (size_t j = 0; j < ChromEvolOptions::gain_[i].size(); j++){
+            outFile <<"\tChromosome.gain" << j << "_" << i << " = " << ChromEvolOptions::gain_[i][j] << std::endl;
+        }
+        for (size_t j = 0; j < ChromEvolOptions::loss_[i].size(); j++){
+            outFile <<"\tChromosome.loss" << j << "_" << i << " = " << ChromEvolOptions::loss_[i][j] << std::endl;
+        }
+        for (size_t j = 0; j < ChromEvolOptions::dupl_[i].size(); j++){
+            outFile <<"\tChromosome.dupl" << j << "_" << i << " = " << ChromEvolOptions::dupl_[i][j] << std::endl;
+        }
+        for (size_t j = 0; j < ChromEvolOptions::demiDupl_[i].size(); j++){
+            outFile <<"\tChromosome.demi" << j << "_" << i << " = " << ChromEvolOptions::demiDupl_[i][j] << std::endl;
+        }
+        for (size_t j = 0; j < ChromEvolOptions::baseNumR_[i].size(); j++){
+            outFile <<"\tChromosome.baseNumR" << j << "_" << i << " = " << ChromEvolOptions::baseNumR_[i][j] << std::endl;
+        }
+        outFile << "\tChromosome.baseNum_" <<i << " = " << ChromEvolOptions::baseNum_[i] << std::endl;
+    }
+    outFile << "Assigned functions for each rate parameter:" << std::endl;
+    size_t startForComposite = ChromosomeSubstitutionModel::getNumberOfNonCompositeParams();
+    for (int i = (int)startForComposite; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
+        string paramName = ChromosomeNumberOptimizer::getStringParamName(i);
+        string functionName = ChromosomeNumberOptimizer::getFunctionName(ChromEvolOptions::rateChangeType_[(size_t)i-startForComposite]);
+        outFile << "\t" << paramName << ": " << functionName << std::endl;
+    }
+    if (ChromEvolOptions::heterogeneousModel_){
+        outFile << "Global parameters that were set to be equal accross different models:" << std::endl;
+        for (size_t i = 0; i < ChromEvolOptions::globalParams_.size(); i++){
+            outFile << "\t" << ChromEvolOptions::globalParams_[i] << std::endl;
+
+        }
+        if (ChromEvolOptions::globalParams_.size() == 0){
+            outFile << "\tNo global parameters were defined."  << std::endl;
+        }
+    }
+    outFile << "Shared parameters that were set to be equal within each model:" << std:: endl;
+    auto it = ChromEvolOptions::sharedParameters_.begin();
+    size_t numOfShared = 0;
+    while (it != ChromEvolOptions::sharedParameters_.end()){
+        auto sharedParams = ChromEvolOptions::sharedParameters_[it->first];
+        if (sharedParams.size() < 2){
+            continue;
+            it ++;
+        }
+        numOfShared += sharedParams.size();
+        for (size_t j = 0; j < sharedParams.size(); j++){
+
+            if (j == sharedParams.size()-1){
+                outFile << "\t" << ChromosomeNumberOptimizer::getStringParamName(sharedParams[j].second) << "_" << sharedParams[j].first << std::endl;
+            }else{
+                outFile << "\t" << ChromosomeNumberOptimizer::getStringParamName(sharedParams[j].second) << "_" << sharedParams[j].first << " = ";
+            }
+        }
+
+        it ++;
+    }
+    if (numOfShared == 0){
+        outFile << "\tNo shared parameters were defined." << std::endl;
+    }
+    outFile << "Fixed parameters were set to:" << std::endl;
+    if(ChromEvolOptions::fixedParams_.size() > 0){
+        for (uint i = 1; i <= (uint)ChromEvolOptions::numOfModels_; i++){
+            if (ChromEvolOptions::fixedParams_.find(i) != ChromEvolOptions::fixedParams_.end()){
+                if (ChromEvolOptions::fixedParams_[i].size() == 0){
+                    outFile << "\tModel #" << i << ": No fixed parameters were set." << std::endl;
+                }else{
+                    for (size_t j = 0; j < ChromEvolOptions::fixedParams_[i].size(); j++){
+                        outFile << "\tModel #" << i << ChromosomeNumberOptimizer::getStringParamName(ChromEvolOptions::fixedParams_[i][j]) << std::endl;
+
+                    }   
+                }
+            }
+        }      
+    }else{
+        outFile << "\tNo fixed parameters were defined." << std::endl;
+    }
+
+}
+
 void ChromosomeNumberMng::writeTreeWithCorrespondingModels(PhyloTree tree, std::map<uint, vector<uint>> &modelAndNodes) const{
     std::map<uint, std::vector<size_t>> mapOfNodeAndModel;
     auto it = modelAndNodes.begin();

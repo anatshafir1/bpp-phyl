@@ -479,6 +479,8 @@ void ChromEvolOptions::setFunctions(std::string gainFunc, std::string lossFunc, 
     }
 
 }
+
+
 /*************************************************************************/
 int ChromEvolOptions::getFunctionFromString(string funcStr){
     int func;

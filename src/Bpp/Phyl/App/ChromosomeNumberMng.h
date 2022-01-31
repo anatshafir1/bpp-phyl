@@ -148,7 +148,7 @@ namespace bpp{
             //void runTest();
             void runChromEvol();
             ChromosomeNumberOptimizer* optimizeLikelihoodMultiStartPoints() const;
-            void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer) const;
+            void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer, int* inferredRootState) const;
             void getMarginalAncestralReconstruction(ChromosomeNumberOptimizer* chrOptimizer, const string &filePath);
             // map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             void computeExpectations(ChromosomeNumberOptimizer* chrOptimizer, int numOfSimulations) const;
@@ -156,13 +156,14 @@ namespace bpp{
             void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
             void printTreeWithStates(PhyloTree tree, std::map<uint, std::vector<size_t>> &ancestors, const string &filePath) const;
             void convertNodesNames(PhyloTree &tree, uint nodeId, std::map<uint, std::vector<size_t>> &ancestors, bool alphabetStates = true) const;
-            void writeOutputToFile(ChromosomeNumberOptimizer* chrOptimizer) const;
+            void writeOutputToFile(ChromosomeNumberOptimizer* chrOptimizer, int &inferrredRootState) const;
             void printLikParameters(ChromosomeNumberOptimizer* chrOptimizer, SingleProcessPhyloLikelihood* lik, ofstream &outFile) const;
             uint findMinCladeSize(std::map<uint, vector<uint>> mapModelNodesIds) const;
             std::map<uint, std::vector<uint>> findMRCAForEachModelNodes(std::map<uint, vector<uint>> mapOfModelsAndNodes) const;
             void writeTreeWithCorrespondingModels(PhyloTree tree, std::map<uint, vector<uint>> &modelAndNodes) const;
 
         protected:
+            void writeRunningParameters(ofstream &outFile) const;
             void setNodeIdsForAllModels(string &path);
             //shared_ptr<PhyloNode> getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes);
             void getNodeIdsPerModelFromLine(string &content, PhyloTree* tree, std::map<uint, std::pair<uint, std::vector<uint>>> &modelAndNodeIds);

@@ -114,6 +114,12 @@ namespace bpp
             mutable std::map<int, std::vector<std::pair<uint, int>>> sharedParams_;
             uint numOfShiftsForward_;
             bool backwardPhaseStarted_;
+            // number of shifts. For each shift, a new added node
+            std::map<uint, vector<uint>> prevModelsPartitions_;
+            std::map<uint, std::vector<std::pair<string, double>>> prevModelParams_;
+            std::map<uint, std::pair<double, double>> prevModelsAICcLikValues_;
+            std::map<uint, std::vector<double>> prevModelsRootFrequencies_;
+            
             
             
 
@@ -143,7 +149,11 @@ namespace bpp
                     fixedParams_(),
                     sharedParams_(),
                     numOfShiftsForward_(),
-                    backwardPhaseStarted_()
+                    backwardPhaseStarted_(),
+                    prevModelsPartitions_(),
+                    prevModelParams_(),
+                    prevModelsAICcLikValues_(),
+                    prevModelsRootFrequencies_()
             {}
 
             ChromosomeNumberOptimizer(const ChromosomeNumberOptimizer& opt):
@@ -167,7 +177,11 @@ namespace bpp
                 fixedParams_(opt.fixedParams_),
                 sharedParams_(opt.sharedParams_),
                 numOfShiftsForward_(opt.numOfShiftsForward_),
-                backwardPhaseStarted_(opt.backwardPhaseStarted_)
+                backwardPhaseStarted_(opt.backwardPhaseStarted_),
+                prevModelsPartitions_(opt.prevModelsPartitions_),
+                prevModelParams_(opt.prevModelParams_),
+                prevModelsAICcLikValues_(opt.prevModelsAICcLikValues_),
+                prevModelsRootFrequencies_(opt.prevModelsRootFrequencies_)
 
             {}
             ChromosomeNumberOptimizer& operator=(const ChromosomeNumberOptimizer& opt){
@@ -192,6 +206,10 @@ namespace bpp
                 sharedParams_ = opt.sharedParams_;
                 numOfShiftsForward_ = opt.numOfShiftsForward_;
                 backwardPhaseStarted_ = opt.backwardPhaseStarted_;
+                prevModelsPartitions_ = opt.prevModelsPartitions_;
+                prevModelParams_ = opt.prevModelParams_;
+                prevModelsAICcLikValues_ = opt.prevModelsAICcLikValues_;
+                prevModelsRootFrequencies_ = opt.prevModelsRootFrequencies_;
                 return *this;
             }
             ChromosomeNumberOptimizer* clone() const { return new ChromosomeNumberOptimizer(*this); }
@@ -226,6 +244,13 @@ namespace bpp
                 
 
             }
+            const std::map<uint, vector<uint>> getPreviousModelsPartitions() const{return prevModelsPartitions_;}
+            const std::map<uint, std::vector<std::pair<string, double>>> getPreviousModelsParameters() const{return prevModelParams_;}
+            const std::map<uint, std::pair<double, double>> getPreviousModelsAICcValues() const{return prevModelsAICcLikValues_;}
+            const std::map <uint,std::vector<double>> getPrevModelsRootFreqs() const{return prevModelsRootFrequencies_;}
+            std::vector<double> getRootFrequencies(SingleProcessPhyloLikelihood* lik) const;
+            void getParameterNamesAndValues(SingleProcessPhyloLikelihood* lik, uint numOfModels);
+            void setInitialModelRepresentitives(std::map<uint, vector<uint>> &initialPartition);
             const std::map<int, std::vector<pair<uint, int>>> getSharedParams(){return sharedParams_;}
             const double getAICOfBestModel() const {
                 std::map<uint, vector<int>> fixedParams = fixedParams_;
@@ -252,6 +277,7 @@ namespace bpp
             //void writeOutputToFile() const;
             void printRootFrequencies(SingleProcessPhyloLikelihood* lik, ofstream &outFile) const;
             static std::string getStringParamName(int type);
+            static std::string getFunctionName(int func);
             static uint getNumberOfParametersPerParamType(int paramType, vector<int> &funcTypes);
             static uint getModelFromParamName(string name);
             static int getTypeOfParamFromParamName(string name);
@@ -282,7 +308,6 @@ namespace bpp
             void initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
             void optimizeFirstRound(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string* text, std::map<uint, uint>* baseNumberBounds, std::map<uint, uint>* mapOfModelsBackward, std::map<uint, pair<int, std::map<int, std::vector<double>>>>* prevModelParamsBackward, std::map<uint, vector<uint>>* modelsBackwards, omp_lock_t* mutex = 0);
             //void optimizeFirstRound2(SingleProcessPhyloLikelihood* prevLik, uint shiftNode, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, vector<uint> numOfPointsNextRounds, vector<uint> numOfIterationsNextRounds, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string &text, std::map<uint, uint>* baseNumberBounds, omp_lock_t* mutex= 0);
-            static void setRandomPoints(SingleProcessPhyloLikelihood* lik, uint nodeToSplit, std::map<int, std::vector<uint>>* sharedParams, std::map<int, std::vector<uint>>* updatedSharedParams, int numOfPoints);
             static void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName);
             static int getEnumOfParamName(std::string pattern);
             static void setParamsNameInForMultiProcess(std::map<uint, std::map<int, vector<string>>> &mapOfParamsNamesPerModelType, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams);
