@@ -133,54 +133,9 @@ void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
 
 
 }
-/**************************************************************************************************************/
-// shared_ptr<PhyloNode> ChromosomeNumberMng::getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes){
-//     shared_ptr<PhyloNode> mrca;
-//     auto nodesInIndices = tree->getNodeIndexes(nodes);
-//     size_t numOfFound = 0;
 
-//     for (size_t i = 0; i < nodes.size(); i++){
-//         if (tree->isLeaf(nodes[i])){
-//             continue;
-//         }
-//         auto nodesUnderSubtree = tree->getSubtreeNodes(nodes[i]);
-//         auto subtreeNodesIndices = tree->getNodeIndexes(nodesUnderSubtree);
-//         for (size_t j = 0; j < subtreeNodesIndices.size(); j++){
-//             auto it = std::find(nodesInIndices.begin(), nodesInIndices.end(), subtreeNodesIndices[j]);
-//             if (it != nodesInIndices.end()){
-//                 numOfFound ++;
-//                 if (numOfFound == nodesInIndices.size()){
-//                     mrca = nodes[i];
-//                     return mrca;
-//                 }
-//             }
-//         }
-//     }
-//     // MRCA was not among the nodes
-//     // choose for example the first node
-//     uint nodeId = nodesInIndices[0];
-    
-//     while (numOfFound < nodesInIndices.size()){
-//         numOfFound = 0;
-//         if (nodeId == tree->getRootIndex()){
-//             mrca = tree->getRoot();
-//             break;
-//         }
-//         auto edgeIndex =  tree->getIncomingEdges(nodeId)[0]; 
-//         nodeId = tree->getFatherOfEdge(edgeIndex);
-//         auto nodesOfSubtree = tree->getSubtreeNodes(tree->getNode(nodeId));
-//         for (size_t i = 0; i < nodesOfSubtree.size(); i++){
-//             auto subtreeNodeId = tree->getNodeIndex(nodesOfSubtree[i]);
-//             auto it = std::find(nodesInIndices.begin(), nodesInIndices.end(), subtreeNodeId);
-//             if (it != nodesInIndices.end()){
-//                 numOfFound ++;
-//                 mrca = tree->getNode(nodeId);
-//             }
-//         }
 
-//     }
-//     return mrca;
-// }
+
 /**************************************************************************************************************/
 void ChromosomeNumberMng::getNodeIdsPerModelFromLine(string &content, PhyloTree* tree, std::map<uint, std::pair<uint, std::vector<uint>>> &modelAndNodeIds){
     vector<string> paramValues;
@@ -219,21 +174,8 @@ void ChromosomeNumberMng::getNodeIdsPerModelFromLine(string &content, PhyloTree*
                 leaveNodesForMrca.push_back(subtreeLeavesAsNodes[speciesNames[k]]);
             }
             
-            //mrca_node = tree->MRCA(leaveNodesForMrca);
             mrca_node = ChromEvolOptions::getMRCA(tree, leaveNodesForMrca);
-            // DUBUG !!!! !!!! !!!!!!!//////////////////////////////
-
-            /////////////////////////////////////////////////////////
-
-            // just for meantime !!
-
-            //////////// DEBUG ////////////////////////////
-            // uint mrca_id = tree->getNodeIndex(mrca_node);
-            // auto sons = tree->getSons(tree->getNode(tree->getRootIndex()));
-            // auto mrca_should_beRoot = tree->MRCA(sons);
-            // auto rootIndex = tree->getNodeIndex(mrca_should_beRoot);
-            // std::cout << tree->getRootIndex() << std::endl;
-            ///////////////////////////////////////////////
+ 
             auto mrca_id = tree->getNodeIndex(mrca_node);
             ChromEvolOptions::initialModelNodes_.push_back(mrca_id);
             auto subtreeNodes = tree->getSubtreeNodes(mrca_node);
@@ -320,11 +262,8 @@ void ChromosomeNumberMng::getTree(const string& path, double treeLength){
 /****************************************************************************/
 void ChromosomeNumberMng::rescale_tree(PhyloTree* tree, double chrRange){
     double scale_tree_factor = 1.0;
-    //string tree_str = TreeTemplateTools::treeToParenthesis(*tree);
-    //std :: cout << tree_str << endl;
     bool rooted = tree->isRooted();
     if (!rooted){
-        //throw UnrootedTreeException("The given input tree is unrooted. Tree must be rooted!", tree);
         throw Exception("The given input tree is unrooted. Tree must be rooted!\n");
     }
     if (ChromEvolOptions::branchMul_ == 1.0){
@@ -376,13 +315,11 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
     }
     std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
     ChromosomeNumberOptimizer* opt = new ChromosomeNumberOptimizer(tree_, alphabet_, vsc_, maxBaseNumTransition);
-    //opt->initModels(complexParamsValues, parsimonyBound, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], ChromEvolOptions::fixedFrequenciesFilePath_, ChromEvolOptions::fixedParams_, ChromEvolOptions::mapModelNodesIds_);
     //initialize all the optimization specific parameters
     opt->initOptimizer(ChromEvolOptions::OptPointsNum_, ChromEvolOptions::OptIterNum_, ChromEvolOptions::OptPointsNumNextRounds_, ChromEvolOptions::OptIterNumNextRounds_, ChromEvolOptions::optimizationMethod_, ChromEvolOptions::baseNumOptimizationMethod_,
         ChromEvolOptions::tolerance_, ChromEvolOptions::standardOptimization_, ChromEvolOptions::BrentBracketing_, 
         ChromEvolOptions::probsForMixedOptimization_);
     //optimize models
-    //opt->optimize(complexParamsValues, parsimonyBound, ChromEvolOptions::rateChangeType_, ChromEvolOptions::seed_, ChromEvolOptions::OptPointsNum_[0], ChromEvolOptions::fixedFrequenciesFilePath_, ChromEvolOptions::fixedParams_ ,ChromEvolOptions::mapModelNodesIds_);
     time_t t1;
     time(&t1);
     time_t t2;
@@ -408,11 +345,6 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
 
     time(&t2);
     std::cout <<"**** **** Total running time of the optimization procedure is: "<< (t2-t1) <<endl;
-    //initialize all the optimization specific parameters
-
-    
-    // it is safe to delete the chrOptimizer, because the destructor doesn't delete nothing associated with the vector of likelihoods
-
     return opt;
        
 }
@@ -421,34 +353,13 @@ void ChromosomeNumberMng::getJointMLAncestralReconstruction(ChromosomeNumberOpti
     vector<SingleProcessPhyloLikelihood*> vectorOfLikelihoods = optimizer->getVectorOfLikelihoods();
     // get the best likelihood
     SingleProcessPhyloLikelihood* lik = vectorOfLikelihoods[0];
-    //ValueRef <Eigen::RowVectorXd> rootFreqs = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
-    //std::cout << "*** Root frequencies !!!! ****" << std::endl;
-    //auto rootFreqsValues =  rootFreqs->getTargetValue();
-    //Vdouble rootFreqsBpp;
-    //copyEigenToBpp(rootFreqsValues, rootFreqsBpp);
-    //DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+
     std::map<int, vector<pair<uint, int>>> sharedParams = optimizer->getSharedParams();
     uint numOfModels = static_cast<uint>(lik->getSubstitutionProcess().getNumberOfModels());
     std::map<int, std::map<uint, std::vector<string>>> typeWithParamNames;//parameter type, num of model, related parameters
     ChromosomeNumberOptimizer::updateMapsOfParamTypesAndNames(typeWithParamNames, 0, lik, &sharedParams);
     std::map<uint, pair<int, std::map<int, std::vector<double>>>> modelsParams = ChromosomeNumberOptimizer::getMapOfParamsForComplexModel(lik, typeWithParamNames, numOfModels);
-    //std::map<int, vector<double>> modelCompositeParams = getVectorToSetModelParams(lik);
-    // int baseNumber;
-    // (ChromEvolOptions::baseNum_ == IgnoreParam) ? (baseNumber = IgnoreParam) : (baseNumber = static_cast<int>(lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.baseNum_1").getValue()));
-    // std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
 
-    // std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, modelCompositeParams, baseNumber, maxBaseNumTransition, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
-    // std::shared_ptr<SubstitutionModel> model(static_pointer_cast<SubstitutionModel>(chrModel)->clone());
-
-    // std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqsBpp);
-    // std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
-    
-    //ParametrizablePhyloTree parTree(*tree_);
-    //auto subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone(), shared_ptr<FrequencySet>(rootFrequencies->clone()));
-    //subProSim= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone());
-    //SubstitutionProcess* subProcess = subProSim->clone();
-    //auto sequenceData = vsc_->clone();
-    //Context context;
     ParametrizablePhyloTree parTree = ParametrizablePhyloTree(*tree_);
     std::map<uint, std::vector<uint>> mapModelNodesIds;
     ChromosomeNumberOptimizer::getMutableMapOfModelAndNodeIds(mapModelNodesIds, lik);
@@ -653,15 +564,11 @@ void ChromosomeNumberMng::runChromEvol(){
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
     const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "ancestorsProbs.txt";
     getMarginalAncestralReconstruction(chrOptimizer, outFilePath);
-    // Only temporary ///////////////////////////////////////////////
-    //delete chrOptimizer;
 
-    /////////////////////////////////////////////////////////////////
     //compute expectations
     computeExpectations(chrOptimizer, ChromEvolOptions::NumOfSimulations_);
     //The optimizer is deleted inside the computeExpectations object!
 
-    //delete chrOptimizer;
 
 
 }
@@ -928,48 +835,6 @@ void ChromosomeNumberMng::simulateData(){
     }
     delete simResult;
     delete simulator;
-    
-    
-
-
-
-
-
-    
-    
-    // std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, ChromEvolOptions::gain_, ChromEvolOptions::loss_, 
-    //                                                             ChromEvolOptions::dupl_, ChromEvolOptions::demiDupl_, ChromEvolOptions::baseNum_, 
-    //                                                             ChromEvolOptions::baseNumR_, ChromEvolOptions::maxBaseNumTransition_, 
-    //                                                             ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, 
-    //                                                             ChromEvolOptions::rateChangeType_);
-    // std::shared_ptr<SubstitutionModel> model(static_pointer_cast<SubstitutionModel>(chrModel)->clone());
-
-    // if (ChromEvolOptions::fixedFrequenciesFilePath_ == "none"){
-    //     throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): You need to supply the path for the file of fixed root frequencies!!");
-    // }
-
-    // vector <double> rootFreqs = ChromosomeNumberOptimizer::setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, chrModel);
-    // std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqs);
-    // std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
-    
-    // ParametrizablePhyloTree parTree(*tree_);
-    // auto process= NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, parTree.clone(), shared_ptr<FrequencySet>(rootFrequencies->clone()));
-
-    // for (size_t i = 0; i < (size_t)ChromEvolOptions::numOfDataToSimulate_; i++){
-    //     SimpleSubstitutionProcessSiteSimulator* simulator = new SimpleSubstitutionProcessSiteSimulator(*process);
-    //     SiteSimulationResult* simResult = simulator->dSimulateSite();
-    //     vector <size_t> leavesStates = simResult->getFinalStates();
-    //     vector<string> leavesNames = simResult->getLeaveNames();
-    //     printSimulatedData(leavesStates, leavesNames, i);
-    //     printSimulatedDataAndAncestors(simResult);
-    //     if (ChromEvolOptions::resultsPathDir_ != "none"){
-    //         printSimulatedEvoPath(ChromEvolOptions::resultsPathDir_ +"//"+ "simulatedEvolutionPaths.txt", simResult);
-    //     }
-    //     delete simResult;
-    //     delete simulator;
-
-    // }
-    // delete rdist;
 
 }
 /*******************************************************************************/
@@ -1038,11 +903,9 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
     SingleProcessPhyloLikelihood* ntl = vectorOfLikelihoods[0];
     auto lik = ntl->getLikelihoodCalculationSingleProcess();
     
-    //////////////////////////////////////////////////
     std::map<int, vector<pair<uint, int>>> sharedParams = chrOptimizer->getSharedParams();
     ParametrizablePhyloTree tree =  ParametrizablePhyloTree(*tree_);
     ParametrizablePhyloTree* parTree = (&tree)->clone();
-    //ParametrizablePhyloTree parTree = tree;
     ValueRef <Eigen::RowVectorXd> rootFreqs = ntl->getLikelihoodCalculationSingleProcess()->getRootFreqs();
     std::shared_ptr<NonHomogeneousSubstitutionProcess> multiModelProcess =  setHeterogeneousModel(parTree, ntl, rootFreqs, sharedParams);
 
@@ -1063,20 +926,7 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
     }
     std::cout << "Finished with the calculation of joint likelihoods of father and son..."<< std::endl;
     std::cout << "Starting running simulations ... " << std::endl;
-    //creating the model with MLE parameters
-    
-    // map<int, vector <double>> modelCompositeParams = getVectorToSetModelParams(lik);
-    // int baseNumber;
-    // (ChromEvolOptions::baseNum_ == IgnoreParam) ? (baseNumber = IgnoreParam) : (baseNumber = static_cast<int>(lik->getLikelihoodCalculationSingleProcess()->getParameter("Chromosome.baseNum_1").getValue()));
-    // std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
-    // std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, modelCompositeParams, baseNumber, maxBaseNumTransition, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
-    //the optimizer object in no longer needed
-    //auto substitutionProcess = &(lik->getSubstitutionProcess());
-    //const NonHomogeneousSubstitutionProcess* substitutionProcessPtr = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(substitutionProcess);
 
-
-    //const NonHomogeneousSubstitutionProcess* multiModelProcess = &(dynamic_cast<const NonHomogeneousSubstitutionProcess>(lik->getSubstitutionProcess()));
-    //std::shared_ptr<NonHomogeneousSubstitutionProcess> multiModelProcess = std::shared_ptr<NonHomogeneousSubstitutionProcess>(substitutionProcessPtr->clone());
     delete chrOptimizer;
     //initializing the expectation instance
     ComputeChromosomeTransitionsExp* expCalculator = new ComputeChromosomeTransitionsExp(multiModelProcess, tree_, alphabet_, jointProbabilitiesFatherSon, ChromEvolOptions::jumpTypeMethod_);
