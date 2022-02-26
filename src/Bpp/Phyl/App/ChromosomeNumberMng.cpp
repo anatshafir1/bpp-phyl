@@ -564,6 +564,39 @@ void ChromosomeNumberMng::runChromEvol(){
     //get Marginal ML ancestral reconstruction, and with the help of them- calculate expectations of transitions
     const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "ancestorsProbs.txt";
     getMarginalAncestralReconstruction(chrOptimizer, outFilePath);
+    // test stochastic mapping
+    auto likObject = chrOptimizer->getVectorOfLikelihoods()[0];
+    StochasticMapping * stm = new StochasticMapping(likObject->getLikelihoodCalculationSingleProcess(), ChromEvolOptions::NumOfSimulations_);
+    stm->generateStochasticMapping();
+    std::map<uint, std::map<pair<size_t, size_t>, double>> expectationsPerNode = stm->getExpectedNumOfOcuurencesForEachTransitionPerNode();
+    auto nonHomoProcess = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(&(likObject->getSubstitutionProcess()));
+    std::map<int, double> expectationsTotal = ComputeChromosomeTransitionsExp::getExpectationsPerType(nonHomoProcess, *tree_, expectationsPerNode);
+    std::cout << "*** *** *** Test stochastic mapping *** *** ***:" << std::endl;
+    auto it = expectationsTotal.begin();
+    while (it != expectationsTotal.end()){
+        std::cout << it->first << ": " << expectationsTotal[it->first] << std::endl;
+        it ++;
+    }
+    const string outStMappingPath = ChromEvolOptions::resultsPathDir_+"//"+ "stochastic_mapping.txt";
+    VVdouble ratesPerTransition = stm->getExpectedRateOfTransitionGivenState();
+    ofstream outFileStMapping;
+    outFileStMapping.open(outStMappingPath);
+    outFileStMapping << "*** *** Expected rates *** ***" << std::endl;
+    for (size_t beginState = 0; beginState < ratesPerTransition.size(); beginState++){
+         for (size_t endState = 0; endState < ratesPerTransition[beginState].size(); endState++){
+            if (ratesPerTransition[beginState][endState] == 0){
+                continue;
+            }
+            outFileStMapping << "\t" << beginState + alphabet_->getMin() << " -> " << endState + alphabet_->getMin() << ": " << ratesPerTransition[beginState][endState] << std::endl;
+        
+
+        }
+    }
+    outFileStMapping.close();
+
+    delete stm;
+
+
 
     //compute expectations
     computeExpectations(chrOptimizer, ChromEvolOptions::NumOfSimulations_);

@@ -20,6 +20,7 @@
 #define upperBoundOfRateParam 100.0
 #define upperBoundLinearRateParam 5.0
 #define upperBoundExpParam 4.6
+#define logNormalDomainFactor 5
 #define IgnoreParam -999
 #define DemiEqualDupl -2
 #define EPSILON 2.22045e-016
@@ -118,15 +119,17 @@ class PolynomialDependencyFunction:
     FunctionType getName() const{return FunctionType::POLYNOMIAL;}
     double getRate(std::vector<Parameter*> params, size_t state) const;
     size_t getNumOfParameters() const{return 3;}
-    void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){throw Exception("Not implemented yet!");}
-    void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){throw Exception("Not implemented yet!");}
-    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
-    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+    //void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum);
+    //void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound);
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
 
 };
 class LognormalDependencyFunction:
   public virtual ChromosomeNumberDependencyFunction
 {
+  private:
+  //int maxChrNum_;
   public:
     LognormalDependencyFunction():ChromosomeNumberDependencyFunction(){}
     virtual ~LognormalDependencyFunction(){}

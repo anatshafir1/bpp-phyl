@@ -109,11 +109,42 @@ void ExponentailDependencyFunction::getAbsoluteBounds(size_t index, double* lowe
 }
 /**************************************************************************************/
 double PolynomialDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
-  throw Exception("PolynomialDependencyFunction::getRate(): Not implemented yet!");
-  return 0;
+  return (params[0]->getValue()) * pow((double)(state) + params[1]->getValue(), params[2]->getValue());
+
 }
 /**************************************************************************************/
+
+void PolynomialDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  getAbsoluteBounds(index, lowerBound, upperBound, maxChrNumber);
+
+}
+void PolynomialDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  if (index == 0){
+      *lowerBound = 0;
+      *upperBound = upperBoundOfRateParam;
+
+  }else if (index == 1){
+    *lowerBound = -maxChrNumber;
+    *upperBound = upperBoundOfRateParam;
+  }else if(index == 2){
+    *lowerBound = lowerBoundOfExpParam;
+    *upperBound = upperBoundExpParam;
+
+  }else{
+    throw Exception("PolynomialDependencyFunction::getAbsoluteBounds: index out of bounds!!");
+    
+  }
+
+}
 double LognormalDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  // auto rangeFactor = params[0]->getValue();
+  // auto transformedState = state/(maxChrNum_/logNormalDomainFactor);
+  // auto mu = params[1]->getValue();
+  // auto sigma = params[2]->getValue();
+  // double pi = 2 * acos(0.0);
+  // auto eq_part_1 = 1/(transformedState*sigma*sqrt(2 * pi));
+  // auto eq_part_2 = std::exp(-(pow(log(transformedState)-mu, 2)/(2*pow(sigma, 2))));
+  // return eq_part_1 * eq_part_2;
   throw Exception("LognormalDependencyFunction::getRate(): Not implemented yet!");
   return 0;
 }

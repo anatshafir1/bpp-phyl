@@ -45,6 +45,7 @@
 #include "Bpp/Phyl/Tree/PhyloTree.h"
 #include "Bpp/Phyl/Tree/PhyloTreeTools.h"
 #include "Bpp/Phyl/App/ChromEvolOptions.h"
+#include "Bpp/Phyl/Mapping/StochasticMapping.h"
 
 #include <Bpp/Exceptions.h>
 #include <Bpp/Numeric/Random/RandomTools.h>
@@ -117,7 +118,6 @@ namespace bpp
 
             // Returns the cumulative probability of the accounted changes, and updates terminalsToAccount with the accounted for ancestral terminals if provided.
             double getCumulativeProbability(uint nodeId, vector <pair<int, int>>* terminalsToAccount = 0);
-            //vector <int> setVectorOfInitStatesForHeuristics(map <uint, vector<pair<int,int>>>& unAccountedNodesAndTerminals) const;
             
              
             void updateNumNonAccountedBranches(map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, size_t modelIndex, const string FilePath);
@@ -188,6 +188,25 @@ namespace bpp
             void updateMapOfJumps(int startState, int endState, const ChromosomeSubstitutionModel* model);
             void updateExpectationsPerBranch(uint nodeId, pair<int, int> ancestralTerminals, pair<int, int> jumpStates);
             void runHeuristics(const string FilePath = "none");
+
+            //*** *** ***
+            // Temporarily include function for dealing with chromosome number model related stochastic mapping
+            // as inferred from the StochasticMapping class. these functions are needed mainly to test the method
+            //*** *** ***
+
+            // get model index for each node (i.e., the model of the father, because this is the model which applies on the son branch)
+            static std::map<uint, size_t> getModelForEachBranch(PhyloTree &tree, const NonHomogeneousSubstitutionProcess &models);
+            static void getModeForSons(PhyloTree &tree, uint fatherId, uint sonId, const NonHomogeneousSubstitutionProcess* NonHomoModel,  std::map<uint, size_t> &modelPerNode);
+
+            // find the expectations of each transition type
+            static std::map<int, double> getExpectationsPerType(const NonHomogeneousSubstitutionProcess* NonHomoProcess, PhyloTree &tree, std::map<uint, std::map<pair<size_t, size_t>, double>> &expectationsPerNode);
+            static bool getProbabilitiesPerType(vector<double> &probabilities, int startState, int endState, const ChromosomeSubstitutionModel* model);
+            
+
+
+            
+            
+            
             
 
 

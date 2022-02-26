@@ -30,14 +30,18 @@ StochasticMapping::StochasticMapping(std::shared_ptr<LikelihoodCalculationSingle
   likelihood_(drl),
   tree_ (make_shared<PhyloTree>(drl->getSubstitutionProcess().getParametrizablePhyloTree())),
 //  mappingParameters_(drl->getSubstitutionProcess()),
-  fractionalProbabilities_(),
   ConditionalProbabilities_(),
   nodesCounter_(0),
-  numOfMappings_(numOfMappings)// ,
+  numOfMappings_(numOfMappings),
+  ancetralStates_(),
+  mappings_(),
+  jumpsProbs_()// ,
   // nodeIdToIndex_()
 {
-  giveNamesToInternalNodes(*tree_);                     // set names for the internal nodes of the tree, in case of absence
+  //giveNamesToInternalNodes(*tree_);                     // set names for the internal nodes of the tree, in case of absence
   ComputeConditionals();
+  initJumpProbs();
+  //initMappings();
 }
 
 /******************************************************************************/
@@ -48,27 +52,63 @@ StochasticMapping::~StochasticMapping()
 
 /******************************************************************************/
 
-void StochasticMapping::generateStochasticMapping(vector<shared_ptr<PhyloTree>>& mappings)
+void StochasticMapping::generateStochasticMapping()
 {
   for (size_t i = 0; i < numOfMappings_; ++i)
   {
-//    auto mapping = std::shared_ptr<PhyloTree>(*baseTree);
-  //   setLeafsStates(mapping);
+    /* step 1+2: simulate a set of ancestral states, based on the fractional likelihoods from step 1 */
+    sampleAncestrals(i);
 
-  //   /* step 2: simulate a set of ancestral states, based on the fractional likelihoods from step 1 */
-  //   sampleAncestrals(mapping);
+    /* step 3: simulate mutational history of each lineage of the phylogeny, conditional on the ancestral states */
+    sampleMutationsGivenAncestrals(i);
 
-  //   /* step 3: simulate mutational history of each lineage of the phylogeny, conditional on the ancestral states */
-  //   sampleMutationsGivenAncestrals(mapping);
-
-  //   // add the mapping to the vector of mapping
-  //   mappings.push_back(mapping);
-
-  //   // reset the nodes counter
-  //   nodesCounter_ = dynamic_cast<TreeTemplate<Node>*>(baseTree_)->getNodes().size() - 1;
   }
 }
 
+
+/******************************************************************************/
+void StochasticMapping::initJumpProbs(){
+  auto nbState = likelihood_-> getStateMap().getNumberOfModelStates();
+  auto nbModels = likelihood_->getSubstitutionProcess().getNumberOfModels();
+  for (size_t modelId = 1; modelId <= nbModels; modelId++){
+    if (jumpsProbs_.find(modelId) == jumpsProbs_.end()){
+      jumpsProbs_[modelId].resize(nbState);
+      for (size_t i = 0; i < nbState; i++){
+        jumpsProbs_[modelId][i].resize(nbState);
+        for (size_t j = 0; j < nbState; j++){
+          auto model = dynamic_cast<const SubstitutionModel*>(likelihood_->getSubstitutionProcess().getModel(modelId));
+          if (i == j){
+            jumpsProbs_[modelId][i][j] = 0;
+          }else{
+            jumpsProbs_[modelId][i][j] = model->Qij(i, j)/(-1*model->Qij(i,i));
+          }
+        }
+      }
+
+    }
+  }
+  
+}
+/******************************************************************************/
+size_t StochasticMapping::giveRandomState(size_t beginState, size_t modelIndex) const 
+{
+  auto nbState = likelihood_-> getStateMap().getNumberOfModelStates();
+	for (size_t i = 0 ; i < 100000 ; i++) 
+	{
+		double u = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
+		double cumulativeProb = 0.0;
+		for (size_t state = 0; state < nbState; state ++) 
+		{
+			cumulativeProb += jumpsProbs_.at(modelIndex)[beginState][state];
+			if (u < cumulativeProb) {
+				return state;
+			}
+		}
+	}
+	throw Exception("StochasticMapping::giveRandomState: could not give random character. The reason is unknown.");
+	return 1;
+
+}
 /******************************************************************************/
 
 void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, VVDouble& ancestralStatesFrequencies)
@@ -326,122 +366,63 @@ void StochasticMapping::setLeafsStates(std::shared_ptr<PhyloTree> mapping)
 
 /******************************************************************************/
 
-
-void StochasticMapping::computeFractionals()
-{
-  // // some auxiliiary variables
-  // size_t statesNum = tl_->getNumberOfStates();
-  // const TransitionModel* model = tl_->getModelForSite(0, 0); // this calls assumes that all the sites and all the branches are assoiacted with the same node
-  // const SiteContainer* leafsStates = tl_->getData();
-  // TreeTemplate<Node>* ttree = dynamic_cast<TreeTemplate<Node>*>(baseTree_);
-  // vector<Node*> nodes = ttree->getNodes();
-
-  // // compute the fractional probabilities according to Felsenstein prunnig algorithm: for each node nodes[i] and state s compute: P(Data[leafs under node[i]]|node[i] has state s]
-  // for (size_t i = 0; i < nodes.size(); ++i) // traverse the tree in post-order
-  // {
-  //   int nodeId = nodes[i]->getId();
-  //   string nodeName = nodes[i]->getName();
-  //   if (nodes[i]->isLeaf()) // if the node is a leaf, set the fractional probability of its state to 1, and the rest ot 0
-  //   {
-  //     size_t leafState = static_cast<int>(tl_->getAlphabetStateAsInt(leafsStates->getSequence(nodeName).getValue(0)));
-  //     for (size_t nodeState = 0; nodeState < statesNum; ++nodeState)
-  //     {
-  //       if (nodeState != leafState)
-  //       {
-  //         fractionalProbabilities_[nodeId][nodeState] = 0;
-  //       }
-  //       else
-  //       {
-  //         fractionalProbabilities_[nodeId][nodeState] = 1;
-  //       }
-  //     }
-  //   }
-  //   else                // if the node is internal, follow the Felesenstein computation rule to compute the fractional probability
-  //   {
-  //     for (size_t nodeState = 0; nodeState < statesNum; ++nodeState)
-  //     {
-  //       double fullProb = 1;
-  //       for (size_t j = 0; j < (nodes[i]->getNumberOfSons()); ++j) // for each son of the node, sum over the probabilities of all its assignments given its father's state (i.e, nodeState)
-  //       {
-  //         double sonProb = 0;
-  //         double bl = nodes[i]->getSon(j)->getDistanceToFather();
-  //         for (size_t sonState = 0; sonState < statesNum; ++sonState)
-  //         {
-  //           sonProb += model->Pij_t(nodeState, sonState, bl) * fractionalProbabilities_[nodes[i]->getSon(j)->getId()][sonState];
-  //         }
-  //         fullProb *= sonProb;
-  //       }
-  //       fractionalProbabilities_[nodeId][nodeState] = fullProb;
-  //     }
-  //   }
-  // }
-}
-
-/******************************************************************************/
-
 void StochasticMapping::ComputeConditionals()
 {
-  // // some auxiliiary variables
-  // size_t statesNum = tl_->getNumberOfStates();
-  // VDouble rootProbabilities = tl_->getRootFrequencies(0);
-  // const TransitionModel* model = tl_->getModelForSite(0, 0);
-  // TreeTemplate<Node>* ttree = dynamic_cast<TreeTemplate<Node>*>(baseTree_);
-  // vector<Node*> nodes = ttree->getNodes(); // here - how many nodes? only 4! what happened?
+  // some auxiliiary variables
+  size_t nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  auto flt = likelihood_->getForwardLikelihoodTree(0);
+  auto speciesIndices = tree_->getNodeIndexes(tree_->getAllNodes());
+  ConditionalProbabilities_.clear();
+  ConditionalProbabilities_.resize((speciesIndices.size()));
+  for (size_t i = 0; i < speciesIndices.size(); i++){
+    auto speciesId = speciesIndices[i];
+    ConditionalProbabilities_[speciesId].resize(nbState);
+    if (tree_->getRootIndex() == speciesId){
+        auto rootLik = numeric::cwise(((flt->getForwardLikelihoodArrayAtRoot())->getTargetValue()).col(0));
+        Eigen::RowVectorXd rootFreqsDouble = likelihood_->getRootFreqs()->getTargetValue();
+        auto rootFreqs = numeric::cwise(rootFreqsDouble.row(0).transpose());
+        auto prodFreqRootLik = rootFreqs * rootLik;
+        auto conditionals = prodFreqRootLik/prodFreqRootLik.sum();
+        fillRootConditionals(conditionals);
 
-  // /* compute the fractional probabilities for each node and state */
-  // fractionalProbabilities_.clear();
-  // fractionalProbabilities_.resize(nodes.size(), VDouble(statesNum));
-  // computeFractionals();
+    }else{
+      auto& dagIndexes = flt->getDAGNodesIndexes(speciesId);
+      if(dagIndexes.size() > 1){
+        throw Exception("StochasticMapping::ComputeConditionals(): not implemented for mixture models!");
+      }
+      for (const auto& index : dagIndexes){
+        auto edgeIndex =  flt->getIncomingEdges(index)[0];
+        auto processEdge = flt->getProcessTree()->getEdge(edgeIndex);
+        auto transitionMatrix = processEdge->getTransitionMatrix()->getTargetValue();
+        auto LikNodeMat = flt->getForwardLikelihoodArray(index)->getTargetValue();
+        auto sonLik = numeric::cwise(LikNodeMat.col(0));
+        for (size_t fatherState = 0; fatherState < nbState; fatherState++){
+          ConditionalProbabilities_[speciesId][fatherState].resize(nbState);
+          auto fatherStatePijt = numeric::cwise(transitionMatrix.row(fatherState).transpose());
+          auto fatherSonJoint = fatherStatePijt * sonLik;
+          auto conditionals = fatherSonJoint/fatherSonJoint.sum();
+          for (size_t sonState = 0; sonState < nbState; sonState ++){
+            auto conditional = ExtendedFloat(conditionals.float_part()(sonState), conditionals.exponent_part());
+            ConditionalProbabilities_[speciesId][fatherState][sonState] = ExtendedFloat::convert(conditional);
+          }
+        }
+      }      
+    }
+  }
 
-  // /*  compute the conditional probabilities: for each combination of nodes son, father, compute Pr(son recieves sonState | father has fatherState) */
-  // ConditionalProbabilities_.clear();
-  // ConditionalProbabilities_.resize((nodes.size()));
+}
 
-  // for (size_t i = 0; i < nodes.size(); ++i)
-  // {
-  //   if (!nodes[i]->isLeaf() || !nodes[i]->hasFather())  // the second condition will catch the root even if it has a single child (in which case, isLeaf() returns true)
-  //   {
-  //     int nodeId = nodes[i]->getId();
-  //     ConditionalProbabilities_[nodes[i]->getId()].resize(statesNum, VDouble(statesNum)); // use aux variable numOfStates
-  //     if (!(nodes[i]->hasFather()))  // if the node is the root -> set the conditional probability to be same for all "fatherStates"
-  //     {
-  //       double sum = 0.0;
-  //       for (size_t sonState = 0; sonState < statesNum; ++sonState)
-  //       {
-  //         double stateConditionalNominator = fractionalProbabilities_[nodeId][sonState] * rootProbabilities[sonState];
-  //         for (size_t fatherState = 0; fatherState < statesNum; ++fatherState)
-  //         {
-  //           ConditionalProbabilities_[nodeId][fatherState][sonState] = stateConditionalNominator;
-  //         }
-  //         sum += stateConditionalNominator;
-  //       }
-  //       for (size_t fatherState = 0; fatherState < statesNum; ++fatherState)
-  //       {
-  //         for (size_t sonState = 0; sonState < statesNum; ++sonState)
-  //         {
-  //           ConditionalProbabilities_[nodeId][fatherState][sonState] /= sum;
-  //         }
-  //       }
-  //     }
-  //     else                            // else -> follfow equation (10) from the paper to compute the consitional assingment probabilities given the ones of his father
-  //     {
-  //       for (size_t fatherState = 0; fatherState < statesNum; ++fatherState)
-  //       {
-  //         double sum = 0.0;
-  //         for (size_t sonState = 0; sonState < statesNum; ++sonState)
-  //         {
-  //           double stateConditionalNominator = fractionalProbabilities_[nodes[i]->getId()][sonState] * model->Pij_t(fatherState, sonState, nodes[i]->getDistanceToFather());
-  //           ConditionalProbabilities_[nodeId][fatherState][sonState] = stateConditionalNominator;
-  //           sum += stateConditionalNominator;
-  //         }
-  //         for (size_t sonState = 0; sonState < statesNum; ++sonState)
-  //         {
-  //           ConditionalProbabilities_[nodeId][fatherState][sonState] /= sum;
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
+
+/******************************************************************************/
+void StochasticMapping::fillRootConditionals(ExtendedFloatArrayXd &conditionals){
+  size_t nbState = likelihood_-> getStateMap().getNumberOfModelStates();
+  for (size_t fatherState = 0; fatherState < nbState; fatherState++){
+    ConditionalProbabilities_[tree_->getRootIndex()][fatherState].resize(nbState);
+    for (size_t sonState = 0; sonState < nbState; sonState++){
+      auto conditional = ExtendedFloat(conditionals.float_part()(sonState), conditionals.exponent_part());
+      ConditionalProbabilities_[tree_->getRootIndex()][fatherState][sonState] = ExtendedFloat::convert(conditional);
+    }
+  }
 }
 
 /******************************************************************************/
@@ -500,62 +481,69 @@ void StochasticMapping::computeStatesFrequencies(VVDouble& ancestralStatesFreque
 size_t StochasticMapping::sampleState(const VDouble& distibution)
 {
   size_t state = 0;        // the default state is 0
-  // double prob = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
+  double prob = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
 
-  // for (size_t i = 0; i < distibution.size(); ++i)
-  // {
-  //   prob -= distibution[i];
-  //   if (prob < 0)  // if the the sampled probability is smaller than the probability to choose state i -> set state to be i
-  //   {
-  //     state = i;
-  //     break;
-  //   }
-  // }
+  for (size_t i = 0; i < distibution.size(); ++i)
+  {
+    prob -= distibution[i];
+    if (prob < 0)  // if the the sampled probability is smaller than the probability to choose state i -> set state to be i
+    {
+      state = i;
+      break;
+    }
+  }
   return state;
 }
 
 /******************************************************************************/
 
-void StochasticMapping::sampleAncestrals(shared_ptr<PhyloTree> mapping)
+void StochasticMapping::sampleAncestrals(size_t mappingIndex)
 {
-  // TreeTemplate<Node>* ttree = dynamic_cast<TreeTemplate<Node>*>(mapping);
-  // PreOrderTreeIterator* treeIt = new PreOrderTreeIterator(*ttree);
-  // for (Node* node = treeIt->begin(); node != treeIt->end(); node = treeIt->next())
-  // {
-  //   if (!node->isLeaf())
-  //   {
-  //     int nodeId = node->getId();
-  //     if (!node->hasFather())
-  //     {
-  //       size_t rootState = sampleState(ConditionalProbabilities_[nodeId][0]); // set father state to 0 (all the entries in the fatherState level are the same anyway)
-  //       setNodeState(node, rootState);
-  //     }
-  //     else
-  //     {
-  //       int fatherState = getNodeState(node->getFather());
-  //       size_t sonState = sampleState(ConditionalProbabilities_[nodeId][fatherState]);
-  //       setNodeState(node, sonState); // in the case of a leaf, the assigned state must be sampled
-  //     }
-  //   }
-  // }
-  // delete(treeIt);
+  // initializing the ancestral states for each node and mapping
+  auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
+  for(size_t i = 0; i < nodeIndices.size(); i++){
+    ancetralStates_[nodeIndices[i]].resize(numOfMappings_);
+  }
+  // iterate over the nodes in preorder, and sampling the ancestral states
+  sampleAncestralsRecursively(tree_->getRootIndex(), mappingIndex);
+
+}
+
+/******************************************************************************/
+void StochasticMapping::sampleAncestralsRecursively(uint nodeId, size_t mappingIndex, uint *fatherIndex){
+  auto node = tree_->getNode(nodeId);
+  if (nodeId == tree_->getRootIndex()){
+    size_t rootState = sampleState(ConditionalProbabilities_[nodeId][0]);
+    ancetralStates_[nodeId][mappingIndex] = rootState;
+  }else{
+    size_t fatherState = ancetralStates_[*fatherIndex][mappingIndex];
+    size_t sonState = sampleState(ConditionalProbabilities_[nodeId][fatherState]);
+    ancetralStates_[nodeId][mappingIndex] = sonState;
+  }
+  if (!(tree_->isLeaf(nodeId))){
+    auto nodeIdsSons = tree_->getSons(nodeId);
+    for (size_t i = 0; i < nodeIdsSons.size(); i++){
+      sampleAncestralsRecursively(nodeIdsSons[i], mappingIndex, &nodeId);
+    }  
+  }
 }
 
 /******************************************************************************/
 
-void StochasticMapping::sampleMutationsGivenAncestrals(shared_ptr<PhyloTree> mapping)
+
+void StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex)
 {
-//   TreeTemplate<Node>* ttree = dynamic_cast<TreeTemplate<Node>*>(mapping);
-//   vector<Node*> nodes = ttree->getNodes();
-//   nodesCounter_ = nodes.size() - 1; // intialize nodesCounter_ according ot the number of nodes in the base tree
-//   for (size_t i = 0; i < nodes.size(); ++i)
-//   {
-//     Node* son = nodes[i];
-//     if (son->hasFather())
-//     {
-//       sampleMutationsGivenAncestralsPerBranch(son);
-//     }
-//   }
+  auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
+  for (size_t i = 0; i < nodeIndices.size(); i++){
+    if (tree_->isLeaf(tree_->getNode(nodeIndices[i]))){
+      continue;
+    }
+    auto father = nodeIndices[i];
+    auto sons = tree_->getSons(father);
+    for (size_t j = 0; j < sons.size(); j++){
+      sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex);
+    }    
+  }
 }
 
 /******************************************************************************/
@@ -595,60 +583,360 @@ void StochasticMapping::updateBranchMapping(PhyloNode* son, const MutationPath& 
 
 /******************************************************************************/
 
-void StochasticMapping::sampleMutationsGivenAncestralsPerBranch(PhyloNode* son, size_t maxIterNum)
+void StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum)
 {
-  // Node* father = son->getFather();
-  // double branchLength = son->getDistanceToFather();
-  // size_t fatherState = getNodeState(father);
-  // size_t sonState = getNodeState(son);
+  size_t fatherState = ancetralStates_[father][mappingIndex];
+  size_t sonState = ancetralStates_[son][mappingIndex];
 
-  // /* simulate mapping on a branch until you manage to finish at the son's state */
-  // for (size_t i = 0; i < maxIterNum; ++i)
-  // {
-  //   double disFromNode = 0.0;
-  //   size_t curState = fatherState;
-  //   MutationPath tryMapping(mappingParameters_->getSubstitutionModel()->getAlphabet(), fatherState, branchLength);
+  auto branchPtr = tree_->getIncomingEdges(tree_->getNode(son))[0];
+  auto branchLength = branchPtr->getLength();
+  auto alphabet = likelihood_->getData()->getAlphabet();
+  /* simulate mapping on a branch until you manage to finish at the son's state */
+  for (size_t i = 0; i < maxIterNum; i++){
 
-  //   double timeTillChange;
-  //   // if the father's state is not the same as the son's state -> use the correction corresponding to equation (11) in the paper
-  //   if (fatherState != sonState)
-  //   {   // sample timeTillChange conditional on it being smaller than branchLength
-  //     double u = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
-  //     double waitingTimeParam = -1 * mappingParameters_->getSubstitutionModel()->Qij(fatherState, fatherState); // get the parameter for the exoponential distribution to draw the waiting time from
-  //     double tmp = u * (1.0 - exp(branchLength * -waitingTimeParam));
-  //     timeTillChange =  -log(1.0 - tmp) / waitingTimeParam;
-  //     assert (timeTillChange < branchLength);
-  //   }
-  //   else
-  //   {
-  //     timeTillChange = mappingParameters_->getTimeBeforeNextMutationEvent(fatherState); // draw the time until a transition from exponential distribution with the rate of leaving fatherState
-  //   }
+    double disFromNode = 0.0;
+    size_t curState = fatherState;
+    MutationPath tryMapping(alphabet, fatherState, branchLength);
+    //dynamic_cast<const ChromosomeSubstitutionModel*>
+    auto model = dynamic_cast<const SubstitutionModel*>(likelihood_->getSubstitutionProcess().getModel(father, 0)); // father or son??? Should be a father, because the models start at particular nodes, and I should get the model of the preceeding branch
+    size_t modelIndex;
+    if (father == tree_->getRootIndex()){
+      modelIndex = 1; // I guess the model index should be 1 for the root. Is it true?
+    }else{
+      modelIndex = likelihood_->getSubstitutionProcess().getModelNumberForNode(father);
+    }    
+    double timeTillChange;
+    // if the father's state is not the same as the son's state -> use the correction corresponding to equation (11) in the paper
+    if (fatherState != sonState)
+    {   // sample timeTillChange conditional on it being smaller than branchLength
+      double u = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
+      double waitingTimeParam = -1 * model->Qij(fatherState, fatherState); // get the parameter for the exoponential distribution to draw the waiting time from
+      double tmp = u * (1.0 - exp(branchLength * -waitingTimeParam));
+      timeTillChange =  -log(1.0 - tmp) / waitingTimeParam;
+      assert (timeTillChange < branchLength);
+    }
+    else
+    {
+      timeTillChange = RandomTools::randExponential(-1. / model->Qij(fatherState, fatherState));// draw the time until a transition from exponential distribution with the rate of leaving fatherState
+    }
 
-  //   while (disFromNode + timeTillChange < branchLength)  // a jump occured but not passed the whole branch ->
-  //   {
-  //     tryMapping.addEvent(curState, timeTillChange);                                        // add the current state and time to branch history
+    while (disFromNode + timeTillChange < branchLength)  // a jump occured but not passed the whole branch ->
+    {
 
-  //     disFromNode += timeTillChange;
-  //     timeTillChange = mappingParameters_->getTimeBeforeNextMutationEvent(curState);        // draw the time until a transition from exponential distribution with the rate of leaving curState
-  //     curState = mappingParameters_->mutate(curState);                                      // draw the state to transition to after from initial state curState based on the relative tranistion rates distribution (see MutationProcess.cpp line 50)
-  //   }
-  //   // the last jump passed the length of the branch -> finish the simulation and check if it's sucessfull (i.e, mapping is finished at the son's state)
-  //   if (curState != sonState) // if the simulation failed, try again
-  //   {
-  //     continue;
-  //   }
-  //   else                      // if the simulation was sucessfully, add it to the build mapping
-  //   {
-  //     double timeOfJump = branchLength - disFromNode;
-  //     son->setDistanceToFather(timeOfJump);
-  //     updateBranchMapping(son, tryMapping);     // add the successfull simulation to the build mapping
-  //     return;
-  //   }
-  // }
-  // // if all simulations failed -> throw an exception
-  // throw Exception("could not produce simulations with father = " + TextTools::toString(fatherState) + " son " + TextTools::toString(sonState) + " branch length = " + TextTools::toString(branchLength));
+      curState = giveRandomState(curState, modelIndex);  // draw the state to transition to after from initial state curState based on the relative tranistion rates distribution (see MutationProcess.cpp line 50)
+      tryMapping.addEvent(curState, timeTillChange);                                        // add the current state and time to branch history
+      disFromNode += timeTillChange;
+      timeTillChange = RandomTools::randExponential(-1. / model->Qij(curState, curState));        // draw the time until a transition from exponential distribution with the rate of leaving curState
+                                          
+    }
+    // the last jump passed the length of the branch -> finish the simulation and check if it's sucessfull (i.e, mapping is finished at the son's state)
+    if (curState != sonState) // if the simulation failed, try again
+    {
+      continue;
+    }
+    else                      // if the simulation was sucessfully, add it to the build mapping
+    {
+      mappings_[son].push_back(tryMapping);
+      // *** debug ***//
+      if (mappings_[son].size() != mappingIndex+1){
+        throw Exception ("StochasticMapping::sampleMutationsGivenAncestralsPerBranch: Something went wrong when filling mappings_ object!");
+      }
+      // *****//
+      //double timeOfJump = branchLength - disFromNode;
+      //son->setDistanceToFather(timeOfJump);
+      //updateBranchMapping(son, tryMapping);     // add the successfull simulation to the build mapping
+
+
+
+      return;
+    }
+  }
+  // if all simulations failed -> throw an exception
+  throw Exception("could not produce simulations with father = " + TextTools::toString(fatherState) + ", nodeId = "+ TextTools::toString(father)+ " son " + TextTools::toString(sonState) + ", nodeId = "+ TextTools::toString(son)+ " branch length = " + TextTools::toString(branchLength)+ " Mapping index: "+ TextTools::toString(mappingIndex));
+  
 }
 
+/******************************************************************************/
+void StochasticMapping::getDewellingTimesUnderEachStatePerMapping(vector<double> &dwellingTimes, size_t mappingIndex){
+  auto rootId = tree_->getRootIndex();
+  auto sons = tree_->getSons(rootId);
+  for (size_t i = 0; i < sons.size(); i++){
+    getDewellingTimesUnderEachStatePerMappingRecursively(sons[i], ancetralStates_[rootId][mappingIndex], dwellingTimes, mappingIndex);
+  }
+
+}
+/******************************************************************************/
+void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> &dwellingTimes, size_t mappingIndex){
+  auto mutationPath = mappings_[nodeId][mappingIndex];
+  auto states = mutationPath.getStates();
+  auto times = mutationPath.getTimes();
+  auto branchPtr = tree_->getIncomingEdges(tree_->getNode(nodeId))[0];
+  auto branchLength = branchPtr->getLength();
+  double spentTimeOnBranch = 0;
+  for (size_t i = 0; i < states.size(); i++){
+    spentTimeOnBranch += times[i];
+    if (i == 0){
+      // dwelling time of the intial state (that lasts from the previous branch)
+      dwellingTimes[initialState] += times[i];
+    }else{
+      dwellingTimes[states[i-1]] += times[i];
+    }
+  }
+  double timeSpentUnderLastState = branchLength-spentTimeOnBranch;
+  if (states.size() == 0){
+    dwellingTimes[initialState] += timeSpentUnderLastState;
+  }else{
+    dwellingTimes[states[states.size()-1]] += timeSpentUnderLastState;
+  }
+  if (!(tree_->isLeaf(tree_->getNode(nodeId)))){
+    auto sons = tree_->getSons(nodeId);
+    for (size_t n = 0; n < sons.size(); n++){
+      size_t initialStateForSon;
+      if (states.size() > 0){
+        initialStateForSon = states[states.size()-1];
+      }else{
+        initialStateForSon = initialState;
+      }
+      getDewellingTimesUnderEachStatePerMappingRecursively(sons[n], initialStateForSon, dwellingTimes, mappingIndex);
+      
+    }
+  }
+}
+/******************************************************************************/
+void StochasticMapping::getNumOfOcuurencesForEachTransitionPerMapping(size_t mappingIndex, std::map<uint, std::map<std::pair<size_t, size_t>, double>> &transitionOcurrences){
+  //size_t nbState = likelihood_->getStateMap().getNumberOfModelStates();
+
+  // fill the map with the corresponding occurences (starting from the root)
+  uint rootId = tree_->getRootIndex();
+  size_t rootState = ancetralStates_[rootId][mappingIndex];
+  auto sons = tree_->getSons(rootId);
+  for (size_t n = 0; n < sons.size(); n++){
+    getNumOfOcuurencesForEachTransitionPerMappingRecursively(sons[n], rootState, mappingIndex, transitionOcurrences);
+  }
+}
+/******************************************************************************/
+void StochasticMapping::getNumOfOcuurencesForEachTransitionPerMappingRecursively(uint nodeId, size_t initialState, size_t mappingIndex, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences){
+  auto mutationPath = mappings_[nodeId][mappingIndex];
+  auto states = mutationPath.getStates();
+  if (states.size() > 0){ // the size is 0 in case no transitions have occured
+    std::pair<size_t, size_t> firstTransitionOnBranch(initialState, states[0]);
+    if (transitionOcurrences.find(nodeId) == transitionOcurrences.end()){
+      transitionOcurrences[nodeId][firstTransitionOnBranch] = 0;
+    }else{
+      if (transitionOcurrences[nodeId].find(firstTransitionOnBranch) == transitionOcurrences[nodeId].end()){
+        transitionOcurrences[nodeId][firstTransitionOnBranch] = 0;
+
+      }
+    }
+    transitionOcurrences[nodeId][firstTransitionOnBranch] += 1;
+    for (size_t i = 0; i < states.size()-1; i++){
+      std::pair<size_t, size_t> transition(states[i], states[i+1]);
+      if (transitionOcurrences[nodeId].find(transition) == transitionOcurrences[nodeId].end()){
+        transitionOcurrences[nodeId][transition] = 0;
+      }
+
+      transitionOcurrences[nodeId][transition] += 1;
+    }
+  }
+
+  if (!(tree_->isLeaf(tree_->getNode(nodeId)))){
+    size_t sonsInitState;
+    if (states.size() > 0){
+      sonsInitState = states[states.size()-1];
+
+    }else{
+      sonsInitState = initialState;
+    }
+    auto sons = tree_->getSons(nodeId);
+    for (size_t n = 0; n < sons.size(); n++){
+      getNumOfOcuurencesForEachTransitionPerMappingRecursively(sons[n], sonsInitState, mappingIndex, transitionOcurrences);
+    }
+  }
+}
+/******************************************************************************/
+std::map<pair<size_t, size_t>, double> StochasticMapping::sumTotalOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>>* transitionOcurrencesPerNodePtr){
+  std::map<pair<size_t, size_t>, double> totalExpectedTransitions;
+  auto nodeIds = tree_->getNodeIndexes(tree_->getAllNodes());
+  //auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  auto itNode = transitionOcurrencesPerNodePtr->begin();
+  while (itNode != transitionOcurrencesPerNodePtr->end()){
+    auto &transitions = (*transitionOcurrencesPerNodePtr)[itNode->first];
+    auto itTransitions = transitions.begin();
+    while (itTransitions != transitions.end()){
+      auto expectedNum = (*transitionOcurrencesPerNodePtr)[itNode->first][itTransitions->first];
+      if (totalExpectedTransitions.find(itTransitions->first) == totalExpectedTransitions.end()){
+        totalExpectedTransitions[itTransitions->first] = 0;
+      }
+      totalExpectedTransitions[itTransitions->first] += expectedNum;
+      itTransitions ++;
+    }
+    itNode ++;
+  }
+
+  // for (size_t i = 0; i < nbState; i++){
+  //   for (size_t j = 0; j < nbState; j++){
+  //     if (i == j){
+  //       continue;
+  //     }
+  //     pair<size_t, size_t> pairStates(i,j);
+  //     totalExpectedTransitions[pairStates] = 0;
+  //     for (size_t n = 0; n < nodeIds.size(); n++){
+  //       if ((*transitionOcurrencesPerNodePtr)[nodeIds[n]][pairStates] > 0){
+  //         auto expectedNum = (*transitionOcurrencesPerNodePtr)[nodeIds[n]][pairStates];
+  //         totalExpectedTransitions[pairStates] += expectedNum;
+          
+  //       }
+
+  //     }
+  //   } 
+  // }
+  return totalExpectedTransitions;
+}
+
+/******************************************************************************/
+std::map<pair<size_t, size_t>, double> StochasticMapping::getTotalNumOfOcuurencesForEachTransition(std::map<uint, std::map<pair<size_t, size_t>, double>>* transitionOcurrencesPerNodePtr){
+  if (!transitionOcurrencesPerNodePtr){
+    auto transitionsOccurencesPerNode = getNumOfOcuurencesForEachTransitionPerNode();
+    transitionOcurrencesPerNodePtr = &transitionsOccurencesPerNode;
+  }
+  auto totalExpectedTransitions = sumTotalOccurences(transitionOcurrencesPerNodePtr);
+  return totalExpectedTransitions;
+
+
+}
+/******************************************************************************/
+std::map<pair<size_t, size_t>, double> StochasticMapping::getExpectedNumOfOcuurencesForEachTransition(std::map<uint, std::map<pair<size_t, size_t>, double>>* transitionOcurrencesPerNodePtr){
+  if (!transitionOcurrencesPerNodePtr){
+    auto transitionsOccurencesPerNode = getExpectedNumOfOcuurencesForEachTransitionPerNode();
+    transitionOcurrencesPerNodePtr = &transitionsOccurencesPerNode;
+  }
+  auto totalExpectedTransitions = sumTotalOccurences(transitionOcurrencesPerNodePtr);
+  return totalExpectedTransitions;
+}
+/*******************************************************************************/
+// for each mapping get the number of occurences of a transition
+std::map<size_t, std::map<std::pair<size_t, size_t>, double>> StochasticMapping::getNumOfOccurencesForEachTransitionForEachMapping(){
+  std::map<size_t, std::map<std::pair<size_t, size_t>, double>> numOfOccurences;
+  //auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  for (size_t i = 0; i < numOfMappings_; i++){
+    std::map<uint, std::map<pair<size_t, size_t>, double>> transitionOcurrences;
+    getNumOfOcuurencesForEachTransitionPerMapping(i, transitionOcurrences);
+    std::map<pair<size_t, size_t>, double> totalNumOfTransitions = sumTotalOccurences(&transitionOcurrences);
+    auto it = totalNumOfTransitions.begin();
+    while(it != totalNumOfTransitions.end()){
+      numOfOccurences[i][it->first] = totalNumOfTransitions[it->first];
+      it ++;
+    }
+  }
+  return numOfOccurences;
+}
+/*******************************************************************************/
+std::map<uint, std::map<pair<size_t, size_t>, double>> StochasticMapping::getNumOfOcuurencesForEachTransitionPerNode(){
+  std::map<uint, std::map<pair<size_t, size_t>, double>> transitionOcurrences;
+  //initMapOfNumOfOccurences(transitionOcurrences);
+  for (size_t i = 0; i < numOfMappings_; i++){
+    getNumOfOcuurencesForEachTransitionPerMapping(i, transitionOcurrences);
+  }
+  return transitionOcurrences;
+}
+/******************************************************************************/
+void StochasticMapping::initMapOfNumOfOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences){
+  auto nodeIds = tree_->getNodeIndexes(tree_->getAllNodes());
+  auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  for (size_t n = 0; n < nodeIds.size(); n++){
+    if (nodeIds[n] == tree_->getRootIndex()){
+      continue;
+    }
+    for (size_t i = 0; i < nbState; i++){
+      for (size_t j = 0; j < nbState; j++){
+        if (i == j){
+          continue;
+        }
+        pair<size_t, size_t> pairStates(i,j);
+        transitionOcurrences[nodeIds[n]][pairStates] = 0;
+      } 
+    }   
+  }
+}
+/******************************************************************************/
+std::map<uint, std::map<pair<size_t, size_t>, double>> StochasticMapping::getExpectedNumOfOcuurencesForEachTransitionPerNode(){
+  // intializing the map
+  std::map<uint, std::map<pair<size_t, size_t>, double>> transitionOcurrences = getNumOfOcuurencesForEachTransitionPerNode();
+  auto itNode = transitionOcurrences.begin();
+  while(itNode != transitionOcurrences.end()){
+    auto nodeTransitions = transitionOcurrences[itNode->first];
+    auto itTransition = nodeTransitions.begin();
+    while(itTransition != nodeTransitions.end()){
+      transitionOcurrences[itNode->first][itTransition->first] /= (double)numOfMappings_;
+      itTransition ++;
+    }    
+    itNode ++;
+  }
+  return transitionOcurrences;
+}
+/******************************************************************************/
+VVdouble StochasticMapping::getExpectedRateOfTransitionGivenState(){
+  auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  // initializing
+  VVdouble expectedRate;
+  expectedRate.resize(nbState);
+  for (size_t i = 0; i < nbState; i++){
+    expectedRate[i].resize(nbState);
+    std::fill(expectedRate[i].begin(), expectedRate[i].end(), 0);
+  }
+  // filling with actual expected rates
+  VVdouble dwellingTimesForEachMappingPerState = getDwellingTimeOfStatePerEachMapping();
+  // just a sanity check
+  // for (size_t m = 0; m < dwellingTimesForEachMappingPerState.size(); m++){
+  //   double sumOfTimes = 0;
+  //   for (size_t s = 0; s < dwellingTimesForEachMappingPerState[m].size(); s++){
+  //     sumOfTimes += dwellingTimesForEachMappingPerState[m][s];
+  //   }
+  //   std::cout << "Total time duration is: " << sumOfTimes << std::endl;
+  // }
+  auto numOfOccurencesOfEachMappingPerTransition = getNumOfOccurencesForEachTransitionForEachMapping();
+  for (size_t i = 0; i < numOfMappings_; i++){
+    auto &occurrencesPerMapping = numOfOccurencesOfEachMappingPerTransition[i];
+    auto it = occurrencesPerMapping.begin();
+    while (it != occurrencesPerMapping.end()){
+      auto beginState = (it->first).first;
+      auto endState = (it->first).second;
+      expectedRate[beginState][endState] += ((numOfOccurencesOfEachMappingPerTransition[i][it->first]/dwellingTimesForEachMappingPerState[i][beginState])/(double)numOfMappings_);
+      it ++;
+    }
+  }
+
+  return expectedRate;
+
+}
+/******************************************************************************/
+VVdouble StochasticMapping::getDwellingTimeOfStatePerEachMapping(){
+  VVdouble dwellingTimesPerMapping;
+  auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  dwellingTimesPerMapping.resize(numOfMappings_);
+  for (size_t i = 0; i < numOfMappings_; i++){
+    dwellingTimesPerMapping[i].resize(nbState);
+    std::fill(dwellingTimesPerMapping[i].begin(), dwellingTimesPerMapping[i].end(), 0);
+    getDewellingTimesUnderEachStatePerMapping(dwellingTimesPerMapping[i], i);
+  }
+  return dwellingTimesPerMapping;
+}
+/******************************************************************************/
+Vdouble StochasticMapping::getExpectedDwellingTimesUnderEachState(){
+  Vdouble expectedDwellingTimes;
+  auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  expectedDwellingTimes.resize(nbState);
+  // set all values to zero initially
+  std::fill(expectedDwellingTimes.begin(), expectedDwellingTimes.end(), 0);
+  for (size_t i = 0; i < numOfMappings_; i++){
+    getDewellingTimesUnderEachStatePerMapping(expectedDwellingTimes, i);
+
+  }
+  for (size_t i = 0; i < nbState; i++){
+    expectedDwellingTimes[i] /= (double)numOfMappings_;
+  }
+  return expectedDwellingTimes;
+}
 /******************************************************************************/
 
 void StochasticMapping::updateBranchByDwellingTimes(PhyloNode* node, VDouble& dwellingTimes, VVDouble& ancestralStatesFrequencies, size_t divMethod)
