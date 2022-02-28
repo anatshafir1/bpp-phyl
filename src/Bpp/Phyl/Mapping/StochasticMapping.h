@@ -194,9 +194,11 @@ namespace bpp
     void getNumOfOcuurencesForEachTransitionPerMapping(size_t mappingIndex, std::map<uint, std::map<std::pair<size_t, size_t>, double>> &transitionOcurrences);
     /**
      *@brief Gets the expected dwelling time under each states given all the mappings
+     *@param expectedDuration     true if we want to calculated the expected tim duration under each state. False
+     * if we want to get the total duration of time under each state in all the mappings together
      *@return A vector that contains the expected dwelling times under each state
     */
-    Vdouble getExpectedDwellingTimesUnderEachState();
+    Vdouble getDwellingTimesUnderEachState(bool expectedDuration = false);
     /**
      *@brief Gets the expected number of occurences of each transition in each node (summarizing over all the mapppings)
      *@return A map of the expected number of occurences for each pair of states (for each transition)
@@ -226,12 +228,14 @@ namespace bpp
 
     std::map<size_t, std::map<std::pair<size_t, size_t>, double>> getNumOfOccurencesForEachTransitionForEachMapping();
     /**
-     *@brief Gets the total the rates of a transition given a certain state. 
+     *@brief Gets the total the rates of a transition given a certain state.
+     *@param dwellingTimesPerState  the total time spent under state j.
+     *@param numOfOccurencesPerTransition  for each transition, the total number of its occurrences.
      *@return The rates of each possible transition under each state rates. For example,
      * the [i][j] value will represent the rate of (i,j) transition given that we are in state i.
      * These rates are integrated over all the mappings
     */
-    VVdouble getExpectedRateOfTransitionGivenState();
+    VVdouble getExpectedRateOfTransitionGivenState(Vdouble &dwellingTimesPerState, std::map<std::pair<size_t, size_t>, double> &numOfOccurencesPerTransition);
     /**
      *@brief Gets the total dwelling time under each state for each mapping
      *@return The total dwelling time under each state for each mapping. The first index represents the 
@@ -244,6 +248,7 @@ namespace bpp
     
 
   private:
+    void clearMapping(size_t mappingIndex);
     void initMapOfNumOfOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences);
     std::map<pair<size_t, size_t>, double> sumTotalOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>>* transitionOcurrencesPerNodePtr);
     /**
@@ -335,8 +340,9 @@ namespace bpp
 
     /* simulates mutations on phylogeny based the sampled ancestrals, tips data, and the simulation parameters
      * @param mappingIndex               mapping history index
+     * @return                           true if mapping succeeded. False otherwise
      */
-    void sampleMutationsGivenAncestrals(size_t mappingIndex);
+    bool sampleMutationsGivenAncestrals(size_t mappingIndex);
 
     /* adds a branch mapping to the mapping in a tree format by repeatedly braking branches and adding internal nodes with single children
      * @param son                   The node at the bottom of the branch
@@ -349,8 +355,9 @@ namespace bpp
      * @param son                   The index of the node of interest
      * @param mappingIndex               mapping history index
      * @param maxIterNum            Maximal number of imulation trials
+     * @return: true if the mapping was successful. Otherwise, false.
      */
-    void sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum = 1000000);
+    bool sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum = 1000000);
 
     /* converts a vector of dwelling times to a mutation path and then updates the bracnh stemming from the given node */
     /* @param node                      The node at the bottom of the branch

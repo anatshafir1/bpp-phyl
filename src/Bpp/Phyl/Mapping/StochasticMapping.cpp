@@ -54,17 +54,43 @@ StochasticMapping::~StochasticMapping()
 
 void StochasticMapping::generateStochasticMapping()
 {
+  // initializing the ancestral states for each node and mapping
+  auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
+  for(size_t i = 0; i < nodeIndices.size(); i++){
+    ancetralStates_[nodeIndices[i]].resize(numOfMappings_);
+  }
   for (size_t i = 0; i < numOfMappings_; ++i)
   {
     /* step 1+2: simulate a set of ancestral states, based on the fractional likelihoods from step 1 */
     sampleAncestrals(i);
 
     /* step 3: simulate mutational history of each lineage of the phylogeny, conditional on the ancestral states */
-    sampleMutationsGivenAncestrals(i);
-
+    bool success = sampleMutationsGivenAncestrals(i);
+    if (!success){
+      sampleAncestrals(i); // verify that it doesn't push any elements again
+      clearMapping(i);
+      success = sampleMutationsGivenAncestrals(i);
+      if (!success){
+        throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
+      }
+    }
   }
 }
-
+/******************************************************************************/
+void StochasticMapping::clearMapping(size_t mappingIndex){
+  auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
+  for (size_t n = 0; n < nodeIndices.size(); n++){
+    if (mappings_.find(nodeIndices[n]) == mappings_.end()){
+      continue;
+    }
+    if (mappings_[nodeIndices[n]].size() == mappingIndex + 1){
+      mappings_[nodeIndices[n]].pop_back();
+    }
+    else if (mappings_[nodeIndices[n]].size() > mappingIndex + 1){
+      throw Exception("StochasticMapping::clearMapping(): mapping index out of range!");
+    }
+  }
+}
 
 /******************************************************************************/
 void StochasticMapping::initJumpProbs(){
@@ -499,11 +525,7 @@ size_t StochasticMapping::sampleState(const VDouble& distibution)
 
 void StochasticMapping::sampleAncestrals(size_t mappingIndex)
 {
-  // initializing the ancestral states for each node and mapping
-  auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
-  for(size_t i = 0; i < nodeIndices.size(); i++){
-    ancetralStates_[nodeIndices[i]].resize(numOfMappings_);
-  }
+
   // iterate over the nodes in preorder, and sampling the ancestral states
   sampleAncestralsRecursively(tree_->getRootIndex(), mappingIndex);
 
@@ -531,7 +553,7 @@ void StochasticMapping::sampleAncestralsRecursively(uint nodeId, size_t mappingI
 /******************************************************************************/
 
 
-void StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex)
+bool StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex)
 {
   auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
   for (size_t i = 0; i < nodeIndices.size(); i++){
@@ -541,9 +563,18 @@ void StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex)
     auto father = nodeIndices[i];
     auto sons = tree_->getSons(father);
     for (size_t j = 0; j < sons.size(); j++){
-      sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex);
+      // 1. change to bool return type
+      // 2. If false -> the simulation has failed.
+      // 3. If the simulation has failed -> resample the ancestral states.
+      // 4. Once the ancestral states are resampled -> call again to sampleMutationsGivenAncestrals()
+       
+      bool success = sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex);
+      if (!success){
+        return false;
+      }
     }    
   }
+  return true;
 }
 
 /******************************************************************************/
@@ -583,8 +614,9 @@ void StochasticMapping::updateBranchMapping(PhyloNode* son, const MutationPath& 
 
 /******************************************************************************/
 
-void StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum)
+bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum)
 {
+  bool success = true;
   size_t fatherState = ancetralStates_[father][mappingIndex];
   size_t sonState = ancetralStates_[son][mappingIndex];
 
@@ -648,11 +680,13 @@ void StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uin
 
 
 
-      return;
+      return success;
     }
   }
   // if all simulations failed -> throw an exception
-  throw Exception("could not produce simulations with father = " + TextTools::toString(fatherState) + ", nodeId = "+ TextTools::toString(father)+ " son " + TextTools::toString(sonState) + ", nodeId = "+ TextTools::toString(son)+ " branch length = " + TextTools::toString(branchLength)+ " Mapping index: "+ TextTools::toString(mappingIndex));
+  success = false;
+  return success;
+  //throw Exception("could not produce simulations with father = " + TextTools::toString(fatherState) + ", nodeId = "+ TextTools::toString(father)+ " son " + TextTools::toString(sonState) + ", nodeId = "+ TextTools::toString(son)+ " branch length = " + TextTools::toString(branchLength)+ " Mapping index: "+ TextTools::toString(mappingIndex));
   
 }
 
@@ -795,8 +829,9 @@ std::map<pair<size_t, size_t>, double> StochasticMapping::sumTotalOccurences(std
 
 /******************************************************************************/
 std::map<pair<size_t, size_t>, double> StochasticMapping::getTotalNumOfOcuurencesForEachTransition(std::map<uint, std::map<pair<size_t, size_t>, double>>* transitionOcurrencesPerNodePtr){
+  std::map<uint, std::map<pair<size_t, size_t>, double>> transitionsOccurencesPerNode;
   if (!transitionOcurrencesPerNodePtr){
-    auto transitionsOccurencesPerNode = getNumOfOcuurencesForEachTransitionPerNode();
+    transitionsOccurencesPerNode = getNumOfOcuurencesForEachTransitionPerNode();
     transitionOcurrencesPerNodePtr = &transitionsOccurencesPerNode;
   }
   auto totalExpectedTransitions = sumTotalOccurences(transitionOcurrencesPerNodePtr);
@@ -806,8 +841,9 @@ std::map<pair<size_t, size_t>, double> StochasticMapping::getTotalNumOfOcuurence
 }
 /******************************************************************************/
 std::map<pair<size_t, size_t>, double> StochasticMapping::getExpectedNumOfOcuurencesForEachTransition(std::map<uint, std::map<pair<size_t, size_t>, double>>* transitionOcurrencesPerNodePtr){
+  std::map<uint, std::map<pair<size_t, size_t>, double>> transitionsOccurencesPerNode;
   if (!transitionOcurrencesPerNodePtr){
-    auto transitionsOccurencesPerNode = getExpectedNumOfOcuurencesForEachTransitionPerNode();
+    transitionsOccurencesPerNode = getExpectedNumOfOcuurencesForEachTransitionPerNode();
     transitionOcurrencesPerNodePtr = &transitionsOccurencesPerNode;
   }
   auto totalExpectedTransitions = sumTotalOccurences(transitionOcurrencesPerNodePtr);
@@ -875,7 +911,7 @@ std::map<uint, std::map<pair<size_t, size_t>, double>> StochasticMapping::getExp
   return transitionOcurrences;
 }
 /******************************************************************************/
-VVdouble StochasticMapping::getExpectedRateOfTransitionGivenState(){
+VVdouble StochasticMapping::getExpectedRateOfTransitionGivenState(Vdouble &dwellingTimesPerState, std::map<std::pair<size_t, size_t>, double> &numOfOccurencesPerTransition){
   auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
   // initializing
   VVdouble expectedRate;
@@ -885,27 +921,13 @@ VVdouble StochasticMapping::getExpectedRateOfTransitionGivenState(){
     std::fill(expectedRate[i].begin(), expectedRate[i].end(), 0);
   }
   // filling with actual expected rates
-  VVdouble dwellingTimesForEachMappingPerState = getDwellingTimeOfStatePerEachMapping();
-  // just a sanity check
-  // for (size_t m = 0; m < dwellingTimesForEachMappingPerState.size(); m++){
-  //   double sumOfTimes = 0;
-  //   for (size_t s = 0; s < dwellingTimesForEachMappingPerState[m].size(); s++){
-  //     sumOfTimes += dwellingTimesForEachMappingPerState[m][s];
-  //   }
-  //   std::cout << "Total time duration is: " << sumOfTimes << std::endl;
-  // }
-  auto numOfOccurencesOfEachMappingPerTransition = getNumOfOccurencesForEachTransitionForEachMapping();
-  for (size_t i = 0; i < numOfMappings_; i++){
-    auto &occurrencesPerMapping = numOfOccurencesOfEachMappingPerTransition[i];
-    auto it = occurrencesPerMapping.begin();
-    while (it != occurrencesPerMapping.end()){
-      auto beginState = (it->first).first;
-      auto endState = (it->first).second;
-      expectedRate[beginState][endState] += ((numOfOccurencesOfEachMappingPerTransition[i][it->first]/dwellingTimesForEachMappingPerState[i][beginState])/(double)numOfMappings_);
-      it ++;
-    }
+  auto itTransitions = numOfOccurencesPerTransition.begin();
+  while(itTransitions != numOfOccurencesPerTransition.end()){
+    auto beginState = (itTransitions->first).first;
+    auto endState = (itTransitions->first).second;
+    expectedRate[beginState][endState] += (numOfOccurencesPerTransition[itTransitions->first]/dwellingTimesPerState[beginState]);
+    itTransitions ++;
   }
-
   return expectedRate;
 
 }
@@ -921,8 +943,9 @@ VVdouble StochasticMapping::getDwellingTimeOfStatePerEachMapping(){
   }
   return dwellingTimesPerMapping;
 }
+
 /******************************************************************************/
-Vdouble StochasticMapping::getExpectedDwellingTimesUnderEachState(){
+Vdouble StochasticMapping::getDwellingTimesUnderEachState(bool expectedDuration){
   Vdouble expectedDwellingTimes;
   auto nbState = likelihood_->getStateMap().getNumberOfModelStates();
   expectedDwellingTimes.resize(nbState);
@@ -932,8 +955,12 @@ Vdouble StochasticMapping::getExpectedDwellingTimesUnderEachState(){
     getDewellingTimesUnderEachStatePerMapping(expectedDwellingTimes, i);
 
   }
-  for (size_t i = 0; i < nbState; i++){
-    expectedDwellingTimes[i] /= (double)numOfMappings_;
+
+  if (expectedDuration){
+    for (size_t i = 0; i < nbState; i++){
+      expectedDwellingTimes[i] /= (double)numOfMappings_;
+    }
+
   }
   return expectedDwellingTimes;
 }

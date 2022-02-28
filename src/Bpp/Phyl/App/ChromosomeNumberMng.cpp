@@ -566,7 +566,7 @@ void ChromosomeNumberMng::runChromEvol(){
     getMarginalAncestralReconstruction(chrOptimizer, outFilePath);
     // test stochastic mapping
     auto likObject = chrOptimizer->getVectorOfLikelihoods()[0];
-    StochasticMapping * stm = new StochasticMapping(likObject->getLikelihoodCalculationSingleProcess(), ChromEvolOptions::NumOfSimulations_);
+    StochasticMapping * stm = new StochasticMapping(likObject->getLikelihoodCalculationSingleProcess(), ChromEvolOptions::NumOfSimulations_);//ChromEvolOptions::NumOfSimulations_);
     stm->generateStochasticMapping();
     std::map<uint, std::map<pair<size_t, size_t>, double>> expectationsPerNode = stm->getExpectedNumOfOcuurencesForEachTransitionPerNode();
     auto nonHomoProcess = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(&(likObject->getSubstitutionProcess()));
@@ -577,8 +577,10 @@ void ChromosomeNumberMng::runChromEvol(){
         std::cout << it->first << ": " << expectationsTotal[it->first] << std::endl;
         it ++;
     }
+    Vdouble dwellingTimesPerState = stm->getDwellingTimesUnderEachState();
+    auto numOfOccurencesPerTransition = stm->getTotalNumOfOcuurencesForEachTransition();
     const string outStMappingPath = ChromEvolOptions::resultsPathDir_+"//"+ "stochastic_mapping.txt";
-    VVdouble ratesPerTransition = stm->getExpectedRateOfTransitionGivenState();
+    VVdouble ratesPerTransition = stm->getExpectedRateOfTransitionGivenState(dwellingTimesPerState, numOfOccurencesPerTransition);
     ofstream outFileStMapping;
     outFileStMapping.open(outStMappingPath);
     outFileStMapping << "*** *** Expected rates *** ***" << std::endl;
@@ -591,6 +593,19 @@ void ChromosomeNumberMng::runChromEvol(){
         
 
         }
+    }
+    outFileStMapping << "*** *** Total duration times *** ***" << std::endl;
+    for (size_t beginState = 0; beginState < dwellingTimesPerState.size(); beginState++){
+        outFileStMapping << "\t" << beginState + alphabet_->getMin() << ": " << dwellingTimesPerState[beginState] << std::endl;
+
+    }
+    outFileStMapping << "*** *** Total number of occurrences *** ***" << std::endl;
+    auto itTransitions = numOfOccurencesPerTransition.begin();
+    while(itTransitions != numOfOccurencesPerTransition.end()){
+        auto start = (itTransitions->first).first;
+        auto end = (itTransitions->first).second;
+        outFileStMapping << "\t" << start + alphabet_->getMin() << " -> " << end + alphabet_->getMin() << ": " << numOfOccurencesPerTransition[itTransitions->first] << std::endl;
+        itTransitions ++;
     }
     outFileStMapping.close();
 
