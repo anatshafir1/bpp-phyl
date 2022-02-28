@@ -66,14 +66,17 @@ void StochasticMapping::generateStochasticMapping()
 
     /* step 3: simulate mutational history of each lineage of the phylogeny, conditional on the ancestral states */
     bool success = sampleMutationsGivenAncestrals(i);
-    if (!success){
+    size_t counter = 0;
+    while((counter < 10) && (!success)){
       sampleAncestrals(i); // verify that it doesn't push any elements again
       clearMapping(i);
       success = sampleMutationsGivenAncestrals(i);
-      if (!success){
-        throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
-      }
+      counter ++;
     }
+    if (!success){
+      throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
+    }
+
   }
 }
 /******************************************************************************/
