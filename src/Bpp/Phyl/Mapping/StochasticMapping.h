@@ -105,7 +105,7 @@ namespace bpp
   public:
     /* constructors and destructors */
 
-    explicit StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings = 10000000); // it is a good general practice to use "explicit" keyword on constructors with a single argument: https://stackoverflow.com/questions/121162/what-does-the-explicit-keyword-mean
+    explicit StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings = 10000); // it is a good general practice to use "explicit" keyword on constructors with a single argument: https://stackoverflow.com/questions/121162/what-does-the-explicit-keyword-mean
 
     ~StochasticMapping();
 
@@ -357,7 +357,7 @@ namespace bpp
      * @param maxIterNum            Maximal number of imulation trials
      * @return: true if the mapping was successful. Otherwise, false.
      */
-    bool sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum = 1000000);
+    bool sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum = 10000000);
 
     /* converts a vector of dwelling times to a mutation path and then updates the bracnh stemming from the given node */
     /* @param node                      The node at the bottom of the branch

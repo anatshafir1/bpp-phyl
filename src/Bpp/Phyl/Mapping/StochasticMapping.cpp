@@ -687,6 +687,9 @@ bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uin
     }
   }
   // if all simulations failed -> throw an exception
+  std::cout << "Mapping failure! " << "Mapping index: " << mappingIndex;
+  std::cout << ", nodeId: " << son << ", fatherState: " << fatherState << ", sonState: " << sonState << ", branchLength: " << branchLength;
+  std::cout << ", probability of son given father: " << ConditionalProbabilities_[son][fatherState][sonState] << std::endl;
   success = false;
   return success;
   //throw Exception("could not produce simulations with father = " + TextTools::toString(fatherState) + ", nodeId = "+ TextTools::toString(father)+ " son " + TextTools::toString(sonState) + ", nodeId = "+ TextTools::toString(son)+ " branch length = " + TextTools::toString(branchLength)+ " Mapping index: "+ TextTools::toString(mappingIndex));
