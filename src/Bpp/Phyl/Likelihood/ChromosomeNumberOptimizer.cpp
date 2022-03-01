@@ -2221,19 +2221,7 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
         for (uint i = 2; i <= numOfModels-1; i++){
             for (uint j = i+1; j <= numOfModels; j++){
                 std::pair<uint, uint> pairOfModels(i, j);
-                // DEBUG !!!!!!!!
-                if ((i == 2) && (j == 8)){
-                    pairsOfModels.push_back(pairOfModels);
-                }
-                if ((i == 8) && (j == 2)){
-                    pairsOfModels.push_back(pairOfModels);
-                }
-                if ((i == 2) && (j == 3)){
-                    pairsOfModels.push_back(pairOfModels);
-                }
-                if ((i == 3) && (j == 2)){
-                    pairsOfModels.push_back(pairOfModels);
-                }
+                pairsOfModels.push_back(pairOfModels);
                 
             }
         }
