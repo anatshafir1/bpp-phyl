@@ -420,16 +420,19 @@ void StochasticMapping::ComputeConditionals()
         throw Exception("StochasticMapping::ComputeConditionals(): not implemented for mixture models!");
       }
       for (const auto& index : dagIndexes){
-        auto edgeIndex =  flt->getIncomingEdges(index)[0];
-        auto processEdge = flt->getProcessTree()->getEdge(edgeIndex);
-        auto transitionMatrix = processEdge->getTransitionMatrix()->getTargetValue();
-        auto LikNodeMat = flt->getForwardLikelihoodArray(index)->getTargetValue();
-        auto sonLik = numeric::cwise(LikNodeMat.col(0));
+        auto edgeIndex =  flt->getIncomingEdges(index)[0]; // extracting incoming edge from the father
+        auto processEdge = flt->getProcessTree()->getEdge(edgeIndex); //getting the edge from which the Pij(t) matrix should be extracted
+        auto transitionMatrix = processEdge->getTransitionMatrix()->getTargetValue(); // Pij(t)
+        // std::cout << "Transition matrix:" << std::endl;
+        // std::cout << transitionMatrix << std::endl;
+        // std::cout << "*** *** ***" << std::endl;
+        auto LikNodeMat = flt->getForwardLikelihoodArray(index)->getTargetValue(); // getting likelihood calculations for the specific node (speciesId)
+        auto sonLik = numeric::cwise(LikNodeMat.col(0)); // getting the likelihood for the first site
         for (size_t fatherState = 0; fatherState < nbState; fatherState++){
           ConditionalProbabilities_[speciesId][fatherState].resize(nbState);
-          auto fatherStatePijt = numeric::cwise(transitionMatrix.row(fatherState).transpose());
-          auto fatherSonJoint = fatherStatePijt * sonLik;
-          auto conditionals = fatherSonJoint/fatherSonJoint.sum();
+          auto fatherStatePijt = numeric::cwise(transitionMatrix.row(fatherState).transpose()); // getting P(fatherState->j)(t)
+          auto fatherSonJoint = fatherStatePijt * sonLik; //  vector of P(fatherState->j)(t) * Lik(j) for each son state j
+          auto conditionals = fatherSonJoint/fatherSonJoint.sum(); 
           for (size_t sonState = 0; sonState < nbState; sonState ++){
             auto conditional = ExtendedFloat(conditionals.float_part()(sonState), conditionals.exponent_part());
             ConditionalProbabilities_[speciesId][fatherState][sonState] = ExtendedFloat::convert(conditional);
@@ -689,7 +692,16 @@ bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uin
   // if all simulations failed -> throw an exception
   std::cout << "Mapping failure! " << "Mapping index: " << mappingIndex;
   std::cout << ", nodeId: " << son << ", fatherState: " << fatherState << ", sonState: " << sonState << ", branchLength: " << branchLength;
-  std::cout << ", probability of son given father: " << ConditionalProbabilities_[son][fatherState][sonState] << std::endl;
+  std::cout << ", probability of son given father: " << ConditionalProbabilities_[son][fatherState][sonState];
+  if (!(father == tree_->getRootIndex())){
+    auto grandFather = tree_->getFatherOfNode (tree_->getNode(father));
+    uint grandFatherId = tree_->getNodeIndex(grandFather);
+    size_t grandFatherState = ancetralStates_[grandFatherId][mappingIndex];
+    std::cout << ", father id: " << father << ", grand father id: " << grandFatherId << ", grandFather state: " << grandFatherState;
+    std::cout << ", probability of father given grandFather: " << ConditionalProbabilities_[father][grandFatherState][fatherState] << std::endl;
+
+  }
+
   success = false;
   return success;
   //throw Exception("could not produce simulations with father = " + TextTools::toString(fatherState) + ", nodeId = "+ TextTools::toString(father)+ " son " + TextTools::toString(sonState) + ", nodeId = "+ TextTools::toString(son)+ " branch length = " + TextTools::toString(branchLength)+ " Mapping index: "+ TextTools::toString(mappingIndex));
