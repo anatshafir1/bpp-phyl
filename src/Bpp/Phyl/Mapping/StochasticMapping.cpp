@@ -35,7 +35,8 @@ StochasticMapping::StochasticMapping(std::shared_ptr<LikelihoodCalculationSingle
   numOfMappings_(numOfMappings),
   ancetralStates_(),
   mappings_(),
-  jumpsProbs_()// ,
+  jumpsProbs_(),
+  notRepresentedNodes_()// ,
   // nodeIdToIndex_()
 {
   //giveNamesToInternalNodes(*tree_);                     // set names for the internal nodes of the tree, in case of absence
@@ -62,21 +63,42 @@ void StochasticMapping::generateStochasticMapping()
   for (size_t i = 0; i < numOfMappings_; ++i)
   {
     /* step 1+2: simulate a set of ancestral states, based on the fractional likelihoods from step 1 */
+    
     sampleAncestrals(i);
 
     /* step 3: simulate mutational history of each lineage of the phylogeny, conditional on the ancestral states */
+    vector<uint> failedNodeIds;
     bool success = sampleMutationsGivenAncestrals(i);
-    size_t counter = 0;
-    while((counter < 10) && (!success)){
+    //size_t counter = 0;
+    //while((counter < 10) && (!success))
+    if (!success){
       sampleAncestrals(i); // verify that it doesn't push any elements again
       clearMapping(i);
-      success = sampleMutationsGivenAncestrals(i);
-      counter ++;
+      success = sampleMutationsGivenAncestrals(i, &failedNodeIds);
+      //counter ++;
     }
     if (!success){
-      throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
-    }
+      for (size_t k = 0; k < failedNodeIds.size(); k++){
+        if (!(tree_->isLeaf(failedNodeIds[k]))){
+          throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
+        }else{
+          notRepresentedNodes_[failedNodeIds[k]].push_back(i);
+          auto fatherNode = tree_->getFatherOfNode(tree_->getNode(failedNodeIds[k]));
+          uint father = tree_->getNodeIndex(fatherNode);
+          size_t fatherState = ancetralStates_[father][i];
+          auto branchPtr = tree_->getIncomingEdges(tree_->getNode(failedNodeIds[k]))[0];
+          auto branchLength = branchPtr->getLength();
+          auto alphabet = likelihood_->getData()->getAlphabet();
+          MutationPath tryMapping(alphabet, fatherState, branchLength);
+          // add an empty mmutation path instance
+          mappings_[failedNodeIds[k]].push_back(tryMapping);
 
+
+        }
+        
+      }
+  
+    }
   }
 }
 /******************************************************************************/
@@ -559,8 +581,9 @@ void StochasticMapping::sampleAncestralsRecursively(uint nodeId, size_t mappingI
 /******************************************************************************/
 
 
-bool StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex)
+bool StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex, vector<uint>* failedNodes)
 {
+  bool allSuccess = true;
   auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
   for (size_t i = 0; i < nodeIndices.size(); i++){
     if (tree_->isLeaf(tree_->getNode(nodeIndices[i]))){
@@ -576,11 +599,17 @@ bool StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex)
        
       bool success = sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex);
       if (!success){
-        return false;
+        allSuccess = false;
+        if (failedNodes){
+          failedNodes->push_back(sons[j]);          
+          continue;
+        }else{
+          return allSuccess;
+        }      
       }
     }    
   }
-  return true;
+  return allSuccess;
 }
 
 /******************************************************************************/
@@ -720,6 +749,12 @@ void StochasticMapping::getDewellingTimesUnderEachStatePerMapping(vector<double>
 /******************************************************************************/
 void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> &dwellingTimes, size_t mappingIndex){
   auto mutationPath = mappings_[nodeId][mappingIndex];
+  if (tree_->isLeaf(nodeId) && (notRepresentedNodes_.find(nodeId) != notRepresentedNodes_.end())){
+    auto &failedMappings = notRepresentedNodes_[nodeId];
+    if (std::find(failedMappings.begin(), failedMappings.end(), mappingIndex) != failedMappings.end()){
+      return;
+    }
+  }
   auto states = mutationPath.getStates();
   auto times = mutationPath.getTimes();
   auto branchPtr = tree_->getIncomingEdges(tree_->getNode(nodeId))[0];
@@ -769,6 +804,12 @@ void StochasticMapping::getNumOfOcuurencesForEachTransitionPerMapping(size_t map
 /******************************************************************************/
 void StochasticMapping::getNumOfOcuurencesForEachTransitionPerMappingRecursively(uint nodeId, size_t initialState, size_t mappingIndex, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences){
   auto mutationPath = mappings_[nodeId][mappingIndex];
+  if (tree_->isLeaf(nodeId) && (notRepresentedNodes_.find(nodeId) != notRepresentedNodes_.end())){
+    auto &failedMappings = notRepresentedNodes_[nodeId];
+    if (std::find(failedMappings.begin(), failedMappings.end(), mappingIndex) != failedMappings.end()){
+      return;
+    }
+  }
   auto states = mutationPath.getStates();
   if (states.size() > 0){ // the size is 0 in case no transitions have occured
     std::pair<size_t, size_t> firstTransitionOnBranch(initialState, states[0]);
@@ -921,7 +962,13 @@ std::map<uint, std::map<pair<size_t, size_t>, double>> StochasticMapping::getExp
     auto nodeTransitions = transitionOcurrences[itNode->first];
     auto itTransition = nodeTransitions.begin();
     while(itTransition != nodeTransitions.end()){
-      transitionOcurrences[itNode->first][itTransition->first] /= (double)numOfMappings_;
+      if ((tree_->isLeaf(itNode->first)) && (notRepresentedNodes_.find(itNode->first) != notRepresentedNodes_.end())){
+        transitionOcurrences[itNode->first][itTransition->first] /= (double)(numOfMappings_ - notRepresentedNodes_[itNode->first].size());
+      }else{
+        transitionOcurrences[itNode->first][itTransition->first] /= (double)numOfMappings_;
+
+      }
+      
       itTransition ++;
     }    
     itNode ++;
@@ -982,6 +1029,28 @@ Vdouble StochasticMapping::getDwellingTimesUnderEachState(bool expectedDuration)
   }
   return expectedDwellingTimes;
 }
+/******************************************************************************/
+void StochasticMapping::printUnrepresentedLeavesWithCorrespondingMappings(ofstream &stream){
+  stream << "# Unrepresennted leaves:" << std::endl;
+  auto it = notRepresentedNodes_.begin();
+  while (it != notRepresentedNodes_.end()){
+    stream << "\t" << (tree_->getNode(it->first))->getName() << " node id: " << it->first << std::endl;
+    auto &mappingIndices = notRepresentedNodes_[it->first];
+    for (size_t i = 0; i < mappingIndices.size(); i++){
+      if (i == mappingIndices.size()-1){
+        stream << mappingIndices[i] << std::endl;
+      }else{
+        stream << mappingIndices[i] << ", ";
+      }
+    }
+    stream << "Unrepresented in " << (double)mappingIndices.size()/(double)numOfMappings_ << std::endl;
+    stream << "****" << std::endl;
+    it ++;
+  }
+  
+
+}
+
 /******************************************************************************/
 
 void StochasticMapping::updateBranchByDwellingTimes(PhyloNode* node, VDouble& dwellingTimes, VVDouble& ancestralStatesFrequencies, size_t divMethod)

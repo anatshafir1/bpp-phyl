@@ -607,6 +607,7 @@ void ChromosomeNumberMng::runChromEvol(){
         outFileStMapping << "\t" << start + alphabet_->getMin() << " -> " << end + alphabet_->getMin() << ": " << numOfOccurencesPerTransition[itTransitions->first] << std::endl;
         itTransitions ++;
     }
+    stm->printUnrepresentedLeavesWithCorrespondingMappings(outFileStMapping);
     outFileStMapping.close();
 
     delete stm;

@@ -232,7 +232,7 @@ void ComputeChromosomeTransitionsExp::printResults(const string path) {
             uint currNodeId = tree_->getNodeIndex(leaves[j]);
             while (tree_->getRootIndex() != currNodeId){
                 expectedRootToTip += expNumOfChangesPerBranch_[currNodeId][k];
-                auto currNodeRaw = tree_->getFatherOfNode (tree_->getNode(currNodeId));
+                auto currNodeRaw = tree_->getFatherOfNode(tree_->getNode(currNodeId));
                 currNodeId = tree_->getNodeIndex(currNodeRaw);
             }
             if (k == ChromosomeSubstitutionModel::NUMTYPES-1){

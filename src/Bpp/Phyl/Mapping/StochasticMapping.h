@@ -101,6 +101,7 @@ namespace bpp
     map<uint, vector<size_t>> ancetralStates_;         // The sampled ancestral states For each node and for each mapping
     map<uint, vector<MutationPath>> mappings_;        // A map of nodes and the mappings of the branch that leads to them
     map<size_t, VVdouble> jumpsProbs_;                  // For each model: Jump probabilities: for each j: Qij/-Qii
+    map<uint, vector<size_t>> notRepresentedNodes_;     // a map of nodes that were underrepresented, because the mapping didn't match any possible evolutionary path
 
   public:
     /* constructors and destructors */
@@ -117,7 +118,8 @@ namespace bpp
       nodesCounter_(0), numOfMappings_(sm.numOfMappings_),
       ancetralStates_(),
       mappings_(),
-      jumpsProbs_(sm.jumpsProbs_)
+      jumpsProbs_(sm.jumpsProbs_),
+      notRepresentedNodes_(sm.notRepresentedNodes_)
     { 
 
     }
@@ -244,6 +246,11 @@ namespace bpp
 
     VVdouble getDwellingTimeOfStatePerEachMapping();
 
+    /**
+     *@brief Prints the unrepresented leaves
+    */
+   void printUnrepresentedLeavesWithCorrespondingMappings(ofstream &stream);
+
     
     
 
@@ -340,9 +347,10 @@ namespace bpp
 
     /* simulates mutations on phylogeny based the sampled ancestrals, tips data, and the simulation parameters
      * @param mappingIndex               mapping history index
+     * @param failedNodes                 the node ids of the nodes for which the mapping has failed
      * @return                           true if mapping succeeded. False otherwise
      */
-    bool sampleMutationsGivenAncestrals(size_t mappingIndex);
+    bool sampleMutationsGivenAncestrals(size_t mappingIndex, vector<uint>* failedNode = 0);
 
     /* adds a branch mapping to the mapping in a tree format by repeatedly braking branches and adding internal nodes with single children
      * @param son                   The node at the bottom of the branch
