@@ -73,6 +73,12 @@ void ChromosomeNumberOptimizer::initLikelihoods(std::map<uint, std::pair<int, st
             lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)n, fixedParams, sharedParams);
     
         }
+        ifNanTryToResampleLikObject(lik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound, numOfPoints, fixedParams, sharedParams);
+        // int numOfTrials
+        
+        // while((std::isnan(lik->getValue())) && (ChromEvolOptions::maxNumOfTrials_)){
+
+        // }
         fillVectorOfLikelihoods(lik, numOfIterations_[0],  n, numOfPoints_[index], baseNumCandidates, sharedParams, fixedParams, vectorOfLikelohoods_, 0, baseNumberUpperBound_);
    
     }
@@ -1247,6 +1253,7 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getBackwardLikObject(st
     }else{
         newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
     }
+    ifNanTryToResampleLikObject(newLik, tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, parsimonyBound, iteration, fixedParams, updatedSharedParams);
     return newLik;
 
 }
@@ -1260,6 +1267,7 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getSingleNewLikObject(s
     }else{
         newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
     }
+    ifNanTryToResampleLikObject(newLik, tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound, iteration, fixedParams, updatedSharedParams);
     return newLik;
     
 
@@ -1311,6 +1319,7 @@ void ChromosomeNumberOptimizer::getNewLikObjectForParallelRuns(std::vector<Singl
             // setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
             newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)i, fixedParams, updatedSharedParams);
         }
+        ifNanTryToResampleLikObject(newLik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound, numOfPoints, fixedParams, updatedSharedParams);
         perCandidateLikVec.push_back(newLik);
     }
     
@@ -1361,6 +1370,7 @@ void ChromosomeNumberOptimizer::getNewLikObject(SingleProcessPhyloLikelihood* cu
             // setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
             newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)i, fixedParams, updatedSharedParams);
         }
+        ifNanTryToResampleLikObject(newLik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound, numOfPoints, fixedParams, updatedSharedParams);
         vectorOfLikelohoods_.push_back(newLik);
     }
     
@@ -1404,6 +1414,38 @@ std::map<uint, pair<int, std::map<int, std::vector<double>>>> ChromosomeNumberOp
     return heterogeneousModelParams;
 
 }
+/***********************************************************************************************/
+//ifNanTryToResampleLikObject(lik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound, numOfPoints, fixedParams, sharedParams);
+void ChromosomeNumberOptimizer::ifNanTryToResampleLikObject(SingleProcessPhyloLikelihood* lik, const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet,
+    std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, 
+    std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, 
+    uint numOfModels, double parsimonyBound, int numOfPoints,
+    std::map<uint, vector<int>> &fixedParams,
+    std::map<int, std::vector<std::pair<uint, int>>>* sharedParams)
+{
+    int numOfTrials = 0;
+    while((std::isnan(lik->getValue())) && (numOfTrials < ChromEvolOptions::maxNumOfTrials_)){
+        std::cerr << "WARNING!!! The value of the likelihood object is nan"<< std::endl;
+        auto likToDel = lik; 
+        deleteLikObject(likToDel);
+        int factor;
+        if (numOfPoints == 0){
+            factor ++;
+        }else{
+            factor = numOfPoints;
+        }
+        auto multiplier = RandomTools::giveIntRandomNumberBetweenZeroAndEntry<size_t>(numOfPoints);
+        if (multiplier == 0){
+            multiplier ++;
+        }
+        lik = setRandomHeterogeneousModel(tree, vsc, alphabet, baseNumberUpperBound, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)multiplier, fixedParams, sharedParams);
+        numOfTrials ++;
+    }
+    if (std::isnan(lik->getValue())){
+        throw Exception("ERROR!!! The likelihood point is nan!!!!\n");
+    }
+}
+
 /***********************************************************************************************/
 void ChromosomeNumberOptimizer::getMutableMapOfModelAndNodeIds(std::map<uint, vector<uint>> &mapModelNodesIds, SingleProcessPhyloLikelihood* lik, uint rootId){
     uint numOfModels = static_cast<uint>(lik->getSubstitutionProcess().getNumberOfModels());
