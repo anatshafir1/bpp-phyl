@@ -147,6 +147,8 @@ namespace bpp{
             //core functions of ChromEvol
             //void runTest();
             void runChromEvol();
+            void printStochasticMappingResults(StochasticMapping* stm, Vdouble &dwellingTimesPerState, std::map<pair<size_t, size_t>, double> &numOfOccurencesPerTransition, VVdouble &ratesPerTransition, const string &outStMappingPath);
+            void runStochasticMapping(SingleProcessPhyloLikelihood* lik);
             ChromosomeNumberOptimizer* optimizeLikelihoodMultiStartPoints() const;
             void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer, int* inferredRootState) const;
             void getMarginalAncestralReconstruction(ChromosomeNumberOptimizer* chrOptimizer, const string &filePath);
