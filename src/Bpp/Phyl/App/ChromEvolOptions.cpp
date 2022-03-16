@@ -57,6 +57,7 @@ bool ChromEvolOptions::parallelization_;
 int ChromEvolOptions::maxChrInferred_;
 bool ChromEvolOptions::backwardPhase_;
 bool ChromEvolOptions::forwardPhase_;
+bool ChromEvolOptions::runStochasticMapping_;
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
     initDefaultParameters();
@@ -97,6 +98,7 @@ void ChromEvolOptions::initDefaultParameters(){
     maxChrInferred_ = maxChrNum_;
     backwardPhase_ = true;
     forwardPhase_ = true;
+    runStochasticMapping_ = false;
     
 
 }
@@ -217,6 +219,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     maxChrInferred_ = ApplicationTools::getIntParameter("_maxChrInferred", ChromEvol.getParams(), maxChrInferred_, "", true, 0);
     forwardPhase_ = ApplicationTools::getBooleanParameter("_forwardPhase", ChromEvol.getParams(), forwardPhase_, "", true, 0);
     backwardPhase_ = ApplicationTools::getBooleanParameter("_backwardPhase", ChromEvol.getParams(), backwardPhase_, "", true, 0);
+    runStochasticMapping_ = ApplicationTools::getBooleanParameter("_runStochasticMapping", ChromEvol.getParams(), runStochasticMapping_, "", true, 0);
 
 
 }

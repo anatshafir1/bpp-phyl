@@ -79,22 +79,22 @@ void StochasticMapping::generateStochasticMapping()
     }
     if (!success){
       for (size_t k = 0; k < failedNodeIds.size(); k++){
-        if (!(tree_->isLeaf(failedNodeIds[k]))){
-          throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
-        }else{
-          notRepresentedNodes_[failedNodeIds[k]].push_back(i);
-          auto fatherNode = tree_->getFatherOfNode(tree_->getNode(failedNodeIds[k]));
-          uint father = tree_->getNodeIndex(fatherNode);
-          size_t fatherState = ancetralStates_[father][i];
-          auto branchPtr = tree_->getIncomingEdges(tree_->getNode(failedNodeIds[k]))[0];
-          auto branchLength = branchPtr->getLength();
-          auto alphabet = likelihood_->getData()->getAlphabet();
-          MutationPath tryMapping(alphabet, fatherState, branchLength);
-          // add an empty mmutation path instance
-          mappings_[failedNodeIds[k]].push_back(tryMapping);
+        // if (!(tree_->isLeaf(failedNodeIds[k]))){
+        //   throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
+        // }else{
+        notRepresentedNodes_[failedNodeIds[k]].push_back(i);
+        auto fatherNode = tree_->getFatherOfNode(tree_->getNode(failedNodeIds[k]));
+        uint father = tree_->getNodeIndex(fatherNode);
+        size_t fatherState = ancetralStates_[father][i];
+        auto branchPtr = tree_->getIncomingEdges(tree_->getNode(failedNodeIds[k]))[0];
+        auto branchLength = branchPtr->getLength();
+        auto alphabet = likelihood_->getData()->getAlphabet();
+        MutationPath tryMapping(alphabet, fatherState, branchLength);
+        // add an empty mmutation path instance
+        mappings_[failedNodeIds[k]].push_back(tryMapping);
 
 
-        }
+        //}
         
       }
   
@@ -747,43 +747,72 @@ void StochasticMapping::getDewellingTimesUnderEachStatePerMapping(vector<double>
 
 }
 /******************************************************************************/
-void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> &dwellingTimes, size_t mappingIndex){
-  auto mutationPath = mappings_[nodeId][mappingIndex];
-  if (tree_->isLeaf(nodeId) && (notRepresentedNodes_.find(nodeId) != notRepresentedNodes_.end())){
+bool StochasticMapping::isAccounted(uint nodeId, size_t mappingIndex){
+  bool accounted = true;
+  if (notRepresentedNodes_.find(nodeId) != notRepresentedNodes_.end()){
     auto &failedMappings = notRepresentedNodes_[nodeId];
     if (std::find(failedMappings.begin(), failedMappings.end(), mappingIndex) != failedMappings.end()){
-      return;
+      accounted = false;
+
     }
   }
-  auto states = mutationPath.getStates();
-  auto times = mutationPath.getTimes();
-  auto branchPtr = tree_->getIncomingEdges(tree_->getNode(nodeId))[0];
-  auto branchLength = branchPtr->getLength();
-  double spentTimeOnBranch = 0;
-  for (size_t i = 0; i < states.size(); i++){
-    spentTimeOnBranch += times[i];
-    if (i == 0){
-      // dwelling time of the intial state (that lasts from the previous branch)
-      dwellingTimes[initialState] += times[i];
+  return accounted;
+}
+/******************************************************************************/
+void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> &dwellingTimes, size_t mappingIndex){
+  auto mutationPath = mappings_[nodeId][mappingIndex];
+  //if ((notRepresentedNodes_.find(nodeId) == notRepresentedNodes_.end()) && ()){
+  bool accountedBranch = isAccounted(nodeId, mappingIndex);
+  vector<size_t> states;
+  if (accountedBranch){
+    states = mutationPath.getStates();
+    auto times = mutationPath.getTimes();
+    auto branchPtr = tree_->getIncomingEdges(tree_->getNode(nodeId))[0];
+    auto branchLength = branchPtr->getLength();
+    double spentTimeOnBranch = 0;
+    for (size_t i = 0; i < states.size(); i++){
+      spentTimeOnBranch += times[i];
+      if (i == 0){
+        // dwelling time of the intial state (that lasts from the previous branch)
+        dwellingTimes[initialState] += times[i];
+      }else{
+        dwellingTimes[states[i-1]] += times[i];
+      }
+    }
+    double timeSpentUnderLastState = branchLength-spentTimeOnBranch;
+    if (states.size() == 0){
+      dwellingTimes[initialState] += timeSpentUnderLastState;
     }else{
-      dwellingTimes[states[i-1]] += times[i];
+      dwellingTimes[states[states.size()-1]] += timeSpentUnderLastState;
     }
-  }
-  double timeSpentUnderLastState = branchLength-spentTimeOnBranch;
-  if (states.size() == 0){
-    dwellingTimes[initialState] += timeSpentUnderLastState;
+
   }else{
-    dwellingTimes[states[states.size()-1]] += timeSpentUnderLastState;
+    if (tree_->isLeaf(nodeId)){
+      return;
+      // auto &failedMappings = notRepresentedNodes_[nodeId];
+      // if (std::find(failedMappings.begin(), failedMappings.end(), mappingIndex) != failedMappings.end()){
+      //   return;
+      // }
+
+    }
+
   }
+
   if (!(tree_->isLeaf(tree_->getNode(nodeId)))){
     auto sons = tree_->getSons(nodeId);
     for (size_t n = 0; n < sons.size(); n++){
       size_t initialStateForSon;
-      if (states.size() > 0){
-        initialStateForSon = states[states.size()-1];
+      if (accountedBranch){
+        if (states.size() > 0){
+          initialStateForSon = states[states.size()-1];
+        }else{
+          initialStateForSon = initialState;
+        }
       }else{
-        initialStateForSon = initialState;
+        initialStateForSon = ancetralStates_[nodeId][mappingIndex];
       }
+
+
       getDewellingTimesUnderEachStatePerMappingRecursively(sons[n], initialStateForSon, dwellingTimes, mappingIndex);
       
     }
@@ -804,42 +833,48 @@ void StochasticMapping::getNumOfOcuurencesForEachTransitionPerMapping(size_t map
 /******************************************************************************/
 void StochasticMapping::getNumOfOcuurencesForEachTransitionPerMappingRecursively(uint nodeId, size_t initialState, size_t mappingIndex, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences){
   auto mutationPath = mappings_[nodeId][mappingIndex];
-  if (tree_->isLeaf(nodeId) && (notRepresentedNodes_.find(nodeId) != notRepresentedNodes_.end())){
-    auto &failedMappings = notRepresentedNodes_[nodeId];
-    if (std::find(failedMappings.begin(), failedMappings.end(), mappingIndex) != failedMappings.end()){
-      return;
-    }
+  bool accountedBranch = isAccounted(nodeId, mappingIndex);
+  if (tree_->isLeaf(nodeId) && (!accountedBranch)){
+    return;
   }
-  auto states = mutationPath.getStates();
-  if (states.size() > 0){ // the size is 0 in case no transitions have occured
-    std::pair<size_t, size_t> firstTransitionOnBranch(initialState, states[0]);
-    if (transitionOcurrences.find(nodeId) == transitionOcurrences.end()){
-      transitionOcurrences[nodeId][firstTransitionOnBranch] = 0;
-    }else{
-      if (transitionOcurrences[nodeId].find(firstTransitionOnBranch) == transitionOcurrences[nodeId].end()){
+  vector<size_t> states;
+  if (accountedBranch){
+    states = mutationPath.getStates();
+    if (states.size() > 0){ // the size is 0 in case no transitions have occured
+      std::pair<size_t, size_t> firstTransitionOnBranch(initialState, states[0]);
+      if (transitionOcurrences.find(nodeId) == transitionOcurrences.end()){
         transitionOcurrences[nodeId][firstTransitionOnBranch] = 0;
+      }else{
+        if (transitionOcurrences[nodeId].find(firstTransitionOnBranch) == transitionOcurrences[nodeId].end()){
+          transitionOcurrences[nodeId][firstTransitionOnBranch] = 0;
 
+        }
       }
-    }
-    transitionOcurrences[nodeId][firstTransitionOnBranch] += 1;
-    for (size_t i = 0; i < states.size()-1; i++){
-      std::pair<size_t, size_t> transition(states[i], states[i+1]);
-      if (transitionOcurrences[nodeId].find(transition) == transitionOcurrences[nodeId].end()){
-        transitionOcurrences[nodeId][transition] = 0;
-      }
+      transitionOcurrences[nodeId][firstTransitionOnBranch] += 1;
+      for (size_t i = 0; i < states.size()-1; i++){
+        std::pair<size_t, size_t> transition(states[i], states[i+1]);
+        if (transitionOcurrences[nodeId].find(transition) == transitionOcurrences[nodeId].end()){
+          transitionOcurrences[nodeId][transition] = 0;
+        }
 
-      transitionOcurrences[nodeId][transition] += 1;
+        transitionOcurrences[nodeId][transition] += 1;
+     }
     }
   }
-
   if (!(tree_->isLeaf(tree_->getNode(nodeId)))){
     size_t sonsInitState;
-    if (states.size() > 0){
-      sonsInitState = states[states.size()-1];
+    if (accountedBranch){
+      if (states.size() > 0){
+        sonsInitState = states[states.size()-1];
+
+      }else{
+        sonsInitState = initialState;
+      }
 
     }else{
-      sonsInitState = initialState;
+      sonsInitState = ancetralStates_[nodeId][mappingIndex];
     }
+
     auto sons = tree_->getSons(nodeId);
     for (size_t n = 0; n < sons.size(); n++){
       getNumOfOcuurencesForEachTransitionPerMappingRecursively(sons[n], sonsInitState, mappingIndex, transitionOcurrences);
@@ -962,7 +997,7 @@ std::map<uint, std::map<pair<size_t, size_t>, double>> StochasticMapping::getExp
     auto nodeTransitions = transitionOcurrences[itNode->first];
     auto itTransition = nodeTransitions.begin();
     while(itTransition != nodeTransitions.end()){
-      if ((tree_->isLeaf(itNode->first)) && (notRepresentedNodes_.find(itNode->first) != notRepresentedNodes_.end())){
+      if (notRepresentedNodes_.find(itNode->first) != notRepresentedNodes_.end()){
         transitionOcurrences[itNode->first][itTransition->first] /= (double)(numOfMappings_ - notRepresentedNodes_[itNode->first].size());
       }else{
         transitionOcurrences[itNode->first][itTransition->first] /= (double)numOfMappings_;
@@ -1031,7 +1066,7 @@ Vdouble StochasticMapping::getDwellingTimesUnderEachState(bool expectedDuration)
 }
 /******************************************************************************/
 void StochasticMapping::printUnrepresentedLeavesWithCorrespondingMappings(ofstream &stream){
-  stream << "# Unrepresennted leaves:" << std::endl;
+  stream << "# Unrepresennted nodes:" << std::endl;
   auto it = notRepresentedNodes_.begin();
   while (it != notRepresentedNodes_.end()){
     stream << "\t" << (tree_->getNode(it->first))->getName() << " node id: " << it->first << std::endl;

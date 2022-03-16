@@ -255,6 +255,7 @@ namespace bpp
     
 
   private:
+    bool isAccounted(uint nodeId, size_t mappingIndex);
     void clearMapping(size_t mappingIndex);
     void initMapOfNumOfOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences);
     std::map<pair<size_t, size_t>, double> sumTotalOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>>* transitionOcurrencesPerNodePtr);
