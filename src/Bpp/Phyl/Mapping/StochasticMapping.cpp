@@ -1069,7 +1069,13 @@ void StochasticMapping::printUnrepresentedLeavesWithCorrespondingMappings(ofstre
   stream << "# Unrepresennted nodes:" << std::endl;
   auto it = notRepresentedNodes_.begin();
   while (it != notRepresentedNodes_.end()){
-    stream << "\t" << (tree_->getNode(it->first))->getName() << " node id: " << it->first << std::endl;
+    if (tree_->isLeaf(it->first)){
+      stream << "\t" << (tree_->getNode(it->first))->getName() << " node id: " << it->first << std::endl;
+
+    }else{
+      stream << "\tN" << it->first << " node id: " << it->first << std::endl;
+    }
+    
     auto &mappingIndices = notRepresentedNodes_[it->first];
     for (size_t i = 0; i < mappingIndices.size(); i++){
       if (i == mappingIndices.size()-1){
