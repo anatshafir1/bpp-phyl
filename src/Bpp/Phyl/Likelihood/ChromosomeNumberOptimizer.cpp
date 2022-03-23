@@ -2270,6 +2270,9 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
                 
             }
         }
+        time_t t1;
+        time(&t1);
+        time_t t2;
         if (parallel){
             omp_lock_t mutex;
             omp_init_lock(&mutex);
@@ -2291,6 +2294,12 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
             }
 
         }
+        time(&t2);
+        std::cout <<"**** **** running time of the backward procedure is: "<< (t2-t1) <<endl;
+
+        time_t t3;
+        time(&t3);
+        time_t t4;
 
 
         UndirectedGraph* G = new UndirectedGraph();
@@ -2362,6 +2371,8 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
         mergeMultipleModelClusters(finalLikBackward, rootAndVerticesToMerge, maxParsimony);//TODO)
         deleteLikObject(likToDel);
         delete G;
+        time(&t4);
+        std::cout <<"**** **** running time of the graph construction is: "<< (t4-t3) <<endl;
         // Delete all the unnecessary likelihood objects from the pairs map
         // HERE: TODO!!
 

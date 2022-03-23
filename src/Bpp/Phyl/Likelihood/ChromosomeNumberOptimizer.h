@@ -85,6 +85,7 @@
 #include <utility>
 #include <string>
 #include <omp.h>
+#include <time.h>
 using namespace std;
 namespace bpp
 {
