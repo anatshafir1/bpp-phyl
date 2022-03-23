@@ -549,6 +549,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeMultiDimensions(SingleProcessPhy
             if (rateParamType != ChromosomeSubstitutionModel::BASENUM){
                 ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(ChromEvolOptions::rateChangeType_[rateParamType-startCompositeParams]);
                 ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+                functionOp->setDomainsIfNeeded(alphabet_->getMin(), alphabet_->getMax());
                 functionOp->updateBounds(params, paramsNames, index, &lowerBound, &upperBound, alphabet_->getMax());
                 std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(nameOfParam).getConstraint());
                 interval->setLowerBound(lowerBound, interval->strictLowerBound());
@@ -689,6 +690,7 @@ unsigned int ChromosomeNumberOptimizer::optimizeModelParametersOneDimension(Sing
             if (rateParamType != static_cast<int>(ChromosomeSubstitutionModel::BASENUM)){
                 ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(ChromEvolOptions::rateChangeType_[rateParamType-startCompositeParams]);
                 ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+                functionOp->setDomainsIfNeeded(alphabet_->getMin(), alphabet_->getMax());
                 functionOp->updateBounds(params, paramsNames, index, &lowerBound, &upperBound, alphabet_->getMax());
                 functionOp->updateBounds(f, nameOfParam, lowerBound, upperBound);
                 delete functionOp;
@@ -2073,6 +2075,7 @@ uint ChromosomeNumberOptimizer::getNumberOfParametersPerParamType(int paramType,
             numOfParams = 0;
         }else{
             ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(static_cast<ChromosomeNumberDependencyFunction::FunctionType>(funcType));
+            //functionOp->setDomainsIfNeeded(alphabet_->getMin(), alphabet_->getMax());
             numOfParams = static_cast<uint>(functionOp->getNumOfParameters());
             delete functionOp;
 

@@ -137,24 +137,73 @@ void PolynomialDependencyFunction::getAbsoluteBounds(size_t index, double* lower
 
 }
 double LognormalDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
-  // auto rangeFactor = params[0]->getValue();
-  // auto transformedState = state/(maxChrNum_/logNormalDomainFactor);
-  // auto mu = params[1]->getValue();
-  // auto sigma = params[2]->getValue();
-  // double pi = 2 * acos(0.0);
-  // auto eq_part_1 = 1/(transformedState*sigma*sqrt(2 * pi));
-  // auto eq_part_2 = std::exp(-(pow(log(transformedState)-mu, 2)/(2*pow(sigma, 2))));
-  // return eq_part_1 * eq_part_2;
-  throw Exception("LognormalDependencyFunction::getRate(): Not implemented yet!");
-  return 0;
+  auto rangeFactor = params[0]->getValue();
+  auto transformedState = state/(domainMax_/logNormalDomainFactor);
+  auto mu = params[1]->getValue();
+  auto sigma = params[2]->getValue();
+  double pi = 2 * acos(0.0);
+  auto eq_part_1 = 1/((double)(transformedState)*sigma*sqrt(2 * pi));
+  auto eq_part_2 = std::exp(-(pow(log(transformedState)-mu, 2)/(2*pow(sigma, 2))));
+  return rangeFactor *eq_part_1 * eq_part_2;
+
 }
+/**************************************************************************************/
+void LognormalDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  getAbsoluteBounds(index, lowerBound, upperBound, maxChrNumber);
+
+}
+/*************************************************************************************/
+void LognormalDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  *lowerBound = lowerBoundOfRateParam;
+  if (index == 0){  // for the range parameter   
+    *upperBound = upperBoundOfRateParam;
+  }else if (index == 1){ // mu
+    *upperBound = upperBoundLinearRateParam;
+  }else if (index == 2){  // sigma
+    *upperBound = upperBoundLinearRateParam*2;
+
+  }else{
+    throw Exception("LognormalDependencyFunction::getAbsoluteBounds(): index out of bounds!!");
+    
+  }
+}
+
 /**************************************************************************************/
 double RevSigmoidDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
-  throw Exception("RevSigmoidDependencyFunction::getRate(): Not implemented yet!");
-  return 0;
+  // p1 is the range parameter
+  auto p1 = params[0]->getValue();
+  // p2 is the exponent multiplier parameter
+  auto p2 = params[1]->getValue();
+  // p3 is the shift parameter (should manipulate the cut of the reverse sigmoid tail)
+  auto p3 = params[2]->getValue();
+  // f(x) = p1* (e^-p2(x-p3)/(1+(e^-p2(x-p3))))
+  auto x = static_cast<double>(state);
+  return p1*(std::exp(-p2*(x-p3))/(1+(std::exp(-p2*(x-p3)))));
+
 }
 /**************************************************************************************/
+void RevSigmoidDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  
+  if (index == 0){  // for the range parameter   
+    *lowerBound = lowerBoundOfRateParam;
+    *upperBound = upperBoundOfRateParam;
+  }else if (index == 1){ // for the exponent parameter
+    *lowerBound = lowerBoundOfRateParam;
+    *upperBound = revSigmoidExpRateParam;
+  }else if (index == 2){  // the shift parameter
+    *lowerBound = (static_cast<double>(domainMax_-domainMin_+1))/2;
+    *upperBound = (double)(domainMax_-domainMin_+1);
 
+  }else{
+    throw Exception("RevSigmoidDependencyFunction::getAbsoluteBounds(): index out of bounds!!");
+    
+  }
+}
+/*****************************************************************************/
+void RevSigmoidDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  getAbsoluteBounds(index, lowerBound, upperBound, maxChrNumber);
+
+}
 
 
 /*****************************************************************************/
@@ -381,13 +430,16 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
         if (initParams[i].size() != 0){
           ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startCompositeParams]);
           ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+          functionOp->setDomainsIfNeeded(alpha->getMin(), alpha->getMax());
 
           auto numOfParameters = functionOp->getNumOfParameters();
           for (size_t j = 0; j < numOfParameters; j++){
             functionOp->getBoundsForInitialParams(j, paramValues, &lowerBound, &upperBound, alpha->getMax());
             //compositeParameter::getBoundsForInitialParams(func, j, paramValues, &lowerBound, &upperBound, alpha->getMax(), true);
             if (parsimonyBound > 0){
-              upperBound = std::min(upperBound, parsimonyBound);
+              if (parsimonyBound >= lowerBound){
+                upperBound = std::min(upperBound, parsimonyBound);
+              }         
             }
             double randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBound, upperBound);
             paramValues.push_back(randomValue);
@@ -421,6 +473,7 @@ std::vector<Parameter*> ChromosomeSubstitutionModel::createCompositeParameter(Ch
     double lowerBound;
     double upperBound;
     ChromosomeNumberDependencyFunction* functionOp =  compositeParameter::setDependencyFunction(func);
+    functionOp->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
     functionOp->getAbsoluteBounds(i, &lowerBound, &upperBound, ChrMaxNum_);
     //compositeParameter::getAbsoluteBounds(func, i, &lowerBound, &upperBound, ChrMaxNum_);
     delete functionOp;
@@ -486,19 +539,24 @@ void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<
   }
   if (gainFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
     gain_ = new compositeParameter(gainFunc_, "gain", gainParams);
+    gain_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
 
   }
   if (lossFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
     loss_ = new compositeParameter(lossFunc_, "loss", lossParams);
+    loss_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
   }
   if (duplFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
     dupl_ = new compositeParameter(duplFunc_, "dupl", duplParams);
+    dupl_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
   }
   if (demiFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
     demiploidy_ = new compositeParameter(demiFunc_, "demi", demiParams);
+    demiploidy_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
   }
   if (baseNumRFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
     baseNumR_ = new compositeParameter(baseNumRFunc_, "baseNumR", baseNumParams);
+    baseNumR_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
   }
 
 

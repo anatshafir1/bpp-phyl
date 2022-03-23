@@ -20,7 +20,8 @@
 #define upperBoundOfRateParam 100.0
 #define upperBoundLinearRateParam 5.0
 #define upperBoundExpParam 4.6
-#define logNormalDomainFactor 5
+#define logNormalDomainFactor 4
+#define revSigmoidExpRateParam 2
 #define IgnoreParam -999
 #define DemiEqualDupl -2
 #define EPSILON 2.22045e-016
@@ -28,14 +29,20 @@ using namespace std;
 namespace bpp
 {
 class ChromosomeNumberDependencyFunction{
+  protected:
+    // the min and max chromosome counts
+    int domainMin_;
+    int domainMax_;
+
   public:
     enum FunctionType {CONSTANT, LINEAR, LINEAR_BD, EXP, POLYNOMIAL, LOGNORMAL, REVERSE_SIGMOID, IGNORE};
-    ChromosomeNumberDependencyFunction(){}
+    ChromosomeNumberDependencyFunction():domainMin_(0), domainMax_(0){}
     virtual ~ChromosomeNumberDependencyFunction(){}
 
     virtual FunctionType getName() const = 0;
     virtual double getRate(std::vector<Parameter*> params, size_t state) const = 0;
     virtual size_t getNumOfParameters() const = 0;
+    virtual void setDomainsIfNeeded(int minChrNum, int maxChrNum){}
 
     virtual void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){
       std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(paramsNames[index]).getConstraint());
@@ -135,12 +142,15 @@ class LognormalDependencyFunction:
     virtual ~LognormalDependencyFunction(){}
 
     FunctionType getName() const {return FunctionType::LOGNORMAL;}
+    void setDomainsIfNeeded(int minChrNum, int maxChrNum){
+      domainMin_ = minChrNum;
+      domainMax_ = maxChrNum;
+    }
+
     double getRate(std::vector<Parameter*> params, size_t state) const;
     size_t getNumOfParameters() const{return 3;}
-    void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){throw Exception("Not implemented yet!");}
-    void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){throw Exception("Not implemented yet!");}
-    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
-    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
 
 };
 class RevSigmoidDependencyFunction:
@@ -153,10 +163,12 @@ class RevSigmoidDependencyFunction:
     FunctionType getName() const {return FunctionType::REVERSE_SIGMOID;}
     double getRate(std::vector<Parameter*> params, size_t state) const;
     size_t getNumOfParameters() const{return 3;}
-    void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){throw Exception("Not implemented yet!");}
-    void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){throw Exception("Not implemented yet!");}
-    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
-    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){throw Exception("Not implemented yet!");}
+    void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);
+    void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
+    void setDomainsIfNeeded(int minChrNum, int maxChrNum){
+      domainMin_ = minChrNum;
+      domainMax_ = maxChrNum;
+    }
 
 };
 
@@ -417,6 +429,7 @@ public:
       }
 
       *(newModelParams[i]) = new compositeParameter(originalModelParams[i]->getFuncType(), originalModelParams[i]->getName(), newParams);
+      (*(newModelParams[i]))->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
 
     }
 
