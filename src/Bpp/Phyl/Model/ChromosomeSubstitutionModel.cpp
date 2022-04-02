@@ -191,7 +191,7 @@ void RevSigmoidDependencyFunction::getAbsoluteBounds(size_t index, double* lower
     *lowerBound = lowerBoundOfRateParam;
     *upperBound = revSigmoidExpRateParam;
   }else if (index == 2){  // the shift parameter
-    *lowerBound = (static_cast<double>(domainMax_-domainMin_+1))/2;
+    *lowerBound = lowerBoundOfRateParam;
     *upperBound = (double)(domainMax_-domainMin_+1);
 
   }else{
