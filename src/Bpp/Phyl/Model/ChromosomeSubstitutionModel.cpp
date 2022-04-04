@@ -138,7 +138,8 @@ void PolynomialDependencyFunction::getAbsoluteBounds(size_t index, double* lower
 }
 double LognormalDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
   auto rangeFactor = params[0]->getValue();
-  auto transformedState = state/(domainMax_/logNormalDomainFactor);
+  double scalingFactor = (double)domainMax_/logNormalDomainFactor;
+  double transformedState = (double)state/scalingFactor;
   auto mu = params[1]->getValue();
   auto sigma = params[2]->getValue();
   double pi = 2 * acos(0.0);
