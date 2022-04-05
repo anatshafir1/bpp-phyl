@@ -126,6 +126,10 @@ class PolynomialDependencyFunction:
     FunctionType getName() const{return FunctionType::POLYNOMIAL;}
     double getRate(std::vector<Parameter*> params, size_t state) const;
     size_t getNumOfParameters() const{return 3;}
+    void setDomainsIfNeeded(int minChrNum, int maxChrNum){
+      domainMin_ = minChrNum;
+      domainMax_ = maxChrNum;
+    }
     //void updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum);
     //void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound);
     void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);

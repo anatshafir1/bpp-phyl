@@ -124,7 +124,7 @@ void PolynomialDependencyFunction::getAbsoluteBounds(size_t index, double* lower
       *upperBound = upperBoundOfRateParam;
 
   }else if (index == 1){
-    *lowerBound = -maxChrNumber;
+    *lowerBound = -domainMin_;
     *upperBound = upperBoundOfRateParam;
   }else if(index == 2){
     *lowerBound = lowerBoundOfExpParam;
