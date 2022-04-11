@@ -335,7 +335,7 @@ namespace bpp {
     }
     
     bool normalize_small () {
-      if (float_part().cwiseAbs().minCoeff()!=0) {
+      if ((float_part().cwiseAbs().minCoeff()!=0) || (float_part().cwiseAbs().maxCoeff() != 0)) {
         bool normalized = false;
         while (float_part().cwiseAbs().minCoeff() < ExtendedFloat::smallest_normalized_value) {
           if (float_part().cwiseAbs().maxCoeff() >= ExtendedFloat::biggest_value_for_mult){
