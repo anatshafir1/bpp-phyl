@@ -89,7 +89,7 @@ void ChromEvolOptions::initDefaultParameters(){
     numOfDataToSimulate_ = 1;
     maxBaseNumTransition_[1] = 18;
     treeLength_ = 0;
-    maxNumOfTrials_ = 15;
+    maxNumOfTrials_ = 10;
     minCladeSize_ = 2;
     maxNumOfModels_ = 1;
     heterogeneousModel_ = false; // the default is homogeneous model
