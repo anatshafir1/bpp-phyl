@@ -147,7 +147,7 @@ namespace bpp{
             //core functions of ChromEvol
             //void runTest();
             void runChromEvol();
-            void printStochasticMappingResults(StochasticMapping* stm, Vdouble &dwellingTimesPerState, std::map<pair<size_t, size_t>, double> &numOfOccurencesPerTransition, VVdouble &ratesPerTransition, const string &outStMappingPath);
+            void printStochasticMappingResults(StochasticMapping* stm, Vdouble &dwellingTimesPerState, std::map<pair<size_t, size_t>, double> &numOfOccurencesPerTransition, VVdouble &ratesPerTransition, std::map<int, double> &expectationsTotal, const string &outStMappingPath);
             void runStochasticMapping(SingleProcessPhyloLikelihood* lik);
             ChromosomeNumberOptimizer* optimizeLikelihoodMultiStartPoints() const;
             void getJointMLAncestralReconstruction(ChromosomeNumberOptimizer* optimizer, int* inferredRootState) const;
@@ -163,6 +163,7 @@ namespace bpp{
             uint findMinCladeSize(std::map<uint, vector<uint>> mapModelNodesIds) const;
             std::map<uint, std::vector<uint>> findMRCAForEachModelNodes(std::map<uint, vector<uint>> mapOfModelsAndNodes) const;
             void writeTreeWithCorrespondingModels(PhyloTree tree, std::map<uint, vector<uint>> &modelAndNodes) const;
+            void printRootToLeaf(std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafOccurrences, std::map<uint, std::map<size_t, bool>> &presentMapping, size_t numOfMappings, const NonHomogeneousSubstitutionProcess* NonHomoProcess, const string &outStMappingRootToLeafPath);
 
         protected:
             void writeRunningParameters(ofstream &outFile) const;

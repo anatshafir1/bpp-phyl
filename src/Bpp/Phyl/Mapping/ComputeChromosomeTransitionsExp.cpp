@@ -941,6 +941,32 @@ double ComputeChromosomeTransitionsExp::getExpectation(uint nodeId, int startAnc
 }
 
 /************************************************************************************************/
+std::map<int, double> ComputeChromosomeTransitionsExp::getTypeForEachTransitionPerNode(const ChromosomeSubstitutionModel* chrModel, std::map<pair<size_t, size_t>, double> &transitionsPerNode, uint nodeId){
+    std::map<int, double> expectationsPerType;
+    auto itTransitions = transitionsPerNode.begin();
+    while(itTransitions != transitionsPerNode.end()){
+        std::vector<double> probabilities;
+        int startState = static_cast<int>((itTransitions->first).first);
+        int endState = static_cast<int>((itTransitions->first).second);
+        double expectation = transitionsPerNode[itTransitions->first];
+        bool legalMove = getProbabilitiesPerType(probabilities, startState, endState, chrModel);
+        if (!legalMove){
+            itTransitions ++;
+            continue;
+        }
+        for (int i = 0; i < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; i++){
+            if (expectationsPerType.find(i) == expectationsPerType.end()){
+                expectationsPerType[i] = 0;
+            }
+            expectationsPerType[i] += (probabilities[i] * expectation);
+        }
+        itTransitions ++;
+    }
+    return expectationsPerType;
+
+}
+
+/************************************************************************************************/
 std::map<int, double> ComputeChromosomeTransitionsExp::getExpectationsPerType(const NonHomogeneousSubstitutionProcess* NonHomoProcess, PhyloTree &tree, std::map<uint, std::map<pair<size_t, size_t>, double>> &expectationsPerNode){
     std::map<int, double> expectationsPerType;
     std::map<uint, size_t> modelsForBranch = getModelForEachBranch(tree, *NonHomoProcess); //son end of the branch and its corresponding model (father's model)
@@ -954,25 +980,17 @@ std::map<int, double> ComputeChromosomeTransitionsExp::getExpectationsPerType(co
             continue;
         }
         auto &transitionsPerNode = expectationsPerNode[nodeId]; // don't want to create a local copy of this element, just to use a reference
-        auto itTransitions = transitionsPerNode.begin();
-        while(itTransitions != transitionsPerNode.end()){
-            std::vector<double> probabilities;
-            int startState = static_cast<int>((itTransitions->first).first);
-            int endState = static_cast<int>((itTransitions->first).second);
-            double expectation = transitionsPerNode[itTransitions->first];
-            bool legalMove = getProbabilitiesPerType(probabilities, startState, endState, chrModel);
-            if (!legalMove){
-                itTransitions ++;
-                continue;
+        auto transitionsTypesPerNode = getTypeForEachTransitionPerNode(chrModel, transitionsPerNode, nodeId);
+        auto typesIt = transitionsTypesPerNode.begin();
+        while(typesIt != transitionsTypesPerNode.end()){
+            if (transitionsTypesPerNode.find(typesIt->first) == transitionsTypesPerNode.end()){
+                expectationsPerType[typesIt->first] = transitionsTypesPerNode[typesIt->first];
+            }else{
+                expectationsPerType[typesIt->first] += transitionsTypesPerNode[typesIt->first];
             }
-            for (int i = 0; i < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; i++){
-                if (expectationsPerType.find(i) == expectationsPerType.end()){
-                    expectationsPerType[i] = 0;
-                }
-                expectationsPerType[i] += (probabilities[i] * expectation);
-            }
-            itTransitions ++;
-        }        
+            typesIt ++;
+        }
+       
         it ++;
     }
     return expectationsPerType;

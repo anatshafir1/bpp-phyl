@@ -188,6 +188,7 @@ namespace bpp
             void updateMapOfJumps(int startState, int endState, const ChromosomeSubstitutionModel* model);
             void updateExpectationsPerBranch(uint nodeId, pair<int, int> ancestralTerminals, pair<int, int> jumpStates);
             void runHeuristics(const string FilePath = "none");
+            static std::map<int, double> getTypeForEachTransitionPerNode(const ChromosomeSubstitutionModel* chrModel, std::map<pair<size_t, size_t>, double> &transitionsPerNode, uint nodeId);
 
             //*** *** ***
             // Temporarily include function for dealing with chromosome number model related stochastic mapping

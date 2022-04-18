@@ -961,6 +961,116 @@ std::map<size_t, std::map<std::pair<size_t, size_t>, double>> StochasticMapping:
   return numOfOccurences;
 }
 /*******************************************************************************/
+std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> StochasticMapping::getNumOfOccurrencesFromRootToTip(std::map<uint, std::map<size_t, bool>> &presentMapping){
+  std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> occurrencesFromRootToLeaf;
+  uint rootIndex = tree_->getRootIndex();
+  auto nodeIdsSons = tree_->getSons(rootIndex);
+  for (size_t i = 0; i < numOfMappings_; i++){
+    std::map<uint, std::map<pair<size_t, size_t>, double>> occurrencesPerMapping;
+    getNumOfOcuurencesForEachTransitionPerMapping(i, occurrencesPerMapping);
+    ////////////////////// DEBUG //////////////////////////////////////////
+    
+    // std::cout << "Mapping #" << i << std::endl;
+    // auto it = occurrencesPerMapping.begin();
+    // while (it != occurrencesPerMapping.end()){
+    //   auto &nodeOccurrences = occurrencesPerMapping[it->first];
+    //   string nodeName;
+    //   if (tree_->isLeaf(it->first)){
+    //     nodeName = (tree_->getNode(it->first))->getName();
+    //   }else{
+    //     nodeName = "N" + std::to_string(it->first);
+
+    //   }
+    //   std::cout << "\tNode: " << nodeName << std::endl;
+    //   auto itTrans = nodeOccurrences.begin();
+    //   while (itTrans != nodeOccurrences.end()){
+    //     std::cout << "\t" << (itTrans->first).first << " -> " << (itTrans->first).second << ": " << nodeOccurrences[itTrans->first] << std::endl;
+    //     itTrans ++;
+    //   }
+
+    //   it ++;
+    // }
+
+    //////////////////////////////////////////////////////////////////////
+    presentMapping[rootIndex][i] = true;
+    std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> occurrencesFromRootPerMapping;
+    for (size_t n = 0; n < nodeIdsSons.size(); n++){
+      updateFromRootToLeafRecursively(presentMapping, occurrencesPerMapping, i, nodeIdsSons[n], occurrencesFromRootPerMapping);
+      auto itNodes = occurrencesFromRootPerMapping.begin();
+      while (itNodes != occurrencesFromRootPerMapping.end()){
+        if (tree_->isLeaf(itNodes->first)){
+          occurrencesFromRootToLeaf[itNodes->first][i] = occurrencesFromRootPerMapping[itNodes->first][i];
+        }
+        itNodes ++;
+
+      }
+
+    }   
+  }
+  return occurrencesFromRootToLeaf;
+}
+/*******************************************************************************/
+void StochasticMapping::updateFromRootToLeafRecursively(std::map<uint, std::map<size_t, bool>> &presentMapping, std::map<uint, std::map<pair<size_t, size_t>, double>> &occurrencesPerMapping, size_t mappingIndex, uint nodeId, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &occurrencesFromRootToLeaf){
+  auto fatherNode = tree_->getFatherOfNode(tree_->getNode(nodeId));
+  uint father = tree_->getNodeIndex(fatherNode);
+  bool transitionsFromFather = false;
+  if (!(presentMapping[father][mappingIndex])){
+    presentMapping[nodeId][mappingIndex] = false;
+  
+  }else{
+    if (notRepresentedNodes_.find(nodeId) != notRepresentedNodes_.end()){
+      if (std::find(notRepresentedNodes_[nodeId].begin(), notRepresentedNodes_[nodeId].end(), mappingIndex) != notRepresentedNodes_[nodeId].end()){
+        presentMapping[nodeId][mappingIndex] = false;   
+      }else{
+        presentMapping[nodeId][mappingIndex] = true;
+      }
+    }else{
+      presentMapping[nodeId][mappingIndex] = true;
+    }
+  }
+  if (presentMapping[nodeId][mappingIndex]){
+    if (father != tree_->getRootIndex()){
+      if (occurrencesFromRootToLeaf.find(father) != occurrencesFromRootToLeaf.end()){
+        if (occurrencesFromRootToLeaf[father].find(mappingIndex) != occurrencesFromRootToLeaf[father].end()){
+          auto fatherFromRoot = occurrencesFromRootToLeaf[father][mappingIndex];
+          auto itTransitions = fatherFromRoot.begin();
+          while (itTransitions != fatherFromRoot.end()){
+            occurrencesFromRootToLeaf[nodeId][mappingIndex][itTransitions->first] = fatherFromRoot[itTransitions->first];
+            transitionsFromFather = true;
+            itTransitions ++;
+          }
+        }
+      }
+    }
+    auto &nodeOccurrences = occurrencesPerMapping[nodeId];
+    auto it = nodeOccurrences.begin();
+
+    while (it != nodeOccurrences.end()){
+      if (!transitionsFromFather){
+        occurrencesFromRootToLeaf[nodeId][mappingIndex][it->first] = nodeOccurrences[it->first];
+
+      }else{
+        if (occurrencesFromRootToLeaf[nodeId][mappingIndex].find(it->first) != occurrencesFromRootToLeaf[nodeId][mappingIndex].end()){
+          occurrencesFromRootToLeaf[nodeId][mappingIndex][it->first] += nodeOccurrences[it->first];
+        }else{
+          occurrencesFromRootToLeaf[nodeId][mappingIndex][it->first] = nodeOccurrences[it->first];
+        }
+      }
+      it ++;
+    }
+    
+  }
+  
+  if (!(tree_->isLeaf(nodeId))){
+    auto sons =  tree_->getSons(nodeId);
+    for (size_t n = 0; n < sons.size(); n++){
+      updateFromRootToLeafRecursively(presentMapping, occurrencesPerMapping, mappingIndex, sons[n], occurrencesFromRootToLeaf);
+    }
+  }
+}
+
+
+/*******************************************************************************/
 std::map<uint, std::map<pair<size_t, size_t>, double>> StochasticMapping::getNumOfOcuurencesForEachTransitionPerNode(){
   std::map<uint, std::map<pair<size_t, size_t>, double>> transitionOcurrences;
   //initMapOfNumOfOccurences(transitionOcurrences);
