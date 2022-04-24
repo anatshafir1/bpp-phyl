@@ -566,7 +566,7 @@ void ChromosomeNumberMng::runChromEvol(){
     getMarginalAncestralReconstruction(chrOptimizer, outFilePath);
     // test stochastic mapping
     if (ChromEvolOptions::runStochasticMapping_){
-        runStochasticMapping(chrOptimizer->getVectorOfLikelihoods()[0]);
+        runStochasticMapping(chrOptimizer);
 
     }
     //compute expectations
@@ -577,14 +577,31 @@ void ChromosomeNumberMng::runChromEvol(){
 
 }
 /**************************************************************************************/
-void ChromosomeNumberMng::runStochasticMapping(SingleProcessPhyloLikelihood* likObject){
-    StochasticMapping* stm = new StochasticMapping(likObject->getLikelihoodCalculationSingleProcess(), ChromEvolOptions::NumOfSimulations_);//ChromEvolOptions::NumOfSimulations_);
+void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOptimizer){
+    auto likObject = chrOptimizer->getVectorOfLikelihoods()[0];
+    bool weightedRootFreqs = (ChromEvolOptions::fixedFrequenciesFilePath_ != "none") ? true:false;
+    auto lik = likObject->getLikelihoodCalculationSingleProcess();  
+    std::map<int, vector<pair<uint, int>>> sharedParams = chrOptimizer->getSharedParams();
+    ParametrizablePhyloTree tree =  ParametrizablePhyloTree(*tree_);
+    ParametrizablePhyloTree* parTree = (&tree)->clone();
+    ValueRef <Eigen::RowVectorXd> rootFreqs = likObject->getLikelihoodCalculationSingleProcess()->getRootFreqs();
+    std::shared_ptr<NonHomogeneousSubstitutionProcess> multiModelProcess = setHeterogeneousModel(parTree, likObject, rootFreqs, sharedParams);
+    SubstitutionProcess* nsubPro= multiModelProcess->clone();
+    Context context;
+    auto likObjectOpt = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *nsubPro, weightedRootFreqs);
+    ////////////////////////////////////////////////////
+    // DUBUG
+    auto likTest = SingleProcessPhyloLikelihood(context, likObjectOpt, likObjectOpt->getParameters());
+    std::cout << "stochastic mapping lik object likelihood: " << likTest.getValue();
+
+    //////////////////////////////////////////////////////////////////////
+    StochasticMapping* stm = new StochasticMapping(likObjectOpt, ChromEvolOptions::NumOfSimulations_, ChromEvolOptions::numOfStochasticMappingTrials_);//ChromEvolOptions::NumOfSimulations_);
     stm->generateStochasticMapping();
 
     // getting expected number of transitions for each type (comparable to the expectation computation).
     // This is just a test!!
     std::map<uint, std::map<pair<size_t, size_t>, double>> expectationsPerNode = stm->getExpectedNumOfOcuurencesForEachTransitionPerNode();
-    auto nonHomoProcess = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(&(likObject->getSubstitutionProcess()));
+    auto nonHomoProcess = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(&(likObjectOpt->getSubstitutionProcess()));
     std::map<int, double> expectationsTotal = ComputeChromosomeTransitionsExp::getExpectationsPerType(nonHomoProcess, *tree_, expectationsPerNode);
     std::cout << "*** *** *** Test stochastic mapping *** *** ***:" << std::endl;
     auto it = expectationsTotal.begin();
@@ -595,9 +612,9 @@ void ChromosomeNumberMng::runStochasticMapping(SingleProcessPhyloLikelihood* lik
     // get the expected rates for each transition
     std::map<uint, std::map<size_t, bool>> presentMapping;
     auto rootToLeafTransitions = stm->getNumOfOccurrencesFromRootToTip(presentMapping);
-    const string outStMappingRootToLeafPath = ChromEvolOptions::resultsPathDir_+"//"+ "stMapping_root_to_leaf.txt";
+    //const string outStMappingRootToLeaf = ChromEvolOptions::resultsPathDir_+"//"+ "stMapping_root_to_leaf.txt";
 
-    printRootToLeaf(rootToLeafTransitions, presentMapping, ChromEvolOptions::NumOfSimulations_, nonHomoProcess, outStMappingRootToLeafPath);
+    printRootToLeaf(rootToLeafTransitions, presentMapping, ChromEvolOptions::NumOfSimulations_, nonHomoProcess);
     // std::map<int, double> ComputeChromosomeTransitionsExp::getTypeForEachTransitionPerNode(const ChromosomeSubstitutionModel* chrModel, std::map<pair<size_t, size_t>, double> &transitionsPerNode, uint nodeId)
     
     Vdouble dwellingTimesPerState = stm->getDwellingTimesUnderEachState();
@@ -606,75 +623,223 @@ void ChromosomeNumberMng::runStochasticMapping(SingleProcessPhyloLikelihood* lik
     const string outStMappingPath = ChromEvolOptions::resultsPathDir_+"//"+ "stochastic_mapping.txt";
     // print all the results associated with stochastic mapping
     printStochasticMappingResults(stm, dwellingTimesPerState, numOfOccurencesPerTransition, ratesPerTransition, expectationsTotal, outStMappingPath);
+
+    // delete
+    auto sequenceData = likObjectOpt->getData();
+    auto process = &(likObjectOpt->getSubstitutionProcess());
+    delete process;
+    delete sequenceData;
     delete stm;
+    
 
 
 }
 /**************************************************************************************/
-void ChromosomeNumberMng::printRootToLeaf(std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafOccurrences, std::map<uint, std::map<size_t, bool>> &presentMapping, size_t numOfMappings, const NonHomogeneousSubstitutionProcess* NonHomoProcess, const string &outStMappingRootToLeafPath){
+void ChromosomeNumberMng::printRootToLeaf(std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafOccurrences, std::map<uint, std::map<size_t, bool>> &presentMapping, size_t numOfMappings, const NonHomogeneousSubstitutionProcess* NonHomoProcess){
+  const string outStMappingRootToLeafPath =  ChromEvolOptions::resultsPathDir_+"//"+ "stMapping_root_to_leaf.txt";
+  const string outStMappingRootToLeafExpPath =  ChromEvolOptions::resultsPathDir_+"//"+ "stMapping_root_to_leaf_exp.csv";
   ofstream stream;
   stream.open(outStMappingRootToLeafPath);
+  std::map<uint, std::map<std::pair<size_t, size_t>, double>> expectationsFromRootToLeaf;
   stream << "############################" << std::endl;
   stream << "# Root to leaf transitions #" << std::endl;
   stream << "############################" << std::endl;
   std::map<uint, size_t> modelsForBranch = ComputeChromosomeTransitionsExp::getModelForEachBranch(*tree_, *NonHomoProcess);
-  std::map<uint, std::map<size_t, std::map<int, double>>> transitionsPerType;
   auto leaves = tree_->getAllLeaves();
+  std::map<uint, double> numOfMappingsPerLeaf;
   for (size_t i = 0; i < leaves.size(); i++){
+    double numOfAccountedMappings = 0;
     auto leafIndex = tree_->getNodeIndex(leaves[i]);
     stream << "*** Leaf name: " << leaves[i]->getName() << std::endl;
     for (size_t j = 0; j < numOfMappings; j ++){
       if (presentMapping[leafIndex][j]){
         stream << "\t# Mapping $" << j << std::endl;
         if (rootToLeafOccurrences[leafIndex].find(j) == rootToLeafOccurrences[leafIndex].end()){
-          continue;
+            if (expectationsFromRootToLeaf.find(leafIndex) == expectationsFromRootToLeaf.end()){
+                expectationsFromRootToLeaf[leafIndex];
+            }
+            numOfAccountedMappings ++;
+            continue;
         }
+        numOfAccountedMappings ++;
+
         auto &transitions = rootToLeafOccurrences[leafIndex][j];
-        auto model = NonHomoProcess->getModel(modelsForBranch[leafIndex]);
-        auto chrModel = dynamic_cast<const ChromosomeSubstitutionModel*>(model);
-        transitionsPerType[leafIndex][j] = ComputeChromosomeTransitionsExp::getTypeForEachTransitionPerNode(chrModel, transitions, leafIndex);
         auto it = transitions.begin();
         while(it != transitions.end()){
-          stream <<"\t\t" << alphabet_->getMin() + (it->first).first << " -> " << alphabet_->getMin()+ (it->first).second << " : " <<  transitions[it->first] << std::endl;
-          //stream <<"\t\t" << (it->first).first << " -> " << (it->first).second << " : " <<  transitions[it->first] << std::endl;
-          it ++;
+            if (expectationsFromRootToLeaf.find(leafIndex) == expectationsFromRootToLeaf.end()){
+                expectationsFromRootToLeaf[leafIndex][it->first] = transitions[it->first];
+            }else{
+                if (expectationsFromRootToLeaf[leafIndex].find(it->first) == expectationsFromRootToLeaf[leafIndex].end()){
+                    expectationsFromRootToLeaf[leafIndex][it->first] = transitions[it->first];
+                }else{
+                    expectationsFromRootToLeaf[leafIndex][it->first] += transitions[it->first];
+                }
+            }
+            stream <<"\t\t" << alphabet_->getMin() + (it->first).first << " -> " << alphabet_->getMin()+ (it->first).second << " : " <<  transitions[it->first] << std::endl;
+            it ++;
         }
+
       }
     }
+    if (expectationsFromRootToLeaf.find(leafIndex) != expectationsFromRootToLeaf.end()){
+       auto &expTransitios = expectationsFromRootToLeaf[leafIndex]; 
+       auto transitionsIt = expTransitios.begin();
+       while(transitionsIt != expTransitios.end()){
+           expectationsFromRootToLeaf[leafIndex][transitionsIt->first] /= numOfAccountedMappings;
+           transitionsIt ++;
+        }
+    }
+    numOfMappingsPerLeaf[leafIndex] = numOfAccountedMappings;
   }
   stream << "###############################################" << std::endl;
-  stream << "# Root to leaf number of transitions per type #" << std::endl;
+  stream << "# Root to leaf  transitions expectations      #" << std::endl;
   stream << "###############################################" << std::endl;
   for (size_t i = 0; i < leaves.size(); i++){
     auto leafIndex = tree_->getNodeIndex(leaves[i]);
+    if (expectationsFromRootToLeaf.find(leafIndex) == expectationsFromRootToLeaf.end()){
+        continue;
+    }
     stream << "*** Leaf name: " << leaves[i]->getName() << std::endl;
-    for (size_t j = 0; j < numOfMappings; j ++){
-      if (presentMapping[leafIndex][j]){
-        stream << "\t# Mapping $" << j << std::endl;
-        if (rootToLeafOccurrences[leafIndex].find(j) == rootToLeafOccurrences[leafIndex].end()){
-          continue;
-        }
-        auto &numOfTransitions = transitionsPerType[leafIndex][j];
-        for (int p = 0; p < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; p++){
-            if (p == ChromosomeSubstitutionModel::GAIN_T){
-                stream <<"\t\tGAIN: " <<  numOfTransitions[p] << std::endl;
-            }else if (p == ChromosomeSubstitutionModel::LOSS_T){
-                stream <<"\t\tLOSS: " <<  numOfTransitions[p] << std::endl;
-            }else if (p == ChromosomeSubstitutionModel::DUPL_T){
-                stream <<"\t\tDUPLICATION: " <<  numOfTransitions[p] << std::endl;
-            }else if (p == ChromosomeSubstitutionModel::DEMIDUPL_T){
-                stream <<"\t\tDEMI-DUPLICATION: " <<  numOfTransitions[p] << std::endl;
-            }else if (p == ChromosomeSubstitutionModel::BASENUM_T){
-                stream <<"\t\tBASE-NUMBER: " <<  numOfTransitions[p] << std::endl;
-            }else if (p == ChromosomeSubstitutionModel::MAXCHR_T){
-                stream <<"\t\tTOMAX: " <<  numOfTransitions[p] << std::endl;
-            }
-        }
-      }
+    auto &transitionsPerLeaf = expectationsFromRootToLeaf[leafIndex];
+    auto itTransitionsExpRootLeaf = transitionsPerLeaf.begin();
+    while (itTransitionsExpRootLeaf != transitionsPerLeaf.end()){
+        stream << "\t" << alphabet_->getMin() + (itTransitionsExpRootLeaf->first).first << " -> " << alphabet_->getMin()+ (itTransitionsExpRootLeaf->first).second << " : " <<  transitionsPerLeaf[itTransitionsExpRootLeaf->first] << std::endl;
+        itTransitionsExpRootLeaf ++;
     }
   }
   stream.close();
+  std::map<uint, std::map<int, double>> expectationsPerTypeRootToLeaf;
+  
+  for (size_t i = 0; i < numOfMappings; i++){
+      const string outStMappingRootToLeafCSVPath =  ChromEvolOptions::resultsPathDir_+"//"+ "stMapping_mapping_" + std::to_string(i) + ".csv";
+      printResultsForEachMapping(expectationsPerTypeRootToLeaf, NonHomoProcess, rootToLeafOccurrences, presentMapping, outStMappingRootToLeafCSVPath, i);
+  }
+  ofstream stream_exp;
+  stream_exp.open(outStMappingRootToLeafExpPath);
+  stream_exp << "NODE";
+  for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+    string typeStr = getTypeOfTransitionStr(type);
+    stream_exp << "," << typeStr;
+  }
+  stream_exp << std::endl;
+  for(size_t i = 0; i < leaves.size(); i++){
+    stream_exp << leaves[i]->getName();
+    auto leafIndex = tree_->getNodeIndex(leaves[i]);
+    if (expectationsPerTypeRootToLeaf.find(leafIndex) == expectationsPerTypeRootToLeaf.end()){
+        writeNanInTable(stream_exp);
+    }else{
 
+        for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+          expectationsPerTypeRootToLeaf[leafIndex][type] /= numOfMappingsPerLeaf[leafIndex];
+          stream_exp << "," << expectationsPerTypeRootToLeaf[leafIndex][type];
+
+        }
+        stream_exp << std::endl;
+
+    }
+
+  }
+
+  stream_exp.close();
+}
+/*************************************************************************************/
+void ChromosomeNumberMng::writeNanInTable(ofstream &stream){
+    for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+        stream << ",";
+    }
+    stream << std::endl;
+
+}
+
+/*************************************************************************************/
+void ChromosomeNumberMng::writeZeroInTable(ofstream &stream){
+    for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+        stream << ",0";
+    }
+    stream << std::endl;
+}
+/**************************************************************************************/
+void ChromosomeNumberMng::printResultsForEachMapping(std::map<uint, std::map<int, double>> &expectationsPerTypeRootToLeaf, const NonHomogeneousSubstitutionProcess* NonHomoProcess, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafTransitions, std::map<uint, std::map<size_t, bool>> &presentMapping, const string &outStMappingRootToLeafPath, size_t mappingIndex){
+    ofstream stream;
+    std::map<uint, size_t> modelsForBranch = ComputeChromosomeTransitionsExp::getModelForEachBranch(*tree_, *NonHomoProcess);
+    stream.open(outStMappingRootToLeafPath);
+    
+    stream << "NODE";
+    for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+        string typeStr = getTypeOfTransitionStr(type);
+        stream << "," << typeStr;
+    }
+    stream << std::endl;
+    auto leaves = tree_->getAllLeaves();
+    // expectationsPerTypeRootToLeaf
+    for (size_t i = 0; i < leaves.size(); i++){
+        uint nodeId = tree_->getNodeIndex(leaves[i]);
+        stream << leaves[i]->getName();
+        if (!(presentMapping[nodeId][mappingIndex])){
+            writeNanInTable(stream);
+        }else{
+            if (rootToLeafTransitions.find(nodeId) == rootToLeafTransitions.end()){
+                writeZeroInTable(stream);
+                if (expectationsPerTypeRootToLeaf.find(nodeId) == expectationsPerTypeRootToLeaf.end()){
+                    for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+                        expectationsPerTypeRootToLeaf[nodeId][type] = 0;
+                    }
+
+                }
+
+            }else{
+                if (rootToLeafTransitions[nodeId].find(mappingIndex) == rootToLeafTransitions[nodeId].end()){
+                    writeZeroInTable(stream);
+                    if (expectationsPerTypeRootToLeaf.find(nodeId) == expectationsPerTypeRootToLeaf.end()){
+                        for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+                            expectationsPerTypeRootToLeaf[nodeId][type] = 0;
+                        }
+                    }
+                }else{
+                    auto &transitions = rootToLeafTransitions[nodeId][mappingIndex];
+                    auto model = NonHomoProcess->getModel(modelsForBranch[nodeId]);
+                    auto chrModel = dynamic_cast<const ChromosomeSubstitutionModel*>(model);
+                    std::map<int, double> transitionsPerType = ComputeChromosomeTransitionsExp::getTypeForEachTransitionPerNode(chrModel, transitions, nodeId);
+                    for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
+                        stream << "," << transitionsPerType[type];
+                        if (expectationsPerTypeRootToLeaf.find(nodeId) == expectationsPerTypeRootToLeaf.end()){
+                            expectationsPerTypeRootToLeaf[nodeId][type] = transitionsPerType[type];
+                        }else{
+                            expectationsPerTypeRootToLeaf[nodeId][type] += transitionsPerType[type];
+                        }
+                    }
+                    stream << std::endl;
+
+                }
+            }
+            
+        }
+
+    }
+
+    stream.close();
+
+}
+/**************************************************************************************/
+std::string ChromosomeNumberMng::getTypeOfTransitionStr(int transitionType){
+    string nameOfTransition;
+    if (transitionType == ChromosomeSubstitutionModel::GAIN_T){
+        nameOfTransition = "GAIN";
+    }else if (transitionType == ChromosomeSubstitutionModel::LOSS_T){
+        nameOfTransition = "LOSS";
+    }else if (transitionType == ChromosomeSubstitutionModel::DUPL_T){
+        nameOfTransition =  "DUPLICATION";
+    }else if (transitionType == ChromosomeSubstitutionModel::DEMIDUPL_T){
+        nameOfTransition = "DEMI-DUPLICATION";
+    }else if (transitionType == ChromosomeSubstitutionModel::BASENUM_T){
+        nameOfTransition = "BASE-NUMBER";
+    }else if (transitionType == ChromosomeSubstitutionModel::MAXCHR_T){
+        nameOfTransition = "TOMAX";
+    }else{
+        throw Exception("getTypeOfTransitionStr(): No such transition!!");
+    }
+    return nameOfTransition;
+    
 }
 /**************************************************************************************/
 void ChromosomeNumberMng::printStochasticMappingResults(StochasticMapping* stm, Vdouble &dwellingTimesPerState, std::map<pair<size_t, size_t>, double> &numOfOccurencesPerTransition, VVdouble &ratesPerTransition, std::map<int, double> &expectationsTotal, const string &outStMappingPath){       

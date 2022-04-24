@@ -26,7 +26,7 @@ using namespace std;
 
 /******************************************************************************/
 
-StochasticMapping::StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings) :
+StochasticMapping::StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings, size_t numOfMappingTrials) :
   likelihood_(drl),
   tree_ (make_shared<PhyloTree>(drl->getSubstitutionProcess().getParametrizablePhyloTree())),
 //  mappingParameters_(drl->getSubstitutionProcess()),
@@ -36,7 +36,8 @@ StochasticMapping::StochasticMapping(std::shared_ptr<LikelihoodCalculationSingle
   ancetralStates_(),
   mappings_(),
   jumpsProbs_(),
-  notRepresentedNodes_()// ,
+  notRepresentedNodes_(),
+  numOfMappingTrials_(numOfMappingTrials)// ,
   // nodeIdToIndex_()
 {
   //giveNamesToInternalNodes(*tree_);                     // set names for the internal nodes of the tree, in case of absence
@@ -597,7 +598,7 @@ bool StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex, vect
       // 3. If the simulation has failed -> resample the ancestral states.
       // 4. Once the ancestral states are resampled -> call again to sampleMutationsGivenAncestrals()
        
-      bool success = sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex);
+      bool success = sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex, numOfMappingTrials_);
       if (!success){
         allSuccess = false;
         if (failedNodes){
