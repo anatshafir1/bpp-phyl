@@ -186,6 +186,8 @@ namespace bpp{
             static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
             std::map<int, vector <double>> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik, size_t modelIndex = 1) const;
             double getOriginalTreeLength(string &path) const;
+            void fixFailedMappings(StochasticMapping* stm);
+            vector <uint> getVectorOfMapKeys(std::map<uint, vector<size_t>> &mapOfVectors);
             // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 

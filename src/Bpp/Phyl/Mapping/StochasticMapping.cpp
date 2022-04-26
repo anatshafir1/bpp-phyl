@@ -69,20 +69,15 @@ void StochasticMapping::generateStochasticMapping()
 
     /* step 3: simulate mutational history of each lineage of the phylogeny, conditional on the ancestral states */
     vector<uint> failedNodeIds;
-    bool success = sampleMutationsGivenAncestrals(i);
-    //size_t counter = 0;
-    //while((counter < 10) && (!success))
-    if (!success){
-      sampleAncestrals(i); // verify that it doesn't push any elements again
-      clearMapping(i);
-      success = sampleMutationsGivenAncestrals(i, &failedNodeIds);
-      //counter ++;
-    }
+    //bool success = sampleMutationsGivenAncestrals(i);
+    bool success = sampleMutationsGivenAncestrals(i, &failedNodeIds);
+    // if (!success){
+    //   sampleAncestrals(i); // verify that it doesn't push any elements again
+    //   clearMapping(i);
+    //   success = sampleMutationsGivenAncestrals(i, &failedNodeIds);
+    // }
     if (!success){
       for (size_t k = 0; k < failedNodeIds.size(); k++){
-        // if (!(tree_->isLeaf(failedNodeIds[k]))){
-        //   throw Exception("generateStochasticMapping(): ERROR! Mapping failed twice!");
-        // }else{
         notRepresentedNodes_[failedNodeIds[k]].push_back(i);
         auto fatherNode = tree_->getFatherOfNode(tree_->getNode(failedNodeIds[k]));
         uint father = tree_->getNodeIndex(fatherNode);
@@ -93,10 +88,7 @@ void StochasticMapping::generateStochasticMapping()
         MutationPath tryMapping(alphabet, fatherState, branchLength);
         // add an empty mmutation path instance
         mappings_[failedNodeIds[k]].push_back(tryMapping);
-
-
-        //}
-        
+       
       }
   
     }
@@ -159,6 +151,16 @@ size_t StochasticMapping::giveRandomState(size_t beginState, size_t modelIndex) 
 	}
 	throw Exception("StochasticMapping::giveRandomState: could not give random character. The reason is unknown.");
 	return 1;
+
+}
+/*****************************************************************************/
+double StochasticMapping::getRateToLeaveState(uint nodeId, size_t mapping){
+  auto fatherNode = tree_->getFatherOfNode(tree_->getNode(nodeId));
+  uint father = tree_->getNodeIndex(fatherNode);
+  auto model = dynamic_cast<const SubstitutionModel*>(likelihood_->getSubstitutionProcess().getModel(father, 0)); // father or son??? Should be a father, because the models start at particular nodes, and I should get the model of the preceeding branch
+  size_t fatherState = ancetralStates_[father][mapping];
+  auto rateToLeave = -1* model->Qij(fatherState, fatherState);
+  return rateToLeave;
 
 }
 /******************************************************************************/
@@ -652,27 +654,58 @@ void StochasticMapping::updateBranchMapping(PhyloNode* son, const MutationPath& 
 
 bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum)
 {
-  bool success = true;
+  
   size_t fatherState = ancetralStates_[father][mappingIndex];
   size_t sonState = ancetralStates_[son][mappingIndex];
 
   auto branchPtr = tree_->getIncomingEdges(tree_->getNode(son))[0];
   auto branchLength = branchPtr->getLength();
-  auto alphabet = likelihood_->getData()->getAlphabet();
-  /* simulate mapping on a branch until you manage to finish at the son's state */
-  for (size_t i = 0; i < maxIterNum; i++){
 
+  /* simulate mapping on a branch until you manage to finish at the son's state */
+  bool success = sampleEvolutionaryPathForBranch(sonState, fatherState, father, son, branchLength, mappingIndex, maxIterNum); //TODO put the following lines (inside the for loop) into the new function
+  if (!success){
+    std::cout << "Mapping failure! " << "Mapping index: " << mappingIndex;
+    std::cout << ", nodeId: " << son << ", fatherState: " << fatherState << ", sonState: " << sonState << ", branchLength: " << branchLength;
+    std::cout << ", probability of son given father: " << ConditionalProbabilities_[son][fatherState][sonState];
+    if (!(father == tree_->getRootIndex())){
+      auto grandFather = tree_->getFatherOfNode (tree_->getNode(father));
+      uint grandFatherId = tree_->getNodeIndex(grandFather);
+      size_t grandFatherState = ancetralStates_[grandFatherId][mappingIndex];
+      std::cout << ", father id: " << father << ", grand father id: " << grandFatherId << ", grandFather state: " << grandFatherState;
+      std::cout << ", probability of father given grandFather: " << ConditionalProbabilities_[father][grandFatherState][fatherState] << std::endl;
+
+    }
+
+  }
+  return success;
+}
+
+/******************************************************************************/
+void StochasticMapping::getDewellingTimesUnderEachStatePerMapping(vector<double> &dwellingTimes, size_t mappingIndex){
+  auto rootId = tree_->getRootIndex();
+  auto sons = tree_->getSons(rootId);
+  for (size_t i = 0; i < sons.size(); i++){
+    getDewellingTimesUnderEachStatePerMappingRecursively(sons[i], ancetralStates_[rootId][mappingIndex], dwellingTimes, mappingIndex);
+  }
+
+}
+/*****************************************************************************/
+bool StochasticMapping::sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, size_t maxIterNum, bool replace){
+  bool success = true;
+  auto alphabet = likelihood_->getData()->getAlphabet();
+
+  auto model = dynamic_cast<const SubstitutionModel*>(likelihood_->getSubstitutionProcess().getModel(father, 0)); // father or son??? Should be a father, because the models start at particular nodes, and I should get the model of the preceeding branch
+  size_t modelIndex;
+  if (father == tree_->getRootIndex()){
+    modelIndex = 1; // I guess the model index should be 1 for the root. Is it true?
+  }else{
+    modelIndex = likelihood_->getSubstitutionProcess().getModelNumberForNode(father);
+  }  
+  for (size_t i = 0; i < maxIterNum; i++){
     double disFromNode = 0.0;
     size_t curState = fatherState;
     MutationPath tryMapping(alphabet, fatherState, branchLength);
-    //dynamic_cast<const ChromosomeSubstitutionModel*>
-    auto model = dynamic_cast<const SubstitutionModel*>(likelihood_->getSubstitutionProcess().getModel(father, 0)); // father or son??? Should be a father, because the models start at particular nodes, and I should get the model of the preceeding branch
-    size_t modelIndex;
-    if (father == tree_->getRootIndex()){
-      modelIndex = 1; // I guess the model index should be 1 for the root. Is it true?
-    }else{
-      modelIndex = likelihood_->getSubstitutionProcess().getModelNumberForNode(father);
-    }    
+  
     double timeTillChange;
     // if the father's state is not the same as the son's state -> use the correction corresponding to equation (11) in the paper
     if (fatherState != sonState)
@@ -704,48 +737,22 @@ bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uin
     }
     else                      // if the simulation was sucessfully, add it to the build mapping
     {
-      mappings_[son].push_back(tryMapping);
-      // *** debug ***//
-      if (mappings_[son].size() != mappingIndex+1){
-        throw Exception ("StochasticMapping::sampleMutationsGivenAncestralsPerBranch: Something went wrong when filling mappings_ object!");
+      if (replace){
+        mappings_[son][mappingIndex] = tryMapping;
+
+      }else{
+        mappings_[son].push_back(tryMapping);
+        // *** debug ***//
+        if (mappings_[son].size() != mappingIndex+1){
+          throw Exception ("StochasticMapping::sampleMutationsGivenAncestralsPerBranch: Something went wrong when filling mappings_ object!");
+        }
+
       }
-      // *****//
-      //double timeOfJump = branchLength - disFromNode;
-      //son->setDistanceToFather(timeOfJump);
-      //updateBranchMapping(son, tryMapping);     // add the successfull simulation to the build mapping
-
-
 
       return success;
     }
   }
-  // if all simulations failed -> throw an exception
-  std::cout << "Mapping failure! " << "Mapping index: " << mappingIndex;
-  std::cout << ", nodeId: " << son << ", fatherState: " << fatherState << ", sonState: " << sonState << ", branchLength: " << branchLength;
-  std::cout << ", probability of son given father: " << ConditionalProbabilities_[son][fatherState][sonState];
-  if (!(father == tree_->getRootIndex())){
-    auto grandFather = tree_->getFatherOfNode (tree_->getNode(father));
-    uint grandFatherId = tree_->getNodeIndex(grandFather);
-    size_t grandFatherState = ancetralStates_[grandFatherId][mappingIndex];
-    std::cout << ", father id: " << father << ", grand father id: " << grandFatherId << ", grandFather state: " << grandFatherState;
-    std::cout << ", probability of father given grandFather: " << ConditionalProbabilities_[father][grandFatherState][fatherState] << std::endl;
-
-  }
-
-  success = false;
-  return success;
-  //throw Exception("could not produce simulations with father = " + TextTools::toString(fatherState) + ", nodeId = "+ TextTools::toString(father)+ " son " + TextTools::toString(sonState) + ", nodeId = "+ TextTools::toString(son)+ " branch length = " + TextTools::toString(branchLength)+ " Mapping index: "+ TextTools::toString(mappingIndex));
-  
-}
-
-/******************************************************************************/
-void StochasticMapping::getDewellingTimesUnderEachStatePerMapping(vector<double> &dwellingTimes, size_t mappingIndex){
-  auto rootId = tree_->getRootIndex();
-  auto sons = tree_->getSons(rootId);
-  for (size_t i = 0; i < sons.size(); i++){
-    getDewellingTimesUnderEachStatePerMappingRecursively(sons[i], ancetralStates_[rootId][mappingIndex], dwellingTimes, mappingIndex);
-  }
-
+  return false;
 }
 /******************************************************************************/
 bool StochasticMapping::isAccounted(uint nodeId, size_t mappingIndex){
@@ -1202,6 +1209,16 @@ void StochasticMapping::printUnrepresentedLeavesWithCorrespondingMappings(ofstre
   
 
 }
+/******************************************************************************/
+bool StochasticMapping::tryToReplaceMapping(double branchLength, uint nodeId, size_t mappingIndex, size_t maxNumOfIterations){
+  auto fatherNode = tree_->getFatherOfNode(tree_->getNode(nodeId));
+  uint father = tree_->getNodeIndex(fatherNode);
+  size_t fatherState = ancetralStates_[father][mappingIndex];
+  size_t sonState = ancetralStates_[nodeId][mappingIndex];
+  bool success = sampleEvolutionaryPathForBranch(sonState, fatherState, father, nodeId, branchLength, mappingIndex, maxNumOfIterations, true);
+  return success;
+}
+
 
 /******************************************************************************/
 

@@ -256,10 +256,33 @@ namespace bpp
    std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> getNumOfOccurrencesFromRootToTip(std::map<uint, std::map<size_t, bool>> &presentMapping);
    void updateFromRootToLeafRecursively(std::map<uint, std::map<size_t, bool>> &presentMapping, std::map<uint, std::map<pair<size_t, size_t>, double>> &occurrencesPerMapping, size_t mappingIndex, uint nodeId, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &occurrencesFromRootToLeaf);
 
-    
+    /*
+    * get mappings (not const)
+    */
+   map<uint, vector<MutationPath>> getMappings(){
+     return mappings_;
+   }
+
+   map<uint, vector<size_t>> getFailedNodes(){
+     return notRepresentedNodes_;
+   }
+   void removeFailedNodes(uint nodeId, size_t mappingIndex){
+     auto &failedMappings = notRepresentedNodes_[nodeId];
+     failedMappings.erase(std::remove(failedMappings.begin(), failedMappings.end(), mappingIndex), failedMappings.end());
+     if (failedMappings.size() == 0){
+       auto it = notRepresentedNodes_.find(nodeId);    
+       notRepresentedNodes_.erase(it);
+     }
+   }
+    /*
+    * try to fix a mapping for a given node
+    */
+   bool tryToReplaceMapping(double branchLength, uint nodeId, size_t mappingIndex, size_t maxNumOfIterations);
+   double getRateToLeaveState(uint nodeId, size_t mapping);
     
 
   private:
+    bool sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, size_t maxIterNum, bool replace = false);
     bool isAccounted(uint nodeId, size_t mappingIndex);
     void clearMapping(size_t mappingIndex);
     void initMapOfNumOfOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences);
@@ -381,6 +404,8 @@ namespace bpp
      @param divMethod                 The method used in the case that the son and father share the same state (either divide the wdelling time of the staed state by 2 for  two transitions (method 0) or allocate the entire dwelling time to be adjacent to the son(method 1))
     */
     void updateBranchByDwellingTimes(PhyloNode* node, VDouble& dwellingTimes, VVDouble& posteriorProbabilities, size_t divMethod = 0);
+
+
   };
 }
 

@@ -578,6 +578,7 @@ void ChromosomeNumberMng::runChromEvol(){
 }
 /**************************************************************************************/
 void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOptimizer){
+
     auto likObject = chrOptimizer->getVectorOfLikelihoods()[0];
     bool weightedRootFreqs = (ChromEvolOptions::fixedFrequenciesFilePath_ != "none") ? true:false;
     auto lik = likObject->getLikelihoodCalculationSingleProcess();  
@@ -597,6 +598,8 @@ void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOpt
     //////////////////////////////////////////////////////////////////////
     StochasticMapping* stm = new StochasticMapping(likObjectOpt, ChromEvolOptions::NumOfSimulations_, ChromEvolOptions::numOfStochasticMappingTrials_);//ChromEvolOptions::NumOfSimulations_);
     stm->generateStochasticMapping();
+    // retry to get unsuccessful nodes via stretching the problematic branches.
+    fixFailedMappings(stm);
 
     // getting expected number of transitions for each type (comparable to the expectation computation).
     // This is just a test!!
@@ -633,6 +636,62 @@ void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOpt
     
 
 
+}
+/**************************************************************************************/
+vector <uint> ChromosomeNumberMng::getVectorOfMapKeys(std::map<uint, vector<size_t>> &mapOfVectors){
+    auto it = mapOfVectors.begin();
+    vector <uint> vectorOfKeys;
+    while (it != mapOfVectors.end()){
+        vectorOfKeys.push_back(it->first);
+        it ++;
+    }
+    return vectorOfKeys;
+}
+/**************************************************************************************/
+void ChromosomeNumberMng::fixFailedMappings(StochasticMapping* stm){
+    auto failedNodesWithMappings = stm->getFailedNodes();
+    std::cout << "*** Stochastic mapping: failed nodes before heuristics ***"<< std:: endl;
+    auto it = failedNodesWithMappings.begin();
+    while (it != failedNodesWithMappings.end()){
+        if (tree_->isLeaf(it->first)){
+            std::cout << (tree_->getNode(it->first))->getName() <<": ";
+        }else{
+            std::cout << "N" << it->first << ": ";
+        }
+        for (size_t m = 0; m < failedNodesWithMappings[it->first].size(); m++){
+            if (m == failedNodesWithMappings[it->first].size()-1){
+                std::cout << failedNodesWithMappings[it->first][m] << std::endl;
+
+            }else{
+                std::cout << failedNodesWithMappings[it->first][m] <<", ";
+            }
+            
+        }
+        it++;
+    }
+    std::cout << "******End of unrepresented nodes*********" << std::endl;
+    vector <uint> failedNodes = getVectorOfMapKeys(failedNodesWithMappings);
+    for (size_t i = 0; i < failedNodes.size(); i++){
+        auto mappings = failedNodesWithMappings[failedNodes[i]];
+        for (size_t j = 0; j < mappings.size(); j++){
+            auto branchPtr = tree_->getIncomingEdges(tree_->getNode(failedNodes[i]))[0];
+            auto branchLength = branchPtr->getLength();
+            for (size_t k = 0; k < MAX_ITER_HEURISTICS; k++){
+                auto rateToLeave = stm->getRateToLeaveState(failedNodes[i], mappings[j]);
+                if (branchLength * rateToLeave >= 1){
+                    branchLength *= BRANCH_MULTIPLIER_FACTOR;
+                }else{
+                    branchLength *= 1/(rateToLeave*branchLength);
+                }
+
+                bool success = stm->tryToReplaceMapping(branchLength, failedNodes[i], mappings[j], ChromEvolOptions::numOfFixingMappingIterations_);
+                if (success){
+                    stm->removeFailedNodes(failedNodes[i], mappings[j]);
+                    break;
+                }
+            }           
+        }
+    }
 }
 /**************************************************************************************/
 void ChromosomeNumberMng::printRootToLeaf(std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafOccurrences, std::map<uint, std::map<size_t, bool>> &presentMapping, size_t numOfMappings, const NonHomogeneousSubstitutionProcess* NonHomoProcess){
