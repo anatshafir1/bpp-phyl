@@ -29,6 +29,15 @@ double LinearDependencyFunction::getRate(std::vector<Parameter*> params, size_t 
 
 }
 /**************************************************************************************/
+double LinearDependencyFunction::getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+  if (index == 0){
+    return parsimonyBound;
+  }else if (index == 1){
+    return params[0]-(params[0]*(maxChrNum+minChrNum)/2) + parsimonyBound;
+  }
+  throw Exception("LinearDependencyFunction::getParsimonyBound(): No such index!");
+}
+/**************************************************************************************/
 void LinearDependencyFunction::updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){
   if (index == 0){
     *lowerBound = std::max(lowerBoundOfRateParam, -params.getParameter(paramsNames[1]).getValue()*(maxChrNum-1));
@@ -76,6 +85,13 @@ void LinearDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBoun
     throw Exception("LinearDependencyFunction::getAbsoluteBounds(): index out of bounds!!");
   }
 }
+/**************************************************************************************/
+double LinearBDDependencyFunction::getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+  if (index != 0){
+    throw Exception("LinearDependencyFunction::getParsimonyBound(): index out of bounds!!");
+  }
+  return (parsimonyBound * 2)/(minChrNum + maxChrNum);
+}
 
 /**************************************************************************************/
 double LinearBDDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
@@ -106,6 +122,16 @@ void ExponentailDependencyFunction::getAbsoluteBounds(size_t index, double* lowe
 
   }
  
+}
+/**************************************************************************************/
+double ExponentailDependencyFunction::getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+  if (index == 0){
+    return parsimonyBound;
+  }else if (index == 1){
+    return (std::log(parsimonyBound) + std::log(params[0]));
+  }else{
+    throw Exception("ExponentailDependencyFunction::getParsimonyBound(): ERROR! such parameter does not exist!");
+  }
 }
 /**************************************************************************************/
 double PolynomialDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
@@ -436,10 +462,11 @@ ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
           auto numOfParameters = functionOp->getNumOfParameters();
           for (size_t j = 0; j < numOfParameters; j++){
             functionOp->getBoundsForInitialParams(j, paramValues, &lowerBound, &upperBound, alpha->getMax());
+            double upperBoundCandidate = functionOp->getParsimonyBound(paramValues, parsimonyBound, j, alpha->getMin(), alpha->getMax());
             //compositeParameter::getBoundsForInitialParams(func, j, paramValues, &lowerBound, &upperBound, alpha->getMax(), true);
             if (parsimonyBound > 0){
-              if (parsimonyBound >= lowerBound){
-                upperBound = std::min(upperBound, parsimonyBound);
+              if (upperBoundCandidate >= lowerBound){
+                upperBound = std::min(upperBound, upperBoundCandidate);
               }         
             }
             double randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBound, upperBound);

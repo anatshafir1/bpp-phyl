@@ -58,7 +58,10 @@ class ChromosomeNumberDependencyFunction{
       *lowerBound = lowerBoundOfRateParam;
       *upperBound = upperBoundOfRateParam;
     }
-    
+    virtual double getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+      return parsimonyBound;
+
+    }
 
 };
 class ConstantDependencyFunction :
@@ -71,6 +74,9 @@ class ConstantDependencyFunction :
     FunctionType getName() const{return FunctionType::CONSTANT;}
     double getRate(std::vector<Parameter*> params, size_t state) const;
     size_t getNumOfParameters() const{return 1;}
+    double getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+      return parsimonyBound;
+    }
 
 };
 class LinearDependencyFunction:
@@ -88,6 +94,7 @@ class LinearDependencyFunction:
     void updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound);
     void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);
     void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
+    double getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum);
 
 };
 class LinearBDDependencyFunction:
@@ -100,6 +107,8 @@ class LinearBDDependencyFunction:
     FunctionType getName() const{return FunctionType::LINEAR_BD;}
     double getRate(std::vector<Parameter*> params, size_t state) const;
     size_t getNumOfParameters() const{return 1;}
+    //double getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum);
+    double getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum);
 
 };
 class ExponentailDependencyFunction:
@@ -114,6 +123,7 @@ class ExponentailDependencyFunction:
     size_t getNumOfParameters() const{return 2;}
     void getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber);
     void getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber);
+    double getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum);
 
 };
 class PolynomialDependencyFunction:
