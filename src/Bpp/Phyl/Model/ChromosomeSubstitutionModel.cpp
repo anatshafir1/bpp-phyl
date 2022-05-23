@@ -25,7 +25,11 @@ double ConstantDependencyFunction::getRate(std::vector<Parameter*> params, size_
 
 /**************************************************************************************/
 double LinearDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
-  return params[0]->getValue() + ((double)(state-1)*params[1]->getValue());
+  double func_res = params[0]->getValue() + ((double)(state-1)*params[1]->getValue());
+  if (func_res < 0){
+    return 0;
+  }
+  return func_res;
 
 }
 /**************************************************************************************/
