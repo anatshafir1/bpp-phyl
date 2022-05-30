@@ -355,6 +355,7 @@ private:
   ChromosomeNumberDependencyFunction::FunctionType duplFunc_;
   ChromosomeNumberDependencyFunction::FunctionType demiFunc_;
   ChromosomeNumberDependencyFunction::FunctionType baseNumRFunc_;
+  bool simulated_;
  
 
 
@@ -373,14 +374,16 @@ public:
     vector<double> baseNumR,
     unsigned int maxChrRange, 
     rootFreqType freqType,
-    vector<int> rateChangeType);
+    vector<int> rateChangeType,
+    bool simulated = false);
 
   ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
     std::map<int, vector<double>> mapOfParamValues,
     int baseNum,
     unsigned int maxChrRange, 
     rootFreqType freqType,
-    vector<int> rateChangeType);
+    vector<int> rateChangeType,
+    bool simulated = false);
 
   //constructor with vector of parameters
   // ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
@@ -426,6 +429,7 @@ public:
     duplFunc_(model.duplFunc_),
     demiFunc_(model.demiFunc_),
     baseNumRFunc_(model.baseNumRFunc_),
+    simulated_(model.simulated_),
     vPowExp_(model.vPowExp_)
   {
     std::vector<compositeParameter**> newModelParams = {&gain_, &loss_, &dupl_, &demiploidy_, &baseNumR_};

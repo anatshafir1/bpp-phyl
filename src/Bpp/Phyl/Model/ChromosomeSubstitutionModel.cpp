@@ -301,7 +301,8 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
   std::vector<double> baseNumR,
   unsigned int chrRange, 
   rootFreqType freqType,
-  std::vector<int> rateChangeType):
+  std::vector<int> rateChangeType,
+  bool simulated):
     AbstractParameterAliasable("Chromosome."),
     AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
     gain_(0),
@@ -321,7 +322,9 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
     duplFunc_(),
     demiFunc_(),
     baseNumRFunc_(),
+    simulated_(simulated),
     vPowExp_()
+    
 {
     size_t startNonComposite = getNumberOfNonCompositeParams();
     for (size_t i = startNonComposite; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
@@ -361,7 +364,8 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
   int baseNum,
   unsigned int chrRange, 
   rootFreqType freqType,
-  vector<int> rateChangeType):
+  vector<int> rateChangeType,
+  bool simulated):
     AbstractParameterAliasable("Chromosome."),
     AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
     gain_(0),
@@ -381,7 +385,9 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
     duplFunc_(),
     demiFunc_(),
     baseNumRFunc_(),
+    simulated_(simulated),
     vPowExp_()
+    
 {
   size_t startNonComposite = getNumberOfNonCompositeParams();
   for (size_t i = startNonComposite; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
@@ -507,10 +513,14 @@ std::vector<Parameter*> ChromosomeSubstitutionModel::createCompositeParameter(Ch
     ChromosomeNumberDependencyFunction* functionOp =  compositeParameter::setDependencyFunction(func);
     functionOp->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
     functionOp->getAbsoluteBounds(i, &lowerBound, &upperBound, ChrMaxNum_);
-    //compositeParameter::getAbsoluteBounds(func, i, &lowerBound, &upperBound, ChrMaxNum_);
     delete functionOp;
 
-    //compositeParameter::getBoundsForInitialParams(func, i, vectorOfValues, &lowerBound, &upperBound, ChrMaxNum_);
+    // in simulations it sometimes happens when the upper bound is lower than the value itself,
+    // because the max number in the simulating function is much larger. In these cases it is important to
+    // change the upper bound, such that it will be  >= parameter value
+    if (simulated_ && upperBound <= paramValue){
+      upperBound = paramValue + EPSILON;
+    }
     std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBound, upperBound, false, true);
     Parameter* param = new Parameter("Chromosome."+ paramName + std::to_string(i), paramValue, interval);
     params.push_back(param);

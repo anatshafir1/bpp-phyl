@@ -1172,7 +1172,7 @@ void ChromosomeNumberMng::simulateData(){
     std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
     //1. ChromEvolOptions::mapModelNodesIds_: already calculated
     
-    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
     if (chrModel->getBaseNumber() != IgnoreParam){
         chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
 
@@ -1192,7 +1192,7 @@ void ChromosomeNumberMng::simulateData(){
     // adding models
     for (uint i = 1; i <= (uint)(ChromEvolOptions::numOfModels_); i++){
         if (i > 1){
-            chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+            chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
             if (chrModel->getBaseNumber() != IgnoreParam){
                 chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
 
