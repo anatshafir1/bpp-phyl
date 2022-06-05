@@ -60,6 +60,7 @@ bool ChromEvolOptions::forwardPhase_;
 bool ChromEvolOptions::runStochasticMapping_;
 size_t ChromEvolOptions::numOfStochasticMappingTrials_;
 size_t ChromEvolOptions::numOfFixingMappingIterations_; // number of mapping trials
+bool ChromEvolOptions::useMaxBaseTransitonNumForOpt_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -104,6 +105,7 @@ void ChromEvolOptions::initDefaultParameters(){
     runStochasticMapping_ = false;
     numOfStochasticMappingTrials_ = 1000000;
     numOfFixingMappingIterations_ = 1000;
+    useMaxBaseTransitonNumForOpt_ = false;
     
 
 }
@@ -227,6 +229,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     runStochasticMapping_ = ApplicationTools::getBooleanParameter("_runStochasticMapping", ChromEvol.getParams(), runStochasticMapping_, "", true, 0);
     numOfStochasticMappingTrials_ = static_cast<size_t>(ApplicationTools::getIntParameter("_numOfStochasticMappingTrials", ChromEvol.getParams(), (int)numOfStochasticMappingTrials_, "", true, 0));
     numOfFixingMappingIterations_ = static_cast<size_t>(ApplicationTools::getIntParameter("_numOfFixingMappingIterations", ChromEvol.getParams(), (int)numOfFixingMappingIterations_, "", true, 0));
+    useMaxBaseTransitonNumForOpt_ = ApplicationTools::getBooleanParameter("_useMaxBaseTransitonNumForOpt", ChromEvol.getParams(), useMaxBaseTransitonNumForOpt_, "", true, 0);
 
 
 }

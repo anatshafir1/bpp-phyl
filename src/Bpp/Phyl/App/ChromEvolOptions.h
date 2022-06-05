@@ -100,6 +100,7 @@ public:
     static bool runStochasticMapping_;
     static size_t numOfStochasticMappingTrials_;
     static size_t numOfFixingMappingIterations_;
+    static bool useMaxBaseTransitonNumForOpt_;
     // public functions
     static std::vector<int> translateStringParamsToInt(std::vector<string> &strParams);
     static std::shared_ptr<PhyloNode> getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes);

@@ -313,7 +313,7 @@ ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoin
         ChromEvolOptions::OptPointsNumNextRounds_ = {1};
 
     }
-    std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
+    std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_ || ChromEvolOptions::useMaxBaseTransitonNumForOpt_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
     ChromosomeNumberOptimizer* opt = new ChromosomeNumberOptimizer(tree_, alphabet_, vsc_, maxBaseNumTransition);
     //initialize all the optimization specific parameters
     opt->initOptimizer(ChromEvolOptions::OptPointsNum_, ChromEvolOptions::OptIterNum_, ChromEvolOptions::OptPointsNumNextRounds_, ChromEvolOptions::OptIterNumNextRounds_, ChromEvolOptions::optimizationMethod_, ChromEvolOptions::baseNumOptimizationMethod_,
