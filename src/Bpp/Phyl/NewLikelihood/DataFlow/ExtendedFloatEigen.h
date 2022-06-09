@@ -321,14 +321,14 @@ namespace bpp {
     
     bool normalize_big () noexcept {
       using namespace std;
-      auto float_abs = float_part().cwiseAbs();
-      int maxIndexRow;
-      int maxIndexCol;
-      float_abs.maxCoeff(&maxIndexRow, &maxIndexCol);
-      if (isfinite(std::abs(float_part()(maxIndexRow, maxIndexCol)))) {
+      auto max = float_part().cwiseAbs().maxCoeff();
+      if (isfinite(max))
+      {
         bool normalized = false;
-        while (std::abs(float_part()(maxIndexRow, maxIndexCol)) > ExtendedFloat::biggest_normalized_value) {
+        while (max > ExtendedFloat::biggest_normalized_value)
+        {
           float_part() *= (double)ExtendedFloat::normalize_big_factor;
+          max *= (double)ExtendedFloat::normalize_big_factor;
           exp_ += ExtendedFloat::biggest_normalized_radix_power;
           normalized = true;
         }
@@ -338,26 +338,24 @@ namespace bpp {
     }
     
     bool normalize_small () {
-      auto float_abs = float_part().cwiseAbs();
-      int maxIndexRow;
-      int maxIndexCol;
-      auto max_value = float_abs.maxCoeff(&maxIndexRow, &maxIndexCol);
-      if (max_value > 0){ 
+      const auto& fabs= float_part().cwiseAbs();
+      auto max=fabs.maxCoeff();     
+      if (max > 0){
         // not a vector of zeros
-        int minIndexRow;
-        int minIndexCol;
-        ((float_abs.array() == 0).select(max_value, float_abs)).minCoeff(&minIndexRow, &minIndexCol);
+        auto min=fabs.unaryExpr([max](double d){return d>0?d:max;}).minCoeff();
         bool normalized = false;
-        while (std::abs(float_part()(minIndexRow, minIndexCol)) < ExtendedFloat::smallest_normalized_value) {
-          if (std::abs(float_part()(maxIndexRow, maxIndexCol)) >= ExtendedFloat::biggest_value_for_mult){
+        while (min< ExtendedFloat::smallest_normalized_value) {
+          if (max>=ExtendedFloat::biggest_value_for_mult){
             break;
           }
           float_part() *= (double)ExtendedFloat::normalize_small_factor;
+          min *= (double)ExtendedFloat::normalize_small_factor;
+          max *= (double)ExtendedFloat::normalize_small_factor;
           exp_ -= ExtendedFloat::biggest_normalized_radix_power;
           normalized = true;
+
         }
         return normalized;
-
       }
       return false;
     }
