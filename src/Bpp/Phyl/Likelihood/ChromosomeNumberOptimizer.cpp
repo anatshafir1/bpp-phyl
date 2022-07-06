@@ -70,7 +70,13 @@ void ChromosomeNumberOptimizer::initLikelihoods(std::map<uint, std::pair<int, st
         if (n == 0){
             lik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, sharedParams);
         }else{
-            lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)n, fixedParams, sharedParams);
+            if (n == 1){
+                lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)n, fixedParams, sharedParams);
+
+            }else{
+                lik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (1+(0.1*(double)n)), fixedParams, sharedParams);
+            }
+            
     
         }
         ifNanTryToResampleLikObject(&lik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound, numOfPoints, fixedParams, sharedParams);
@@ -1084,6 +1090,27 @@ double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* li
     return AICc;
 
 }
+// double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const{
+//     // the number of shifts
+//     size_t numOfModels = lik->getSubstitutionProcess().getNumberOfModels();
+//     // the number of substitution params takes into account also the backward phase
+//     auto numOfSubstitutionParams = lik->getSubstitutionModelParameters().size()-numOfFixedParams;
+
+//     // N (sample size)
+//     // p (number of overall parameters)
+//     // k must maintain the constraint of the denominator -> throw detailed exception..
+//     double numOfParams = static_cast<double>(numOfModels) - 1 + static_cast<double>(numOfSubstitutionParams);
+//     if ((backwardPhaseStarted_) && (numOfShiftsForward_ > numOfModels)){
+//         numOfParams += static_cast<double>(numOfShiftsForward_-numOfModels);
+//     }
+
+//     //Calculating AICc-> I have some problems with AIC. In some cases the denominator becomes zero.
+//     // so meanwhile I will use AIC...
+//     double AIC = 2*(lik->getValue()) + (2*numOfParams);
+//     //return AICc;
+//     return AIC;
+
+// }
 /***********************************************/
 void ChromosomeNumberOptimizer::setInitialModelRepresentitives(std::map<uint, vector<uint>> &initialPartition){
     auto numOfModels = static_cast<uint>(initialPartition.size());
@@ -1253,7 +1280,13 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getBackwardLikObject(st
         newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, updatedSharedParams);         
 
     }else{
-        newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
+        if (iteration == 1){
+            newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
+
+        }else{
+            newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (1+ (0.1*(double)iteration)), fixedParams, updatedSharedParams);
+        }
+        
     }
     ifNanTryToResampleLikObject(&newLik, tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels, parsimonyBound, iteration, fixedParams, updatedSharedParams);
     return newLik;
@@ -1267,7 +1300,13 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::getSingleNewLikObject(s
         newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, updatedSharedParams);         
 
     }else{
-        newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
+        if (iteration == 1){
+            newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)iteration, fixedParams, updatedSharedParams);
+
+        }else{
+            newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (1+(0.1*(double)iteration)), fixedParams, updatedSharedParams);
+        }
+        
     }
     ifNanTryToResampleLikObject(&newLik, tree_, vsc_, alphabet_, *baseNumberBounds, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound, iteration, fixedParams, updatedSharedParams);
     return newLik;
@@ -1318,8 +1357,13 @@ void ChromosomeNumberOptimizer::getNewLikObjectForParallelRuns(std::vector<Singl
             newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, updatedSharedParams);
 
         }else{
-            // setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
-            newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)i, fixedParams, updatedSharedParams);
+            if (i == 1){
+                newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)i, fixedParams, updatedSharedParams);
+
+            }else{
+                newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (1+ ((double)i*0.1)), fixedParams, updatedSharedParams);
+            }
+            
         }
         ifNanTryToResampleLikObject(&newLik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound, numOfPoints, fixedParams, updatedSharedParams);
         perCandidateLikVec.push_back(newLik);
@@ -1369,8 +1413,13 @@ void ChromosomeNumberOptimizer::getNewLikObject(SingleProcessPhyloLikelihood* cu
             newLik = setHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, updatedSharedParams);
 
         }else{
-            // setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, ChromEvolOptions::numOfModels_, parsimonyBound * (double)n, fixedParams_, &(ChromEvolOptions::sharedParameters_));
-            newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)i, fixedParams, updatedSharedParams);
+            if (i == 1){
+                newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (double)i, fixedParams, updatedSharedParams);
+
+            }else{
+                newLik = setRandomHeterogeneousModel(tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound * (1+(0.1*(double)i)), fixedParams, updatedSharedParams);
+            }
+            
         }
         ifNanTryToResampleLikObject(&newLik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels+1, parsimonyBound, numOfPoints, fixedParams, updatedSharedParams);
         vectorOfLikelohoods_.push_back(newLik);
@@ -1440,7 +1489,13 @@ void ChromosomeNumberOptimizer::ifNanTryToResampleLikObject(SingleProcessPhyloLi
         if (multiplier == 0){
             multiplier ++;
         }
-        *lik = setRandomHeterogeneousModel(tree, vsc, alphabet, baseNumberUpperBound, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * (double)multiplier, fixedParams, sharedParams);
+        double parsimonlyFactor;
+        if (multiplier == 1){
+            parsimonlyFactor = (double)multiplier;
+        }else{
+            parsimonlyFactor = (1 + (0.1 * (double)multiplier));
+        }
+        *lik = setRandomHeterogeneousModel(tree, vsc, alphabet, baseNumberUpperBound, mapModelNodesIds, modelParams, numOfModels, parsimonyBound * parsimonlyFactor, fixedParams, sharedParams);
         numOfTrials ++;
     }
     if (std::isnan((*lik)->getValue())){
@@ -2262,12 +2317,14 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
         uint numOfModels = static_cast<uint>(finalLikBackward->getSubstitutionProcess().getNumberOfModels());
 
         std::vector<std::pair<uint, uint>> pairsOfModels;
-        // we don't have to start from the background model, hence we start from model 2.
-        for (uint i = 2; i <= numOfModels-1; i++){
+        // TODO: should also check sometimes combinations with the backward model
+        for (uint i = 1; i <= numOfModels-1; i++){
             for (uint j = i+1; j <= numOfModels; j++){
                 std::pair<uint, uint> pairOfModels(i, j);
-                pairsOfModels.push_back(pairOfModels);
-                
+                if (!isModelADirectSubtreeOfAnother(finalLikBackward, i, j)){
+                    pairsOfModels.push_back(pairOfModels);
+
+                }                
             }
         }
         time_t t1;
@@ -2368,13 +2425,15 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
         }
         auto likToDel = finalLikBackward;
         vectorOfLikelohoods_.pop_back();
-        mergeMultipleModelClusters(finalLikBackward, rootAndVerticesToMerge, maxParsimony);//TODO)
+        mergeMultipleModelClusters(finalLikBackward, rootAndVerticesToMerge, maxParsimony);
+        numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams_); 
+        AICc_best = calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
         deleteLikObject(likToDel);
         delete G;
         time(&t4);
         std::cout <<"**** **** running time of the graph construction is: "<< (t4-t3) <<endl;
         // Delete all the unnecessary likelihood objects from the pairs map
-        // HERE: TODO!!
+        // HERE: TODO!! Is it relevant???
 
         
 
@@ -2465,5 +2524,55 @@ void ChromosomeNumberOptimizer::mergeMultipleModelClusters(SingleProcessPhyloLik
     optimizeMultiProcessModel(&updatedSharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberBounds, 0, 0, 0);
     sharedParams_ = updatedSharedParams;
     fixedParams_ = fixedParams;
+    // get here the AICc?
+
+}
+/*********************************************************************************************/
+void ChromosomeNumberOptimizer::fillWithFathers(vector<uint> &fathers, vector<uint> &nodes){
+    for (size_t i = 0; i < nodes.size(); i++){
+        if (tree_->getRootIndex() != nodes[i]){
+            auto fatherNode = tree_->getFatherOfNode(tree_->getNode(nodes[i]));
+            uint father = tree_->getNodeIndex(fatherNode);
+            fathers.push_back(father);
+        }
+    }
+}
+/*********************************************************************************************/
+bool ChromosomeNumberOptimizer::isModelADirectSubtreeOfAnother(SingleProcessPhyloLikelihood* lik, size_t indexModel1, size_t indexModel2){
+    auto vectorOfNodesM1 = lik->getSubstitutionProcess().getNodesWithModel(indexModel1);
+    auto vectorOfNodesM2 = lik->getSubstitutionProcess().getNodesWithModel(indexModel2);
+    if (indexModel1 == 1){
+        vectorOfNodesM1.push_back(tree_->getRootIndex());
+    }
+    vector<uint> fathersM1;
+    vector<uint> fathersM2;
+    fillWithFathers(fathersM1, vectorOfNodesM1);
+    set<uint> setFathersM1(fathersM1.begin(), fathersM1.end());
+    set<uint> setNodesM1(vectorOfNodesM1.begin(),vectorOfNodesM1.end());
+    set<uint> setNodesM2(vectorOfNodesM2.begin(), vectorOfNodesM2.end());
+    set<uint> intersectWithM1;
+    set<uint> intersectWithM2;
+    set_intersection(setFathersM1.begin(), setFathersM1.end(), setNodesM2.begin(), setNodesM2.end(),
+                 std::inserter(intersectWithM2, intersectWithM2.begin()));
+    set_intersection(setFathersM1.begin(), setFathersM1.end(), setNodesM1.begin(), setNodesM1.end(),
+                 std::inserter(intersectWithM1, intersectWithM1.begin()));
+    // If M1 is contained within M2, the fathers should be either contained 
+    // within M1 or M2             
+    if ((intersectWithM2.size() > 0) && ((intersectWithM1.size() + intersectWithM2.size()) == setFathersM1.size())){
+        return true;
+    }
+    intersectWithM1.clear();
+    intersectWithM2.clear();
+    // a symmetrical check for fathers of M2 to check whether M2 is contained within M1.
+    fillWithFathers(fathersM2, vectorOfNodesM2);
+    set<uint> setFathersM2(fathersM2.begin(), fathersM2.end());
+    set_intersection(setFathersM2.begin(), setFathersM2.end(), setNodesM2.begin(), setNodesM2.end(),
+                 std::inserter(intersectWithM2, intersectWithM2.begin()));
+    set_intersection(setFathersM2.begin(), setFathersM2.end(), setNodesM1.begin(), setNodesM1.end(),
+                 std::inserter(intersectWithM1, intersectWithM1.begin()));
+    if ((intersectWithM1.size() > 0) && ((intersectWithM1.size() + intersectWithM2.size()) == setFathersM2.size())){
+        return true;
+    }
+    return false;
 
 }

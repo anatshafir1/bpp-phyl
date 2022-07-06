@@ -72,6 +72,8 @@ void ChromosomeNumberMng::getCharacterData (const string& path){
 }
 /*************************************************************************************************************/
 void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
+    std::map<uint, std::vector<uint>> mapModelNodesTmp;
+    // ChromEvolOptions::mapModelNodesIds_[1]
     if (path == "none"){
         auto nodes = tree_->getAllNodes();
         for (size_t i = 0; i < nodes.size(); i++){
@@ -91,11 +93,12 @@ void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
     PhyloTree* tree = tree_->clone();
     std::map<uint, std::pair<uint, std::vector<uint>>> mapOfModelMRCAAndNodes;
     std::map<uint, uint> mapNodeModel;
+    std::map<uint, uint> mapOriginalToAssignedModel;
     for (size_t i = 0; i < lines.size(); i ++){
         if (lines[i] == ""){
             continue;
         }
-        getNodeIdsPerModelFromLine(lines[i], tree, mapOfModelMRCAAndNodes);
+        getNodeIdsPerModelFromLine(lines[i], tree, mapOfModelMRCAAndNodes, mapOriginalToAssignedModel);
 
     }
     auto it_ModelNodes = mapOfModelMRCAAndNodes.begin();
@@ -103,7 +106,7 @@ void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
         uint model = it_ModelNodes->first;
         uint nodeId = mapOfModelMRCAAndNodes[model].first;
         mapNodeModel[nodeId] = model;
-        ChromEvolOptions::mapModelNodesIds_[model] = mapOfModelMRCAAndNodes[model].second;
+        mapModelNodesTmp[model] = mapOfModelMRCAAndNodes[model].second;
         it_ModelNodes ++;
     }
     auto it = mapOfModelMRCAAndNodes.begin();
@@ -117,9 +120,9 @@ void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
                 if (modelOfDescendant != model){
                     vector<uint> subtree = mapOfModelMRCAAndNodes[modelOfDescendant].second;
                     for (size_t j = 0; j < subtree.size(); j++){
-                        auto nodeToDelIt = std::find(ChromEvolOptions::mapModelNodesIds_[model].begin(), ChromEvolOptions::mapModelNodesIds_[model].end(), subtree[j]);
-                        if (nodeToDelIt != ChromEvolOptions::mapModelNodesIds_[model].end()){
-                            ChromEvolOptions::mapModelNodesIds_[model].erase(std::remove(ChromEvolOptions::mapModelNodesIds_[model].begin(), ChromEvolOptions::mapModelNodesIds_[model].end(), subtree[j]),ChromEvolOptions::mapModelNodesIds_[model].end());
+                        auto nodeToDelIt = std::find(mapModelNodesTmp[model].begin(), mapModelNodesTmp[model].end(), subtree[j]);
+                        if (nodeToDelIt != mapModelNodesTmp[model].end()){
+                            mapModelNodesTmp[model].erase(std::remove(mapModelNodesTmp[model].begin(), mapModelNodesTmp[model].end(), subtree[j]),mapModelNodesTmp[model].end());
 
                         }
                     }
@@ -128,8 +131,21 @@ void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
         }
         it ++;
     }
-
+    
     delete tree;
+    auto it_tmp = mapModelNodesTmp.begin();
+    while(it_tmp != mapModelNodesTmp.end()){
+        if (ChromEvolOptions::mapModelNodesIds_.find(mapOriginalToAssignedModel[it_tmp->first]) != ChromEvolOptions::mapModelNodesIds_.end()){
+            ChromEvolOptions::mapModelNodesIds_[mapOriginalToAssignedModel[it_tmp->first]].insert(ChromEvolOptions::mapModelNodesIds_[mapOriginalToAssignedModel[it_tmp->first]].end(), mapModelNodesTmp[it_tmp->first].begin(), mapModelNodesTmp[it_tmp->first].end());
+
+        }else{
+            ChromEvolOptions::mapModelNodesIds_[mapOriginalToAssignedModel[it_tmp->first]] = mapModelNodesTmp[it_tmp->first];
+
+        }
+        
+        it_tmp ++;
+    }
+
 
 
 }
@@ -137,7 +153,7 @@ void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
 
 
 /**************************************************************************************************************/
-void ChromosomeNumberMng::getNodeIdsPerModelFromLine(string &content, PhyloTree* tree, std::map<uint, std::pair<uint, std::vector<uint>>> &modelAndNodeIds){
+void ChromosomeNumberMng::getNodeIdsPerModelFromLine(string &content, PhyloTree* tree, std::map<uint, std::pair<uint, std::vector<uint>>> &modelAndNodeIds, std::map<uint,uint> &mapOriginalToAssignedModel){
     vector<string> paramValues;
     std::regex modelPattern ("([\\d]+)");
     std::regex treePattern ("\\(([\\S]+)\\)");
@@ -153,6 +169,14 @@ void ChromosomeNumberMng::getNodeIdsPerModelFromLine(string &content, PhyloTree*
         if (i == 0){
             std::regex_search(paramValues[i], sm, modelPattern);
             model = std::stoi(sm[0]);
+            if (modelAndNodeIds.find(model) != modelAndNodeIds.end()){
+                auto maxModel = modelAndNodeIds.rbegin()->first;
+                auto originalModel = model;
+                model = maxModel+1;
+                mapOriginalToAssignedModel[model] = originalModel;
+            }else{
+                mapOriginalToAssignedModel[model] = model;
+            }
 
         }else{
             std::regex_search(paramValues[i], sm, treePattern);
@@ -187,7 +211,7 @@ void ChromosomeNumberMng::getNodeIdsPerModelFromLine(string &content, PhyloTree*
                 nodes.push_back(allNodeIds[j]);
             }
             auto leavesUnderNode = tree->getLeavesUnderNode(mrca_node);
-            std:: cout << "Model #" << model << std::endl;
+            std:: cout << "Model #" << mapOriginalToAssignedModel[model] << std::endl;
             for (size_t j= 0; j < leavesUnderNode.size(); j++){
                 std::cout << leavesUnderNode[j]->getName() << std::endl;
             }

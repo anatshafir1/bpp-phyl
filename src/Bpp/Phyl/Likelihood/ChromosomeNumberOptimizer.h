@@ -363,6 +363,7 @@ namespace bpp
             /*********************************************************
              * Functions for the Backward phase
             **********************************************************/
+          void fillWithFathers(vector<uint> &fathers, vector<uint> &nodes);
           void optimizeMergedModels(SingleProcessPhyloLikelihood* finalLikBackward, std::map<uint, vector<uint>> &modelsToBeMerged, std::map<std::pair<uint, uint>, double>* pairsOfLikelihoods, double maxParsimony, omp_lock_t* mutex);
           size_t getMaxNumOfMergingModels(std::map<uint, vector<uint>> &modelsToMerge);
           void mergeModels(std::map<uint, vector<uint>> modelsToMerge, SingleProcessPhyloLikelihood* lik, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>> &updatedSharedParams, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParamsPrevModel, std::map<uint, uint> &modelNums, std::map<uint, uint> &baseNumberBounds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams);
@@ -373,6 +374,7 @@ namespace bpp
           void getMapOfMergedModels(std::map<uint, uint> &mapOfModels, std::map<uint, vector<uint>> &modelsToMerge, SingleProcessPhyloLikelihood* prevLik);
           void mergeMultipleModelClusters(SingleProcessPhyloLikelihood* finalLikBackward, std::map<uint, vector<uint>> &rootAndVerticesToMerge, double maxParsimony);
           //mergeMultipleModelClusters(SingleProcessPhyloLikelihood* prevLik, std::map<uint, vector<uint>> &rootAndVerticesToMerge, double maxParsimony)
+          bool isModelADirectSubtreeOfAnother(SingleProcessPhyloLikelihood* lik, size_t indexModel1, size_t indexModel2);
 
     };
 }
