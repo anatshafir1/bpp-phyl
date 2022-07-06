@@ -253,8 +253,8 @@ namespace bpp
      *@brief Prints the unrepresented leaves
     */
    void printUnrepresentedLeavesWithCorrespondingMappings(ofstream &stream);
-   std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> getNumOfOccurrencesFromRootToTip(std::map<uint, std::map<size_t, bool>> &presentMapping);
-   void updateFromRootToLeafRecursively(std::map<uint, std::map<size_t, bool>> &presentMapping, std::map<uint, std::map<pair<size_t, size_t>, double>> &occurrencesPerMapping, size_t mappingIndex, uint nodeId, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &occurrencesFromRootToLeaf);
+   std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> getNumOfOccurrencesFromRootToNode(std::map<uint, std::map<size_t, bool>> &presentMapping);
+   void updateFromRootToNodeRecursively(std::map<uint, std::map<size_t, bool>> &presentMapping, std::map<uint, std::map<pair<size_t, size_t>, double>> &occurrencesPerMapping, size_t mappingIndex, uint nodeId, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &occurrencesFromRootToLeaf);
 
     /*
     * get mappings (not const)

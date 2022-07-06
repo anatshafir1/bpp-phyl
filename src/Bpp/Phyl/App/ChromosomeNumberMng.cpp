@@ -638,7 +638,7 @@ void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOpt
     }
     // get the expected rates for each transition
     std::map<uint, std::map<size_t, bool>> presentMapping;
-    auto rootToLeafTransitions = stm->getNumOfOccurrencesFromRootToTip(presentMapping);
+    auto rootToLeafTransitions = stm->getNumOfOccurrencesFromRootToNode(presentMapping);
     //const string outStMappingRootToLeaf = ChromEvolOptions::resultsPathDir_+"//"+ "stMapping_root_to_leaf.txt";
 
     printRootToLeaf(rootToLeafTransitions, presentMapping, ChromEvolOptions::NumOfSimulations_, nonHomoProcess);
@@ -842,7 +842,7 @@ void ChromosomeNumberMng::writeZeroInTable(ofstream &stream){
     stream << std::endl;
 }
 /**************************************************************************************/
-void ChromosomeNumberMng::printResultsForEachMapping(std::map<uint, std::map<int, double>> &expectationsPerTypeRootToLeaf, const NonHomogeneousSubstitutionProcess* NonHomoProcess, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafTransitions, std::map<uint, std::map<size_t, bool>> &presentMapping, const string &outStMappingRootToLeafPath, size_t mappingIndex){
+void ChromosomeNumberMng::printResultsForEachMapping(std::map<uint, std::map<int, double>> &expectationsPerTypeRootToNode, const NonHomogeneousSubstitutionProcess* NonHomoProcess, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafTransitions, std::map<uint, std::map<size_t, bool>> &presentMapping, const string &outStMappingRootToLeafPath, size_t mappingIndex){
     ofstream stream;
     std::map<uint, size_t> modelsForBranch = ComputeChromosomeTransitionsExp::getModelForEachBranch(*tree_, *NonHomoProcess);
     stream.open(outStMappingRootToLeafPath);
@@ -853,19 +853,27 @@ void ChromosomeNumberMng::printResultsForEachMapping(std::map<uint, std::map<int
         stream << "," << typeStr;
     }
     stream << std::endl;
-    auto leaves = tree_->getAllLeaves();
+    auto nodes = tree_->getAllNodes();
     // expectationsPerTypeRootToLeaf
-    for (size_t i = 0; i < leaves.size(); i++){
-        uint nodeId = tree_->getNodeIndex(leaves[i]);
-        stream << leaves[i]->getName();
+    for (size_t i = 0; i < nodes.size(); i++){
+        uint nodeId = tree_->getNodeIndex(nodes[i]);
+        if (nodeId == tree_->getRootIndex()){
+            continue;
+        }
+        if (tree_->isLeaf(nodeId)){
+            stream << nodes[i]->getName();
+        }else{
+            stream << "N" << nodeId;
+        }
+        
         if (!(presentMapping[nodeId][mappingIndex])){
             writeNanInTable(stream);
         }else{
             if (rootToLeafTransitions.find(nodeId) == rootToLeafTransitions.end()){
                 writeZeroInTable(stream);
-                if (expectationsPerTypeRootToLeaf.find(nodeId) == expectationsPerTypeRootToLeaf.end()){
+                if (expectationsPerTypeRootToNode.find(nodeId) == expectationsPerTypeRootToNode.end()){
                     for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
-                        expectationsPerTypeRootToLeaf[nodeId][type] = 0;
+                        expectationsPerTypeRootToNode[nodeId][type] = 0;
                     }
 
                 }
@@ -873,9 +881,9 @@ void ChromosomeNumberMng::printResultsForEachMapping(std::map<uint, std::map<int
             }else{
                 if (rootToLeafTransitions[nodeId].find(mappingIndex) == rootToLeafTransitions[nodeId].end()){
                     writeZeroInTable(stream);
-                    if (expectationsPerTypeRootToLeaf.find(nodeId) == expectationsPerTypeRootToLeaf.end()){
+                    if (expectationsPerTypeRootToNode.find(nodeId) == expectationsPerTypeRootToNode.end()){
                         for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
-                            expectationsPerTypeRootToLeaf[nodeId][type] = 0;
+                            expectationsPerTypeRootToNode[nodeId][type] = 0;
                         }
                     }
                 }else{
@@ -885,10 +893,10 @@ void ChromosomeNumberMng::printResultsForEachMapping(std::map<uint, std::map<int
                     std::map<int, double> transitionsPerType = ComputeChromosomeTransitionsExp::getTypeForEachTransitionPerNode(chrModel, transitions, nodeId);
                     for (int type = 0; type < ChromosomeSubstitutionModel::typeOfTransition::NUMTYPES; type++){
                         stream << "," << transitionsPerType[type];
-                        if (expectationsPerTypeRootToLeaf.find(nodeId) == expectationsPerTypeRootToLeaf.end()){
-                            expectationsPerTypeRootToLeaf[nodeId][type] = transitionsPerType[type];
+                        if (expectationsPerTypeRootToNode.find(nodeId) == expectationsPerTypeRootToNode.end()){
+                            expectationsPerTypeRootToNode[nodeId][type] = transitionsPerType[type];
                         }else{
-                            expectationsPerTypeRootToLeaf[nodeId][type] += transitionsPerType[type];
+                            expectationsPerTypeRootToNode[nodeId][type] += transitionsPerType[type];
                         }
                     }
                     stream << std::endl;
