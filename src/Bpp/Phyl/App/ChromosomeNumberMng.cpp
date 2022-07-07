@@ -1418,7 +1418,7 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
 
     chrOptimizer->printRootFrequencies(bestLik, outFile);
     printLikParameters(chrOptimizer, bestLik, outFile);
-    outFile << "AICc of the best model = "<< AICc << std::endl;
+    outFile << ChromEvolOptions::modelSelectionCriterion_ <<" of the best model = "<< AICc << std::endl;
     auto previousModelsPartitions = chrOptimizer->getPreviousModelsPartitions();
     auto previousModelsAICcAndLik = chrOptimizer->getPreviousModelsAICcValues();
     auto previousModelsParameters = chrOptimizer->getPreviousModelsParameters();
@@ -1455,7 +1455,7 @@ void ChromosomeNumberMng::writeOutputToFile(ChromosomeNumberOptimizer* chrOptimi
             for (size_t j = 0; j < (previousModelsParameters[model]).size(); j++){
                  outFile << "\t" << (previousModelsParameters[model])[j].first << " = " << (previousModelsParameters[model])[j].second << std::endl;
             }
-            outFile << "AICc of the best model with " << model-1 << " shifts = " << (previousModelsAICcAndLik[model]).first << std::endl;
+            outFile << ChromEvolOptions::modelSelectionCriterion_ << " of the best model with " << model-1 << " shifts = " << (previousModelsAICcAndLik[model]).first << std::endl;
             outFile << "Log likelihood = " << (previousModelsAICcAndLik[model]).second << std::endl;
             outFile << "\n";
             
@@ -1525,7 +1525,7 @@ void ChromosomeNumberMng::writeRunningParameters(ofstream &outFile) const{
                 outFile << ChromEvolOptions::OptIterNumNextRounds_[i]  <<std::endl; 
             }
         }
-        std::cout << "delta AICc threshold was set to: " << ChromEvolOptions::deltaAICcThreshold_ << std::endl;
+        std::cout << "delta " << ChromEvolOptions::modelSelectionCriterion_ << " threshold was set to: " << ChromEvolOptions::deltaAICcThreshold_ << std::endl;
 
     }
     outFile << "Optimization method was set to: " << ChromEvolOptions::optimizationMethod_ << std::endl;

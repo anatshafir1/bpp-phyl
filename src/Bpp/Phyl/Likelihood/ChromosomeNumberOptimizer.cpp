@@ -1061,6 +1061,20 @@ void ChromosomeNumberOptimizer::optimizeBaseNum(SingleProcessPhyloLikelihood* tl
 /******************************************
 Functions for heterogeneous ChromEvol model
 *******************************************/
+double ChromosomeNumberOptimizer::calculateModelSelectionCriterion(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const{
+    double modelSelectionCriterionValue;
+    if (ChromEvolOptions::modelSelectionCriterion_ == "AICc"){
+        modelSelectionCriterionValue = calculateAICc(lik, numOfFixedParams);
+
+    }else if (ChromEvolOptions::modelSelectionCriterion_ == "AIC"){
+        modelSelectionCriterionValue = calculateAIC(lik, numOfFixedParams);
+
+    }else{
+        throw Exception("ChromosomeNumberOptimizer::calculateModelSelectionCriterion(): No such criterion exists!");
+    }
+    return modelSelectionCriterionValue;
+}
+
 double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const{
     // the number of shifts
     size_t numOfModels = lik->getSubstitutionProcess().getNumberOfModels();
@@ -1090,27 +1104,27 @@ double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* li
     return AICc;
 
 }
-// double ChromosomeNumberOptimizer::calculateAICc(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const{
-//     // the number of shifts
-//     size_t numOfModels = lik->getSubstitutionProcess().getNumberOfModels();
-//     // the number of substitution params takes into account also the backward phase
-//     auto numOfSubstitutionParams = lik->getSubstitutionModelParameters().size()-numOfFixedParams;
+double ChromosomeNumberOptimizer::calculateAIC(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const{
+    // the number of shifts
+    size_t numOfModels = lik->getSubstitutionProcess().getNumberOfModels();
+    // the number of substitution params takes into account also the backward phase
+    auto numOfSubstitutionParams = lik->getSubstitutionModelParameters().size()-numOfFixedParams;
 
-//     // N (sample size)
-//     // p (number of overall parameters)
-//     // k must maintain the constraint of the denominator -> throw detailed exception..
-//     double numOfParams = static_cast<double>(numOfModels) - 1 + static_cast<double>(numOfSubstitutionParams);
-//     if ((backwardPhaseStarted_) && (numOfShiftsForward_ > numOfModels)){
-//         numOfParams += static_cast<double>(numOfShiftsForward_-numOfModels);
-//     }
+    // N (sample size)
+    // p (number of overall parameters)
+    // k must maintain the constraint of the denominator -> throw detailed exception..
+    double numOfParams = static_cast<double>(numOfModels) - 1 + static_cast<double>(numOfSubstitutionParams);
+    if ((backwardPhaseStarted_) && (numOfShiftsForward_ > numOfModels)){
+        numOfParams += static_cast<double>(numOfShiftsForward_-numOfModels);
+    }
 
-//     //Calculating AICc-> I have some problems with AIC. In some cases the denominator becomes zero.
-//     // so meanwhile I will use AIC...
-//     double AIC = 2*(lik->getValue()) + (2*numOfParams);
-//     //return AICc;
-//     return AIC;
+    //Calculating AICc-> I have some problems with AIC. In some cases the denominator becomes zero.
+    // so meanwhile I will use AIC...
+    double AIC = 2*(lik->getValue()) + (2*numOfParams);
+    //return AICc;
+    return AIC;
 
-// }
+}
 /***********************************************/
 void ChromosomeNumberOptimizer::setInitialModelRepresentitives(std::map<uint, vector<uint>> &initialPartition){
     auto numOfModels = static_cast<uint>(initialPartition.size());
@@ -1809,7 +1823,7 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
             firstIteration = false;
             if ((prevModelsAICcLikValues_.empty()) && (ChromEvolOptions::heterogeneousModel_)){
                 size_t numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams_); 
-                double AICc = calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
+                double AICc = calculateModelSelectionCriterion(vectorOfLikelohoods_[0], numOfFixedParams);
                 std::pair<double, double> AICcAndLik(AICc, vectorOfLikelohoods_[0]->getValue());
                 prevModelsAICcLikValues_[ChromEvolOptions::numOfModels_] = AICcAndLik;
                 getParameterNamesAndValues(vectorOfLikelohoods_[0], ChromEvolOptions::numOfModels_);
@@ -1826,7 +1840,7 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
 
         //vectorOfLikelohoods_.pop_back();     
         size_t numOfFixedParams = getNumberOfFixedParams(minAICcLik, fixedParams_); 
-        double initialAICc = calculateAICc(minAICcLik, numOfFixedParams);
+        double initialAICc = calculateModelSelectionCriterion(minAICcLik, numOfFixedParams);
         uint minDetaAICcNode;
         std::cout << "*** *** *** Starting considering " << numOfShifts << " shifts *** *** ***" << std::endl;
         //omp_set_num_threads(4);
@@ -1917,12 +1931,12 @@ void ChromosomeNumberOptimizer::runNewBranchModel(omp_lock_t &mutex, SingleProce
     optimizeMultiProcessModel(&sharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberBounds, &perCandidateLikVec, &textToPrint, &mutex);
     //std::cout << "After optimizeMultiProcessModel: " << i << std::endl;
     size_t numOfFixedParams = getNumberOfFixedParams(perCandidateLikVec[0], fixedParams); 
-    double AICc = calculateAICc(perCandidateLikVec[0], numOfFixedParams);
+    double AICc = calculateModelSelectionCriterion(perCandidateLikVec[0], numOfFixedParams);
     omp_set_lock(&mutex);
     std::cout << "\tshift is at node: "<< candidateShiftNodesIds[i] << std::endl;
     std::cout << textToPrint << std::endl;
     std::cout << "Final log likelihood is: " << perCandidateLikVec[0]->getValue() << std::endl;
-    std::cout << "Final AICc is: " << AICc << std::endl;
+    std::cout << "Final "<< ChromEvolOptions::modelSelectionCriterion_<< " is: " << AICc << std::endl;
     std::cout << "*** *** *** *** "<< candidateShiftNodesIds[i] << std::endl;
     printLikParameters(perCandidateLikVec[0], 1, &textToPrint);
     if ((*bestCandidateLik == 0) || (AICc < *bestAICc)){                      
@@ -2000,7 +2014,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
             firstIteration = false;
             if ((prevModelsAICcLikValues_.empty()) && (ChromEvolOptions::heterogeneousModel_)){
                 size_t numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams_); 
-                double AICc = calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
+                double AICc = calculateModelSelectionCriterion(vectorOfLikelohoods_[0], numOfFixedParams);
                 std::pair<double, double> AICcAndLik(AICc, vectorOfLikelohoods_[0]->getValue());
                 prevModelsAICcLikValues_[ChromEvolOptions::numOfModels_] = AICcAndLik;
                 getParameterNamesAndValues(vectorOfLikelohoods_[0], ChromEvolOptions::numOfModels_);
@@ -2017,7 +2031,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
 
         //vectorOfLikelohoods_.pop_back();     
         size_t numOfFixedParams = getNumberOfFixedParams(minAICcLik, fixedParams); 
-        double initialAICc = calculateAICc(minAICcLik, numOfFixedParams);
+        double initialAICc = calculateModelSelectionCriterion(minAICcLik, numOfFixedParams);
         uint minDetaAICcNode;
         double minAICc = initialAICc;
         std::cout << "*** *** *** Starting considering " << numOfShifts << " shifts *** *** ***" << std::endl;
@@ -2033,11 +2047,11 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
             auto candidateLik = vectorOfLikelohoods_[0];
             //optimizeModelParameters(candidateLik, ChromEvolOptions::tolerance_, ChromEvolOptions::maxIterations_, baseNumCandidates, &sharedParams, &fixedParams);
             numOfFixedParams = getNumberOfFixedParams(candidateLik, fixedParams); 
-            double AICc_candidate =  calculateAICc(candidateLik, numOfFixedParams);
+            double AICc_candidate =  calculateModelSelectionCriterion(candidateLik, numOfFixedParams);
             SingleProcessPhyloLikelihood* likToDel;
             // DEBUG //
-            std::cout <<  "AICc of the model before the shift:  " << initialAICc << std::endl;
-            std::cout << "AICc of the candidate model : " << AICc_candidate << std::endl;
+            std::cout << ChromEvolOptions::modelSelectionCriterion_ <<" of the model before the shift:  " << initialAICc << std::endl;
+            std::cout << ChromEvolOptions::modelSelectionCriterion_ << " of the candidate model : " << AICc_candidate << std::endl;
             if ((initialAICc - AICc_candidate > ChromEvolOptions::deltaAICcThreshold_) && (AICc_candidate < minAICc)){
                 minDetaAICcNode = candidateShiftNodesIds[i];
                 likToDel = minAICcLik;
@@ -2309,7 +2323,7 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
     auto finalLikBackward = finalLikForward;
     numOfShiftsForward_ = static_cast<uint>(finalLikBackward->getSubstitutionProcess().getNumberOfModels());
     size_t numOfFixedParams = getNumberOfFixedParams(finalLikForward, fixedParams_); 
-    double AICc_best = calculateAICc(finalLikForward, numOfFixedParams);
+    double AICc_best = calculateModelSelectionCriterion(finalLikForward, numOfFixedParams);
     bool areThereAreStillClusters = (numOfClusters > 0);
     while(areThereAreStillClusters){
         finalLikBackward = vectorOfLikelohoods_[0];
@@ -2427,7 +2441,7 @@ void ChromosomeNumberOptimizer::optimizeBackwards(double maxParsimony, bool para
         vectorOfLikelohoods_.pop_back();
         mergeMultipleModelClusters(finalLikBackward, rootAndVerticesToMerge, maxParsimony);
         numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams_); 
-        AICc_best = calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
+        AICc_best = calculateModelSelectionCriterion(vectorOfLikelohoods_[0], numOfFixedParams);
         deleteLikObject(likToDel);
         delete G;
         time(&t4);
@@ -2479,7 +2493,7 @@ void ChromosomeNumberOptimizer::optimizeMergedModels(SingleProcessPhyloLikelihoo
     optimizeMultiProcessModel(&updatedSharedParams, &fixedParams, numOfPointsNextRounds_, numOfIterationsNextRounds_, baseNumberBounds, &perPairOfModelsLikVec, &textToPrint, mutex);
 
     size_t numOfFixedParams = getNumberOfFixedParams(perPairOfModelsLikVec[0], fixedParams); 
-    double AICc = calculateAICc(perPairOfModelsLikVec[0], numOfFixedParams);
+    double AICc = calculateModelSelectionCriterion(perPairOfModelsLikVec[0], numOfFixedParams);
     auto modelToDel = perPairOfModelsLikVec.back();
     if (mutex){
         omp_set_lock(mutex);
@@ -2493,7 +2507,7 @@ void ChromosomeNumberOptimizer::optimizeMergedModels(SingleProcessPhyloLikelihoo
     std::cout << textToPrint << std::endl; 
     //std::cout << "optimized log likelihood is: " <<  perPairOfModelsLikVec[0]->getValue() << std::endl;
     printLikParameters(perPairOfModelsLikVec[0], 1, 0);
-    std::cout << "Final AICc is: " << AICc << std::endl;
+    std::cout << "Final " << ChromEvolOptions::modelSelectionCriterion_ << " is: " << AICc << std::endl;
     deleteLikObject(modelToDel);
     if (mutex){
         omp_unset_lock(mutex);

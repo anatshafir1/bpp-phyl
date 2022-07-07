@@ -256,7 +256,7 @@ namespace bpp
             const double getAICOfBestModel() const {
                 std::map<uint, vector<int>> fixedParams = fixedParams_;
                 size_t numOfFixedParams = getNumberOfFixedParams(vectorOfLikelohoods_[0], fixedParams);
-                return calculateAICc(vectorOfLikelohoods_[0], numOfFixedParams);
+                return calculateModelSelectionCriterion(vectorOfLikelohoods_[0], numOfFixedParams);
             }
             //void runNewBranchModel(omp_lock_t &mutex, SingleProcessPhyloLikelihood* lik, std::vector<SingleProcessPhyloLikelihood*> &newShiftLikCandidates, vector<uint> &candidateShiftNodesIds, size_t i, uint numOfShifts, double parsimonyBound, uint numOfPoints);
             void runNewBranchModel(omp_lock_t &mutex, SingleProcessPhyloLikelihood* lik, vector<uint> &candidateShiftNodesIds, size_t i, uint numOfShifts, double parsimonyBound, uint numOfPoints, SingleProcessPhyloLikelihood** bestCandidateLik, double* bestAICc, uint* minAICcNode);
@@ -345,7 +345,9 @@ namespace bpp
             /*********************************************************
              * Functions associated with heterogenous ChromEvol models
             **********************************************************/
+            double calculateModelSelectionCriterion(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const;
             double calculateAICc(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const;
+            double calculateAIC(SingleProcessPhyloLikelihood* lik, size_t numOfFixedParams) const;
             //getNewLikObject(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<int, uint>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound)
             void setNewModelAttributes(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, std::map<uint, pair<int, std::map<int, std::vector<double>>>>* modelParams, std::map<uint, std::vector<uint>>* mapModelNodesIds, std::map<uint, uint>* baseNumberBounds);
 
