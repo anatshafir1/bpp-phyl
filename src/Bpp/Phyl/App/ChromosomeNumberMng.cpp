@@ -563,6 +563,47 @@ std::shared_ptr<LikelihoodCalculationSingleProcess> ChromosomeNumberMng::setHete
     return lik;
 
 }
+/************************************************************************************/
+bool ChromosomeNumberMng::checkIfSimulationSuccess(string &simEvolutionPath){
+    bool success = true;
+    ifstream stream;
+    stream.open(simEvolutionPath.c_str());
+    // read entire file at once
+    const string content = string((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+    stream.close();
+    std::smatch match_from;
+    std::smatch match_to;
+    std::regex rgx_from("from state:[\\s]+([\\d]+)");
+    std::regex rgx_to("to state[\\s]+=[\\s]+([\\d]+)");
+    regex_search(content, match_from, rgx_from);
+    regex_search(content, match_to, rgx_to);
+    uint max_state = 0;
+    uint state;
+    string new_content = content;
+    while(regex_search(new_content, match_from, rgx_from))
+    {
+        state = static_cast<uint>(stoi(match_from[1]));
+        if (state > max_state){
+            max_state = state;
+        }
+        new_content = match_from.suffix();
+    }
+    new_content = content;
+    while(regex_search(new_content, match_to, rgx_to))
+    {
+        state = static_cast<uint>(stoi(match_to[1]));
+        if (state > max_state){
+            max_state = state;
+        }
+        new_content = match_to.suffix();
+    }
+    if (max_state == (uint)(ChromEvolOptions::maxChrNum_)){
+        success = false;
+    }
+    return success;
+
+
+}
 
 /***********************************************************************************/
 void ChromosomeNumberMng::runChromEvol(){
@@ -570,7 +611,47 @@ void ChromosomeNumberMng::runChromEvol(){
     if (ChromEvolOptions::simulateData_){
         //simulate data using a tree and a set of model parameters
         RandomTools::setSeed(static_cast<long>(ChromEvolOptions::seed_));
-        simulateData();
+        bool dataFileExists = false;
+        if (FILE *file = fopen((ChromEvolOptions::characterFilePath_).c_str(), "r")) {
+            fclose(file);
+            dataFileExists = true;
+
+        }
+        bool simulateToDirs = false;
+        bool dataFileIsDirectory = false;
+        struct stat s;
+        if ( lstat((ChromEvolOptions::characterFilePath_).c_str(), &s) == 0 ) {
+            if (S_ISDIR(s.st_mode)) {
+                dataFileIsDirectory = true;
+            }
+        }
+        if ((dataFileExists) && (dataFileIsDirectory)){
+            simulateToDirs = true;
+            
+        }
+        size_t counter = 0;
+        for (size_t i = 0; i < ChromEvolOptions::numOfSimulatedData_; i++){
+            if (simulateToDirs){
+                string simDirPath = ChromEvolOptions::resultsPathDir_ +"//"+ std::to_string(i);
+                if (FILE *file = fopen(simDirPath.c_str(), "r")) {
+                    fclose(file);
+
+                }else{
+                    if (mkdir(simDirPath.c_str(), 0700) == -1){
+                        throw Exception("Directory was not created!!!");
+                    }
+
+                }
+
+            }
+            simulateData(simulateToDirs, i, counter);
+            if ((double)counter > (double)(ChromEvolOptions::fracAllowedFailedSimulations_)*(double)(ChromEvolOptions::numOfSimulatedData_)){
+                throw Exception("ChromosomeNumberMng::runChromEvol():Too many failed simulations!");
+                return;
+            }
+
+        }
+           
         return;
 
     }
@@ -1188,7 +1269,7 @@ string ChromosomeNumberMng::nodeToParenthesis(const uint nodeId, const PhyloTree
   return s.str();
 }
 /*********************************************************************************/
-void ChromosomeNumberMng::simulateData(){
+void ChromosomeNumberMng::simulateData(bool into_dirs, size_t simNum, size_t &count_failed){
     if ((ChromEvolOptions::minChrNum_ <= 0) || (ChromEvolOptions::maxChrNum_ < 0)){
         throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): minimum and maximum chromsome number should be positive!");
     }
@@ -1205,7 +1286,7 @@ void ChromosomeNumberMng::simulateData(){
     //1. ChromEvolOptions::mapModelNodesIds_: already calculated
     
     std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
-    if (chrModel->getBaseNumber() != IgnoreParam){
+    if ((chrModel->getBaseNumber() != IgnoreParam) && (ChromEvolOptions::correctBaseNumber_)){
         chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
 
     }
@@ -1237,17 +1318,33 @@ void ChromosomeNumberMng::simulateData(){
     SiteSimulationResult* simResult = simulator->dSimulateSite();
     vector <size_t> leavesStates = simResult->getFinalStates();
     vector<string> leavesNames = simResult->getLeaveNames();
-    printSimulatedData(leavesStates, leavesNames, 0);
-    printSimulatedDataAndAncestors(simResult);
+    string countsPath;
+    string evolutionPath;
+    string ancestorsPath;
+    if (into_dirs){
+        countsPath = ChromEvolOptions::resultsPathDir_ +"//"+ std::to_string(simNum) + "//"+ "counts.fasta";
+        ancestorsPath = ChromEvolOptions::resultsPathDir_ +"//"+ std::to_string(simNum) +"//"+"simulatedDataAncestors.tree";
+        evolutionPath = ChromEvolOptions::resultsPathDir_ +"//"+ std::to_string(simNum) +"//"+ "simulatedEvolutionPaths.txt";
+    }else{
+        countsPath = ChromEvolOptions::characterFilePath_;
+        ancestorsPath = ChromEvolOptions::resultsPathDir_  +"//"+"simulatedDataAncestors.tree";
+        evolutionPath = ChromEvolOptions::resultsPathDir_ +"//"+"simulatedEvolutionPaths.txt";
+    }
+    printSimulatedData(leavesStates, leavesNames, 0, countsPath);
+    printSimulatedDataAndAncestors(simResult, ancestorsPath);
     if (ChromEvolOptions::resultsPathDir_ != "none"){
-        printSimulatedEvoPath(ChromEvolOptions::resultsPathDir_ +"//"+ "simulatedEvolutionPaths.txt", simResult);
+        printSimulatedEvoPath(evolutionPath, simResult);
+        bool success = checkIfSimulationSuccess(evolutionPath);
+        if (!success){
+            count_failed ++;
+        }
     }
     delete simResult;
     delete simulator;
 
 }
 /*******************************************************************************/
-void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter){
+void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter, string &countsPath){
     cout << "Simulated data #" << iter << endl;
     for (size_t i = 0; i < leavesNames.size(); i++){
         cout << leavesNames[i] << " "<< leavesStates[i] + alphabet_->getMin() <<endl;
@@ -1263,16 +1360,9 @@ void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector
             simulatedData->addSequence(seq);
         }
         vsc_ = simulatedData;
-        string pathForSimulatedData;
-        if (ChromEvolOptions::characterFilePath_ == "none"){
-            pathForSimulatedData = ChromEvolOptions::resultsPathDir_ + "//"+ "chr_counts"+ std::to_string(iter) +".fasta";
-
-        }else{
-            pathForSimulatedData = ChromEvolOptions::characterFilePath_;
-        }
         
         Fasta fasta;
-        fasta.writeSequences(pathForSimulatedData, *simulatedData);
+        fasta.writeSequences(countsPath, *simulatedData);
 
     }
 
@@ -1280,7 +1370,7 @@ void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector
     
 }
 /****************************************************************************/
-void ChromosomeNumberMng::printSimulatedDataAndAncestors(SiteSimulationResult* simResult) const{
+void ChromosomeNumberMng::printSimulatedDataAndAncestors(SiteSimulationResult* simResult, string &ancestorsPath) const{
     std::map<uint, std::vector<size_t> > ancestors;
     vector<shared_ptr<PhyloNode> > nodes = tree_->getAllNodes();
     size_t nbNodes = nodes.size();
@@ -1297,8 +1387,7 @@ void ChromosomeNumberMng::printSimulatedDataAndAncestors(SiteSimulationResult* s
     if (ChromEvolOptions::resultsPathDir_ == "none"){
         printTreeWithStates(*tree_, ancestors, ChromEvolOptions::resultsPathDir_);
     }else{
-        const string outFilePath = ChromEvolOptions::resultsPathDir_ +"//"+ "simulatedDataAncestors.tree";
-        printTreeWithStates(*tree_, ancestors, outFilePath);
+        printTreeWithStates(*tree_, ancestors, ancestorsPath);
     }
   
 }

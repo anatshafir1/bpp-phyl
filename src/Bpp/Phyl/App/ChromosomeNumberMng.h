@@ -95,6 +95,8 @@
 #include <vector>
 #include <iostream>
 #include <time.h>
+#include <sys/stat.h>
+#include <regex>
 
 using namespace std;
 namespace bpp{
@@ -154,8 +156,8 @@ namespace bpp{
             void getMarginalAncestralReconstruction(ChromosomeNumberOptimizer* chrOptimizer, const string &filePath);
             // map<int, map<size_t, VVdouble>> getMarginalAncestralReconstruction(DRNonHomogeneousTreeLikelihood* lik) const;
             void computeExpectations(ChromosomeNumberOptimizer* chrOptimizer, int numOfSimulations) const;
-            void simulateData();
-            void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter);
+            void simulateData(bool into_dirs, size_t simNum, size_t &count_failed);
+            void printSimulatedData(vector<size_t> leavesStates, vector<string> leavesNames, size_t iter, string &countsPath);
             void printTreeWithStates(PhyloTree tree, std::map<uint, std::vector<size_t>> &ancestors, const string &filePath) const;
             void convertNodesNames(PhyloTree &tree, uint nodeId, std::map<uint, std::vector<size_t>> &ancestors, bool alphabetStates = true) const;
             void writeOutputToFile(ChromosomeNumberOptimizer* chrOptimizer, int &inferrredRootState) const;
@@ -180,7 +182,7 @@ namespace bpp{
             void rescale_tree(PhyloTree* tree, double chrRange);
             void getMaxParsimonyUpperBound(double* parsimonyScore) const;
             // functions to print the tree with ancestral reconstruction
-            void printSimulatedDataAndAncestors(SiteSimulationResult* simResult) const;
+            void printSimulatedDataAndAncestors(SiteSimulationResult* simResult, string &ancestorsPath) const;
             void printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult) const;
             static string printTree(const PhyloTree& tree);
             static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
@@ -188,6 +190,7 @@ namespace bpp{
             double getOriginalTreeLength(string &path) const;
             void fixFailedMappings(StochasticMapping* stm);
             vector <uint> getVectorOfMapKeys(std::map<uint, vector<size_t>> &mapOfVectors);
+            bool checkIfSimulationSuccess(string &simEvolutionPath);
             // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 

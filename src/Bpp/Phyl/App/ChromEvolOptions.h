@@ -102,6 +102,9 @@ public:
     static size_t numOfFixingMappingIterations_;
     static bool useMaxBaseTransitonNumForOpt_;
     static string modelSelectionCriterion_;
+    static size_t numOfSimulatedData_;
+    static double fracAllowedFailedSimulations_;
+    static bool correctBaseNumber_;
     // public functions
     static std::vector<int> translateStringParamsToInt(std::vector<string> &strParams);
     static std::shared_ptr<PhyloNode> getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes);

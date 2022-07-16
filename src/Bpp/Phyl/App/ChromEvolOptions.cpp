@@ -62,6 +62,9 @@ size_t ChromEvolOptions::numOfStochasticMappingTrials_;
 size_t ChromEvolOptions::numOfFixingMappingIterations_; // number of mapping trials
 bool ChromEvolOptions::useMaxBaseTransitonNumForOpt_;
 string ChromEvolOptions::modelSelectionCriterion_;
+size_t ChromEvolOptions::numOfSimulatedData_;
+double ChromEvolOptions::fracAllowedFailedSimulations_;
+bool ChromEvolOptions::correctBaseNumber_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -108,6 +111,11 @@ void ChromEvolOptions::initDefaultParameters(){
     numOfFixingMappingIterations_ = 1000;
     useMaxBaseTransitonNumForOpt_ = false;
     modelSelectionCriterion_ = "AICc";
+    numOfSimulatedData_ = 1;
+    fracAllowedFailedSimulations_ = 0.01;
+    correctBaseNumber_ = true;
+
+
     
 
 }
@@ -233,7 +241,9 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     numOfFixingMappingIterations_ = static_cast<size_t>(ApplicationTools::getIntParameter("_numOfFixingMappingIterations", ChromEvol.getParams(), (int)numOfFixingMappingIterations_, "", true, 0));
     useMaxBaseTransitonNumForOpt_ = ApplicationTools::getBooleanParameter("_useMaxBaseTransitonNumForOpt", ChromEvol.getParams(), useMaxBaseTransitonNumForOpt_, "", true, 0);
     modelSelectionCriterion_ = ApplicationTools::getStringParameter("_modelSelectionCriterion", ChromEvol.getParams(), modelSelectionCriterion_, "", true, 0);
-
+    numOfSimulatedData_ = static_cast<size_t>(ApplicationTools::getIntParameter("_numOfSimulatedData", ChromEvol.getParams(), (int)numOfSimulatedData_, "", true, 0));
+    fracAllowedFailedSimulations_ = ApplicationTools::getDoubleParameter("_fracAllowedFailedSimulations", ChromEvol.getParams(), fracAllowedFailedSimulations_, "", true, 0);
+    correctBaseNumber_ = ApplicationTools::getBooleanParameter("_correctBaseNumber", ChromEvol.getParams(), correctBaseNumber_, "", true, 0);
 
 }
 /************************************************************************/
