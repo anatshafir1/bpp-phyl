@@ -190,7 +190,7 @@ namespace bpp{
             double getOriginalTreeLength(string &path) const;
             void fixFailedMappings(StochasticMapping* stm);
             vector <uint> getVectorOfMapKeys(std::map<uint, vector<size_t>> &mapOfVectors);
-            bool checkIfSimulationSuccess(string &simEvolutionPath);
+            //bool checkIfSimulationSuccess(string &simEvolutionPath);
             // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 

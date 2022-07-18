@@ -564,46 +564,46 @@ std::shared_ptr<LikelihoodCalculationSingleProcess> ChromosomeNumberMng::setHete
 
 }
 /************************************************************************************/
-bool ChromosomeNumberMng::checkIfSimulationSuccess(string &simEvolutionPath){
-    bool success = true;
-    ifstream stream;
-    stream.open(simEvolutionPath.c_str());
-    // read entire file at once
-    const string content = string((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-    stream.close();
-    std::smatch match_from;
-    std::smatch match_to;
-    std::regex rgx_from("from state:[\\s]+([\\d]+)");
-    std::regex rgx_to("to state[\\s]+=[\\s]+([\\d]+)");
-    regex_search(content, match_from, rgx_from);
-    regex_search(content, match_to, rgx_to);
-    uint max_state = 0;
-    uint state;
-    string new_content = content;
-    while(regex_search(new_content, match_from, rgx_from))
-    {
-        state = static_cast<uint>(stoi(match_from[1]));
-        if (state > max_state){
-            max_state = state;
-        }
-        new_content = match_from.suffix();
-    }
-    new_content = content;
-    while(regex_search(new_content, match_to, rgx_to))
-    {
-        state = static_cast<uint>(stoi(match_to[1]));
-        if (state > max_state){
-            max_state = state;
-        }
-        new_content = match_to.suffix();
-    }
-    if (max_state == (uint)(ChromEvolOptions::maxChrNum_)){
-        success = false;
-    }
-    return success;
+// bool ChromosomeNumberMng::checkIfSimulationSuccess(string &simEvolutionPath){
+//     bool success = true;
+//     ifstream stream;
+//     stream.open(simEvolutionPath.c_str());
+//     // read entire file at once
+//     const string content = string((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+//     stream.close();
+//     std::smatch match_from;
+//     std::smatch match_to;
+//     std::regex rgx_from("from state:[\\s]+([\\d]+)");
+//     std::regex rgx_to("to state[\\s]+=[\\s]+([\\d]+)");
+//     regex_search(content, match_from, rgx_from);
+//     regex_search(content, match_to, rgx_to);
+//     uint max_state = 0;
+//     uint state;
+//     string new_content = content;
+//     while(regex_search(new_content, match_from, rgx_from))
+//     {
+//         state = static_cast<uint>(stoi(match_from[1]));
+//         if (state > max_state){
+//             max_state = state;
+//         }
+//         new_content = match_from.suffix();
+//     }
+//     new_content = content;
+//     while(regex_search(new_content, match_to, rgx_to))
+//     {
+//         state = static_cast<uint>(stoi(match_to[1]));
+//         if (state > max_state){
+//             max_state = state;
+//         }
+//         new_content = match_to.suffix();
+//     }
+//     if (max_state == (uint)(ChromEvolOptions::maxChrNum_)){
+//         success = false;
+//     }
+//     return success;
 
 
-}
+// }
 
 /***********************************************************************************/
 void ChromosomeNumberMng::runChromEvol(){
@@ -1334,10 +1334,19 @@ void ChromosomeNumberMng::simulateData(bool into_dirs, size_t simNum, size_t &co
     printSimulatedDataAndAncestors(simResult, ancestorsPath);
     if (ChromEvolOptions::resultsPathDir_ != "none"){
         printSimulatedEvoPath(evolutionPath, simResult);
-        bool success = checkIfSimulationSuccess(evolutionPath);
-        if (!success){
+        size_t maxStateIndex = (size_t)(ChromEvolOptions::maxChrNum_-alphabet_->getMin());
+        bool success;
+        if (std::find(leavesStates.begin(), leavesStates.end(), maxStateIndex) != leavesStates.end()){
+            success = false;
             count_failed ++;
+
+        }else{
+            success = true;
         }
+        // bool success = checkIfSimulationSuccess(evolutionPath);
+        // if (!success){
+        //     count_failed ++;
+        // }
     }
     delete simResult;
     delete simulator;
