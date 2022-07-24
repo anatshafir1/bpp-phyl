@@ -604,54 +604,109 @@ std::shared_ptr<LikelihoodCalculationSingleProcess> ChromosomeNumberMng::setHete
 
 
 // }
+/***********************************************************************************/
+void ChromosomeNumberMng::simulateData(){
+    RandomTools::setSeed(static_cast<long>(ChromEvolOptions::seed_));
+    bool dataFileExists = false;
+    if (FILE *file = fopen((ChromEvolOptions::characterFilePath_).c_str(), "r")) {
+        fclose(file);
+        dataFileExists = true;
+
+    }
+    bool simulateToDirs = false;
+    bool dataFileIsDirectory = false;
+    struct stat s;
+    if ( lstat((ChromEvolOptions::characterFilePath_).c_str(), &s) == 0 ) {
+        if (S_ISDIR(s.st_mode)) {
+            dataFileIsDirectory = true;
+        }
+    }
+    if ((dataFileExists) && (dataFileIsDirectory)){
+        simulateToDirs = true;
+            
+    }
+    if ((ChromEvolOptions::minChrNum_ <= 0) || (ChromEvolOptions::maxChrNum_ < 0)){
+        throw Exception("ERROR!!! ChromosomeNumberMng::initializeSimulator(): minimum and maximum chromsome number should be positive!");
+    }
+    if (ChromEvolOptions::maxChrNum_ <= ChromEvolOptions::minChrNum_){
+        throw Exception("ERROR!!! ChromosomeNumberMng::initializeSimulator(): maximum chromsome number should be larger than minimum chromosome number!");
+    }
+    alphabet_ = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
+    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    ParametrizablePhyloTree* parTree =  new ParametrizablePhyloTree(*tree_);
+    std::map<uint, std::pair<int, std::map<int, vector<double>>>> complexParamsValues;
+    ChromEvolOptions::getInitialValuesForComplexParams(complexParamsValues);
+    std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
+    //1. ChromEvolOptions::mapModelNodesIds_: already calculated
+    
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
+    if ((chrModel->getBaseNumber() != IgnoreParam) && (ChromEvolOptions::correctBaseNumber_)){
+        chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
+
+    }
+    
+    if (ChromEvolOptions::fixedFrequenciesFilePath_ == "none"){
+        throw Exception("ChromosomeNumberMng::initializeSimulator(): ERROR! The file of fixed root frequencies is missing!!!");  
+
+    }
+    vector <double> rootFreqs = ChromosomeNumberOptimizer::setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, chrModel);
+    std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqs);
+    std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
+    std::shared_ptr<NonHomogeneousSubstitutionProcess> subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies->clone());
+
+    // adding models
+    for (uint i = 1; i <= (uint)(ChromEvolOptions::numOfModels_); i++){
+        if (i > 1){
+            chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
+            if (chrModel->getBaseNumber() != IgnoreParam){
+                chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
+
+            }
+            
+        }   
+        subProSim->addModel(chrModel, ChromEvolOptions::mapModelNodesIds_[i]);
+    }
+    SimpleSubstitutionProcessSiteSimulator* simulator = new SimpleSubstitutionProcessSiteSimulator(*subProSim);
+    size_t counter = 0;
+    for (size_t i = 0; i < ChromEvolOptions::numOfSimulatedData_; i++){
+        if (simulateToDirs){
+            string simDirPath = ChromEvolOptions::resultsPathDir_ +"//"+ std::to_string(i);
+            if (FILE *file = fopen(simDirPath.c_str(), "r")) {
+                fclose(file);
+
+            }else{
+                if (mkdir(simDirPath.c_str(), 0700) == -1){
+                    throw Exception("Directory was not created!!!");
+                }
+
+            }
+
+        }
+            
+        simulateData(simulateToDirs, i, counter, simulator);
+        if ((double)counter > (double)(ChromEvolOptions::fracAllowedFailedSimulations_)*(double)(ChromEvolOptions::numOfSimulatedData_)){
+            throw Exception("ChromosomeNumberMng::runChromEvol():Too many failed simulations!");
+            return;
+        }
+
+    }
+    delete simulator;
+           
+    return;
+
+}
 
 /***********************************************************************************/
 void ChromosomeNumberMng::runChromEvol(){
     setNodeIdsForAllModels(ChromEvolOptions::nodeIdsFilePath_);
     if (ChromEvolOptions::simulateData_){
-        //simulate data using a tree and a set of model parameters
-        RandomTools::setSeed(static_cast<long>(ChromEvolOptions::seed_));
-        bool dataFileExists = false;
-        if (FILE *file = fopen((ChromEvolOptions::characterFilePath_).c_str(), "r")) {
-            fclose(file);
-            dataFileExists = true;
-
-        }
-        bool simulateToDirs = false;
-        bool dataFileIsDirectory = false;
-        struct stat s;
-        if ( lstat((ChromEvolOptions::characterFilePath_).c_str(), &s) == 0 ) {
-            if (S_ISDIR(s.st_mode)) {
-                dataFileIsDirectory = true;
-            }
-        }
-        if ((dataFileExists) && (dataFileIsDirectory)){
-            simulateToDirs = true;
-            
-        }
-        size_t counter = 0;
-        for (size_t i = 0; i < ChromEvolOptions::numOfSimulatedData_; i++){
-            if (simulateToDirs){
-                string simDirPath = ChromEvolOptions::resultsPathDir_ +"//"+ std::to_string(i);
-                if (FILE *file = fopen(simDirPath.c_str(), "r")) {
-                    fclose(file);
-
-                }else{
-                    if (mkdir(simDirPath.c_str(), 0700) == -1){
-                        throw Exception("Directory was not created!!!");
-                    }
-
-                }
-
-            }
-            simulateData(simulateToDirs, i, counter);
-            if ((double)counter > (double)(ChromEvolOptions::fracAllowedFailedSimulations_)*(double)(ChromEvolOptions::numOfSimulatedData_)){
-                throw Exception("ChromosomeNumberMng::runChromEvol():Too many failed simulations!");
-                return;
-            }
-
-        }
-           
+        time_t t1;
+        time(&t1);
+        time_t t2;
+        //simulate data using a tree and a set of model parameters  
+        simulateData();
+        time(&t2);
+        std::cout <<"**** **** Total running time of the simulation procedure is: "<< (t2-t1) <<endl;
         return;
 
     }
@@ -1268,53 +1323,10 @@ string ChromosomeNumberMng::nodeToParenthesis(const uint nodeId, const PhyloTree
 
   return s.str();
 }
+
+
 /*********************************************************************************/
-void ChromosomeNumberMng::simulateData(bool into_dirs, size_t simNum, size_t &count_failed){
-    if ((ChromEvolOptions::minChrNum_ <= 0) || (ChromEvolOptions::maxChrNum_ < 0)){
-        throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): minimum and maximum chromsome number should be positive!");
-    }
-    if (ChromEvolOptions::maxChrNum_ <= ChromEvolOptions::minChrNum_){
-        throw Exception("ERROR!!! ChromosomeNumberMng::simulateData(): maximum chromsome number should be larger than minimum chromosome number!");
-    }
-
-    alphabet_ = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
-    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
-    ParametrizablePhyloTree* parTree =  new ParametrizablePhyloTree(*tree_);
-    std::map<uint, std::pair<int, std::map<int, vector<double>>>> complexParamsValues;
-    ChromEvolOptions::getInitialValuesForComplexParams(complexParamsValues);
-    std::map<uint, uint> maxBaseNumTransition = (ChromEvolOptions::simulateData_) ? ChromEvolOptions::maxBaseNumTransition_ : chrRange_;
-    //1. ChromEvolOptions::mapModelNodesIds_: already calculated
-    
-    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[1].second, complexParamsValues[1].first, maxBaseNumTransition[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
-    if ((chrModel->getBaseNumber() != IgnoreParam) && (ChromEvolOptions::correctBaseNumber_)){
-        chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
-
-    }
-    
-    if (ChromEvolOptions::fixedFrequenciesFilePath_ == "none"){
-        throw Exception("ChromosomeNumberMng::simulateData(): ERROR! The file of fixed root frequencies is missing!!!");
-
-        
-
-    }
-    vector <double> rootFreqs = ChromosomeNumberOptimizer::setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, chrModel);
-    std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqs);
-    std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
-    std::shared_ptr<NonHomogeneousSubstitutionProcess> subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies->clone());
-
-    // adding models
-    for (uint i = 1; i <= (uint)(ChromEvolOptions::numOfModels_); i++){
-        if (i > 1){
-            chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet_, complexParamsValues[i].second, complexParamsValues[i].first, maxBaseNumTransition[i], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, true);
-            if (chrModel->getBaseNumber() != IgnoreParam){
-                chrModel->correctBaseNumForSimulation(ChromEvolOptions::maxChrInferred_);
-
-            }
-            
-        }   
-        subProSim->addModel(chrModel, ChromEvolOptions::mapModelNodesIds_[i]);
-    }
-    SimpleSubstitutionProcessSiteSimulator* simulator = new SimpleSubstitutionProcessSiteSimulator(*subProSim);
+void ChromosomeNumberMng::simulateData(bool into_dirs, size_t simNum, size_t &count_failed, SimpleSubstitutionProcessSiteSimulator* simulator){
     SiteSimulationResult* simResult = simulator->dSimulateSite();
     vector <size_t> leavesStates = simResult->getFinalStates();
     vector<string> leavesNames = simResult->getLeaveNames();
@@ -1343,13 +1355,9 @@ void ChromosomeNumberMng::simulateData(bool into_dirs, size_t simNum, size_t &co
         }else{
             success = true;
         }
-        // bool success = checkIfSimulationSuccess(evolutionPath);
-        // if (!success){
-        //     count_failed ++;
-        // }
+
     }
     delete simResult;
-    delete simulator;
 
 }
 /*******************************************************************************/
