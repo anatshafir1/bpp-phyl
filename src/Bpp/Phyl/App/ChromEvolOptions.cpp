@@ -65,6 +65,7 @@ string ChromEvolOptions::modelSelectionCriterion_;
 size_t ChromEvolOptions::numOfSimulatedData_;
 double ChromEvolOptions::fracAllowedFailedSimulations_;
 bool ChromEvolOptions::correctBaseNumber_;
+size_t ChromEvolOptions::numOfRequiredSimulatedData_;
 
 /*************************************************************************/
 void ChromEvolOptions::initAllParameters(BppApplication& ChromEvol){
@@ -114,6 +115,7 @@ void ChromEvolOptions::initDefaultParameters(){
     numOfSimulatedData_ = 1;
     fracAllowedFailedSimulations_ = 0.01;
     correctBaseNumber_ = true;
+    numOfRequiredSimulatedData_ = numOfSimulatedData_;
 
 
     
@@ -244,6 +246,7 @@ void ChromEvolOptions::initParametersFromFile(BppApplication& ChromEvol){
     numOfSimulatedData_ = static_cast<size_t>(ApplicationTools::getIntParameter("_numOfSimulatedData", ChromEvol.getParams(), (int)numOfSimulatedData_, "", true, 0));
     fracAllowedFailedSimulations_ = ApplicationTools::getDoubleParameter("_fracAllowedFailedSimulations", ChromEvol.getParams(), fracAllowedFailedSimulations_, "", true, 0);
     correctBaseNumber_ = ApplicationTools::getBooleanParameter("_correctBaseNumber", ChromEvol.getParams(), correctBaseNumber_, "", true, 0);
+    numOfRequiredSimulatedData_ = static_cast<size_t>(ApplicationTools::getIntParameter("_numOfRequiredSimulatedData", ChromEvol.getParams(), (int)numOfRequiredSimulatedData_, "", true, 0));
 
 }
 /************************************************************************/

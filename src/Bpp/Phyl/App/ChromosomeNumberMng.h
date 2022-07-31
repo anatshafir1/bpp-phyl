@@ -184,7 +184,7 @@ namespace bpp{
             void getMaxParsimonyUpperBound(double* parsimonyScore) const;
             // functions to print the tree with ancestral reconstruction
             void printSimulatedDataAndAncestors(SiteSimulationResult* simResult, string &ancestorsPath) const;
-            void printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult) const;
+            void printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult, bool &success, size_t maxStateIndex) const;
             static string printTree(const PhyloTree& tree);
             static string nodeToParenthesis(const uint nodeId, const PhyloTree& tree);
             std::map<int, vector <double>> getVectorToSetModelParams(SingleProcessPhyloLikelihood* lik, size_t modelIndex = 1) const;

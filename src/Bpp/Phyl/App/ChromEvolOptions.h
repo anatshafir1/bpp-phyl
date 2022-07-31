@@ -105,6 +105,7 @@ public:
     static size_t numOfSimulatedData_;
     static double fracAllowedFailedSimulations_;
     static bool correctBaseNumber_;
+    static size_t numOfRequiredSimulatedData_;
     // public functions
     static std::vector<int> translateStringParamsToInt(std::vector<string> &strParams);
     static std::shared_ptr<PhyloNode> getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes);

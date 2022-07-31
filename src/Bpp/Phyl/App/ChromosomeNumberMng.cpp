@@ -687,6 +687,12 @@ void ChromosomeNumberMng::simulateData(){
         if ((double)counter > (double)(ChromEvolOptions::fracAllowedFailedSimulations_)*(double)(ChromEvolOptions::numOfSimulatedData_)){
             throw Exception("ChromosomeNumberMng::runChromEvol():Too many failed simulations!");
             return;
+        }else{
+            if ((i+1)-counter == ChromEvolOptions::numOfRequiredSimulatedData_){
+                std::cout << "Found " << ChromEvolOptions::numOfRequiredSimulatedData_ << " successful simulations" << std::endl;
+                break;
+
+            }
         }
 
     }
@@ -1164,8 +1170,9 @@ void ChromosomeNumberMng::getMarginalAncestralReconstruction(ChromosomeNumberOpt
 }
 
 /**************************************************************************************/
-void ChromosomeNumberMng::printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult) const{
+void ChromosomeNumberMng::printSimulatedEvoPath(const string outPath, SiteSimulationResult* simResult, bool &success, size_t maxStateIndex) const{
     ofstream outFile;
+    success = true;
     outFile.open(outPath);
     size_t totalNumTransitions = 0;
     vector<shared_ptr<PhyloNode> > nodes = tree_->getAllNodes();
@@ -1174,8 +1181,13 @@ void ChromosomeNumberMng::printSimulatedEvoPath(const string outPath, SiteSimula
         uint nodeId = tree_->getNodeIndex(nodes[n]);
         if (tree_->getRootIndex() == nodeId){
             outFile << "N-" + std::to_string(nodeId) << endl;
-            
-            outFile <<"\tThe root state is: "<< ((int)(simResult->getRootAncestralState()+ alphabet_->getMin())) <<endl;
+            size_t rootState = simResult->getRootAncestralState();
+            if (rootState == maxStateIndex){
+                success = false;
+            }
+            outFile <<"\tThe root state is: "<< ((int)(rootState + alphabet_->getMin())) <<endl;
+
+
         }else{
             if (tree_->isLeaf(nodeId)){
                 outFile << tree_->getNode(nodeId)->getName() << endl;
@@ -1199,6 +1211,9 @@ void ChromosomeNumberMng::printSimulatedEvoPath(const string outPath, SiteSimula
             }
             for (size_t i = 0; i < states.size(); i++){
                 outFile << "from state: "<< fatherState  <<"\tt = "<<times[i] << " to state = "<< ((int)(states[i]) + alphabet_->getMin()) << endl;
+                if (((size_t)(fatherState-alphabet_->getMin()) == maxStateIndex) || (states[i] == maxStateIndex)){
+                    success = false;
+                }
                 fatherState = ((int)(states[i]) + alphabet_->getMin());
             }
             outFile <<"# Number of transitions per branch: "<< times.size() <<endl;   
@@ -1345,17 +1360,14 @@ void ChromosomeNumberMng::simulateData(bool into_dirs, size_t simNum, size_t &co
     printSimulatedData(leavesStates, leavesNames, 0, countsPath);
     printSimulatedDataAndAncestors(simResult, ancestorsPath);
     if (ChromEvolOptions::resultsPathDir_ != "none"){
-        printSimulatedEvoPath(evolutionPath, simResult);
-        size_t maxStateIndex = (size_t)(ChromEvolOptions::maxChrNum_-alphabet_->getMin());
         bool success;
-        if (std::find(leavesStates.begin(), leavesStates.end(), maxStateIndex) != leavesStates.end()){
-            success = false;
+        size_t maxStateIndex = (size_t)(ChromEvolOptions::maxChrNum_-alphabet_->getMin());
+        printSimulatedEvoPath(evolutionPath, simResult, success, maxStateIndex);
+        
+        if (!success){
             count_failed ++;
 
-        }else{
-            success = true;
         }
-
     }
     delete simResult;
 
