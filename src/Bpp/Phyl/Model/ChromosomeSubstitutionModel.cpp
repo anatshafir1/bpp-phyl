@@ -65,7 +65,7 @@ void LinearDependencyFunction::updateBounds(Function* f, const std::string &para
 }
 /**************************************************************************************/
 void LinearDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
-    if (index == 0){
+  if (index == 0){
     *lowerBound = lowerBoundOfRateParam;
     *upperBound = upperBoundOfRateParam;
     
@@ -513,6 +513,10 @@ std::vector<Parameter*> ChromosomeSubstitutionModel::createCompositeParameter(Ch
     ChromosomeNumberDependencyFunction* functionOp =  compositeParameter::setDependencyFunction(func);
     functionOp->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
     functionOp->getAbsoluteBounds(i, &lowerBound, &upperBound, ChrMaxNum_);
+    if ((simulated_) && (lowerBound > paramValue)){
+      lowerBound = paramValue - EPSILON;
+
+    }
     delete functionOp;
 
     // in simulations it sometimes happens when the upper bound is lower than the value itself,
