@@ -14,13 +14,11 @@
 //from bpp-seq
 #include <Bpp/Seq/Alphabet/Alphabet.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
-#include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
 //#include <Bpp/Seq/Container/VectorSequenceContainer.h>
 //#include <Bpp/Seq/Container/VectorSiteContainer.h>
 //#include <Bpp/Seq/Container/SiteContainerTools.h>
 //#include <Bpp/Seq/Io/AbstractISequence.h>
 //#include <Bpp/Seq/Io/ISequence.h>
-//#include <Bpp/Seq/Io/chrFasta.h>
 //#include <Bpp/Seq/SiteTools.h>
 //#include <Bpp/Seq/App/SequenceApplicationTools.h>
 

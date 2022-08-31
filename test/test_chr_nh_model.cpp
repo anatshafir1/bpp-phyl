@@ -4,7 +4,6 @@
 #include <Bpp/App/BppApplication.h>
 #include <Bpp/Numeric/Matrix/MatrixTools.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
-#include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
 #include <Bpp/Phyl/Tree/TreeTemplate.h>
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/Nucleotide/T92.h>
@@ -27,7 +26,6 @@ using namespace bpp;
 using namespace std;
 
 
-// unsigned int optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, ChromosomeAlphabet* alpha, std::vector<int> &mapOfRateType, size_t maxNumOfIterations);
 // void updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>> &paramNameAndType, SingleProcessPhyloLikelihood* tl);
 // void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName);
 // void printLikParameters(SingleProcessPhyloLikelihood* lik);
@@ -41,7 +39,6 @@ void printSpecies(PhyloTree* tree, uint index);
 //     //unique_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("(((A:0.1, B:0.2):0.3,C:0.15):0.25,(D:0.35,(E:0.26,F:0.05):0.12):0.16);", false, "", false, false));
 //     unique_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("((sp1:1,(sp2:0.5,sp3:0.5):0.5):2,(sp4:1.5,(sp5:0.9,sp6:0.9):0.6):1.5);", false, "", false, false));
 //     ParametrizablePhyloTree parTree(*pTree);
-//     ChromosomeAlphabet* alpha = new ChromosomeAlphabet(1,4);
 //     VectorSiteContainer* vsc = new VectorSiteContainer(alpha);
         
 //     // setting sequence data
@@ -394,7 +391,6 @@ void printSpecies(PhyloTree* tree, uint index);
 // }
 
 
-// unsigned int optimizeModelParametersOneDimension(SingleProcessPhyloLikelihood* tl, ChromosomeAlphabet* alpha, std::vector<int> &modelRateType, size_t maxNumOfIterations){
 
 //     // Initialize optimizer
 

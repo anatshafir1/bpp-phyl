@@ -58,7 +58,6 @@
 #include <Bpp/Seq/Container/SiteContainerTools.h>
 #include <Bpp/Seq/Io/AbstractISequence.h>
 #include <Bpp/Seq/Io/ISequence.h>
-#include <Bpp/Seq/Io/chrFasta.h>
 #include <Bpp/Seq/Io/Fasta.h>
 #include <Bpp/Seq/SiteTools.h>
 #include <Bpp/Seq/App/SequenceApplicationTools.h>
