@@ -9,7 +9,7 @@
 #define _CHROMOSOMESUBSTITUTIONMODEL_H_
 
 #include "AbstractSubstitutionModel.h"
-#include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
+#include <Bpp/Seq/Alphabet/IntegerAlphabet.h>
 #include <Bpp/Exceptions.h>
 #include <regex>
 //#include <Bpp/Phyl/NewLikelihood/DataFlow/ExtendedFloatTools.h>
@@ -365,7 +365,7 @@ protected:
 
 
 public:
-  ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
+  ChromosomeSubstitutionModel(const IntegerAlphabet* alpha, 
     vector<double> gain, 
     vector<double> loss, 
     vector<double> dupl, 
@@ -377,7 +377,7 @@ public:
     vector<int> rateChangeType,
     bool simulated = false);
 
-  ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
+  ChromosomeSubstitutionModel(const IntegerAlphabet* alpha, 
     std::map<int, vector<double>> mapOfParamValues,
     int baseNum,
     unsigned int maxChrRange, 
@@ -385,12 +385,6 @@ public:
     vector<int> rateChangeType,
     bool simulated = false);
 
-  //constructor with vector of parameters
-  // ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
-  //   vector<double> modelParams,
-  //   unsigned int maxChrRange,
-  //   rootFreqType freqType,
-  //   rateChangeFunc rateChangeType);
 
   virtual ~ChromosomeSubstitutionModel() {
     if (gain_ != 0){
@@ -460,7 +454,7 @@ public:
   
 public:
   static ChromosomeSubstitutionModel* initRandomModel(
-    const ChromosomeAlphabet* alpha,
+    const IntegerAlphabet* alpha,
     int &baseNumber,
     std::map<int, vector<double>> initParams,
     unsigned int chrRange,
@@ -491,7 +485,7 @@ public:
   int getMax() const {return ChrMaxNum_;}
   unsigned int getMaxChrRange() const {return maxChrRange_;}
   bool checkIfReachedConvergence(const Matrix<double>& pijt, const Matrix<double>& mt_prev) const;
-  double getInitValue(size_t i, int state) const;
+  //double getInitValue(size_t i, int state) const;
   int getBaseNumber() const {return baseNum_;}
   bool isIgnoredGain() const {return gain_ == 0;}
   bool isIgnoredLoss() const {return loss_ == 0;}

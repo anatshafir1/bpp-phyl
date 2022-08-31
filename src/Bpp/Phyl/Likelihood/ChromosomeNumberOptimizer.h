@@ -56,7 +56,7 @@
 //from bpp-seq
 #include <Bpp/Seq/Alphabet/Alphabet.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
-#include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
+#include <Bpp/Seq/Alphabet/IntegerAlphabet.h>
 #include <Bpp/Seq/Container/VectorSequenceContainer.h>
 #include <Bpp/Seq/Container/VectorSiteContainer.h>
 
@@ -97,8 +97,8 @@ namespace bpp
             vector <SingleProcessPhyloLikelihood*> vectorOfLikelohoods_;
             //vector <Context> vectorOfContexts_;
             const PhyloTree* tree_;
-            const ChromosomeAlphabet* alphabet_;
-            const VectorSiteContainer* vsc_;
+            const IntegerAlphabet* alphabet_;
+            const VectorProbabilisticSiteContainer* vsc_;
             bool optimizeBaseNumber_;
             vector<unsigned int> numOfPoints_;
             vector<unsigned int> numOfIterations_;
@@ -120,6 +120,7 @@ namespace bpp
             std::map<uint, std::vector<std::pair<string, double>>> prevModelParams_;
             std::map<uint, std::pair<double, double>> prevModelsAICcLikValues_;
             std::map<uint, std::vector<double>> prevModelsRootFrequencies_;
+            std::map<std::string, std::vector<int>> nonZeroProbStates_;
             
             
             
@@ -127,8 +128,8 @@ namespace bpp
         public:
             ChromosomeNumberOptimizer(
                 const PhyloTree* tree,
-                const ChromosomeAlphabet* alpha,
-                const VectorSiteContainer* vsc,
+                const IntegerAlphabet* alpha,
+                const VectorProbabilisticSiteContainer* vsc,
                 std::map<uint, uint> baseNumberUpperBound):
                     vectorOfLikelohoods_(),
                     //vectorOfContexts_(),
@@ -154,7 +155,8 @@ namespace bpp
                     prevModelsPartitions_(),
                     prevModelParams_(),
                     prevModelsAICcLikValues_(),
-                    prevModelsRootFrequencies_()
+                    prevModelsRootFrequencies_(),
+                    nonZeroProbStates_()
             {}
 
             ChromosomeNumberOptimizer(const ChromosomeNumberOptimizer& opt):
@@ -182,7 +184,8 @@ namespace bpp
                 prevModelsPartitions_(opt.prevModelsPartitions_),
                 prevModelParams_(opt.prevModelParams_),
                 prevModelsAICcLikValues_(opt.prevModelsAICcLikValues_),
-                prevModelsRootFrequencies_(opt.prevModelsRootFrequencies_)
+                prevModelsRootFrequencies_(opt.prevModelsRootFrequencies_),
+                nonZeroProbStates_(opt.nonZeroProbStates_)
 
             {}
             ChromosomeNumberOptimizer& operator=(const ChromosomeNumberOptimizer& opt){
@@ -211,6 +214,7 @@ namespace bpp
                 prevModelParams_ = opt.prevModelParams_;
                 prevModelsAICcLikValues_ = opt.prevModelsAICcLikValues_;
                 prevModelsRootFrequencies_ = opt.prevModelsRootFrequencies_;
+                nonZeroProbStates_ = opt.nonZeroProbStates_;
                 return *this;
             }
             ChromosomeNumberOptimizer* clone() const { return new ChromosomeNumberOptimizer(*this); }
@@ -242,10 +246,12 @@ namespace bpp
                 BrentBracketing_ =BrentBracketing;
                 probsForMixedOptimization_ = probsForMixedOptimization;
                 backwardPhaseStarted_ = false;
+                nonZeroProbStates_ = getNonZeroStatesForEachSequence();
                 
 
             }
             const std::map<uint, vector<uint>> getPreviousModelsPartitions() const{return prevModelsPartitions_;}
+            const std::map<std::string, vector<int>> getMapOfNonZeroProbStates() const{return nonZeroProbStates_;}
             const std::map<uint, std::vector<std::pair<string, double>>> getPreviousModelsParameters() const{return prevModelParams_;}
             const std::map<uint, std::pair<double, double>> getPreviousModelsAICcValues() const{return prevModelsAICcLikValues_;}
             const std::map <uint,std::vector<double>> getPrevModelsRootFreqs() const{return prevModelsRootFrequencies_;}
@@ -304,6 +310,8 @@ namespace bpp
                     std::cout << text;
                 }
             }
+            std::map<std::string, std::vector<int>> getNonZeroStatesForEachSequence();
+            std::vector<int> getNonZeroStatesAtSite(BasicProbabilisticSequence &seq) const;
             static void createMapOfSharedParameterNames(std::map<int, std::vector<std::pair<uint, int>>> &sharedParams, std::map<string, vector<std::pair<uint, int>>> &sharedParamsNames);
             void fillVectorOfLikelihoods(SingleProcessPhyloLikelihood* lik, uint numOfIterationsFirstCycle,  size_t currPoint, uint reqNumOfPoints, vector <uint> baseNumCandidates, std::map<int, vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>& fixedParams, vector<SingleProcessPhyloLikelihood*> &vectorOfLiklihoods, string* text, std::map<uint, uint> &baseNumberUpperBounds, omp_lock_t* mutex = 0);
             void initLikelihoods(std::map<uint, std::pair<int, std::map<int, vector<double>>>> modelParams, double parsimonyBound, std::vector<int>& rateChange, unsigned int numOfPoints, const string& fixedRootFreqPath, std::map<uint, vector<int>>& fixedParams, std::map<uint, std::vector<uint>> mapModelNodesIds, uint numOfModels, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
@@ -354,9 +362,9 @@ namespace bpp
             SingleProcessPhyloLikelihood* getSingleNewLikObject(std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, std::map<uint, vector<int>> &fixedParams, double parsimonyBound, std::map<uint, std::vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, uint iteration, std::map<uint, uint>* baseNumberBounds);
             void getNewLikObjectForParallelRuns(std::vector<SingleProcessPhyloLikelihood*> &perCandidateLikVec, SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound);
             void getNewLikObject(SingleProcessPhyloLikelihood* currentLik, uint nodeToSplit, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<int, std::vector<std::pair<uint, int>>>* updatedSharedParams, uint numOfPoints, std::map<uint, vector<int>> &fixedParams, double parsimonyBound);
-            static SingleProcessPhyloLikelihood* setHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<int, vector<std::pair<uint,int>>>* updatedSharedParams);
-            static SingleProcessPhyloLikelihood* setRandomHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, double parsimonyBound, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
-            void ifNanTryToResampleLikObject(SingleProcessPhyloLikelihood** lik, const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, double parsimonyBound, int numOfPoints, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
+            static SingleProcessPhyloLikelihood* setHeterogeneousModel(const PhyloTree* tree, const VectorProbabilisticSiteContainer* vsc, const IntegerAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<int, vector<std::pair<uint,int>>>* updatedSharedParams);
+            static SingleProcessPhyloLikelihood* setRandomHeterogeneousModel(const PhyloTree* tree, const VectorProbabilisticSiteContainer* vsc, const IntegerAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, double parsimonyBound, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
+            void ifNanTryToResampleLikObject(SingleProcessPhyloLikelihood** lik, const PhyloTree* tree, const VectorProbabilisticSiteContainer* vsc, const IntegerAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, double parsimonyBound, int numOfPoints, std::map<uint, vector<int>> &fixedParams, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams);
             //void optimizeSingleHeterogeneousModel(size_t index, int maxNumOfModels, std::vector<uint> &candidateShiftNodesIds, vector<uint> &baseNumCandidates);
             void getValidCandidatesForShift(std::vector<uint> &candidateShiftNodesIds, int minCladeSize);
             void updateSharedParameters(std::map<int, vector<std::pair<uint, int>>> &sharedParams, uint prevShift, uint numOfShifts) const;

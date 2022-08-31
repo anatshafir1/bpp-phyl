@@ -419,40 +419,56 @@ void ChromosomeNumberOptimizer::fillVectorOfBaseNumCandidates(std::vector <unsig
 // /***************************************************************************************/
 void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned int> &baseNumCandidates) const{
     size_t numOfSequences = vsc_->getNumberOfSequences();
+    auto &seqWithNonZeroProbStates = getMapOfNonZeroProbStates();
     unsigned int minRange = 0;
     vector <string> sequenceNames = vsc_->getSequencesNames();
     for (size_t i = 0; i < numOfSequences; i++){
         if (i == numOfSequences-1){
             continue;
         }
-        BasicSequence seq1 = vsc_->getSequence(sequenceNames[i]);
-        int chrNum1 = seq1.getValue(0);
-        if (chrNum1 == -1){
+    //     /////////////////////
+    //         std::vector<std::string> sequnces_names = sites.getSequencesNames();
+    // for (size_t k = 0; k < sequnces_names.size(); k++){
+    //     std::cout << sequnces_names[k] << " index " << k << std::endl;
+    //     for (int i = 0; i < 21; i++){
+    //         std::cout << "\t"<< sites.getStateValueAt(0, sequnces_names[k], i) << std::endl;
+
+    //     }
+    // }
+        /////////////////
+        BasicProbabilisticSequence seq1 = *(vsc_->getSequence(sequenceNames[i]));
+        std::vector<int> chrNum1 = seqWithNonZeroProbStates.at(sequenceNames[i]);
+        if (chrNum1.size() == vsc_->getAlphabet()->getSize()){
             continue;
         }
         for (size_t j = i + 1; j < numOfSequences; j++){
-            BasicSequence seq2 = vsc_->getSequence(sequenceNames[j]);
-            int chrNum2 = seq2.getValue(0);
-            if (chrNum2 == -1){
+            BasicProbabilisticSequence seq2 = *(vsc_->getSequence(sequenceNames[j]));
+            std::vector<int> chrNum2 = seqWithNonZeroProbStates.at(sequenceNames[j]);
+            if (chrNum1.size() == vsc_->getAlphabet()->getSize()){
                 continue;
             }
-            unsigned int chrRange = (unsigned int)(std::abs(chrNum1 - chrNum2));
-            if (chrRange == 0 || chrRange == 1){
-                continue;
-            }
-            else if (chrRange == 2){
-                continue;
-            }
-            if (!std::count(baseNumCandidates.begin(), baseNumCandidates.end(), chrRange)){
-                if (minRange == 0){
-                    minRange = chrRange;
-                }else{
-                    if (chrRange < minRange){
-                        minRange = chrRange;
+            unsigned int chrRange;// = (unsigned int)(std::abs(chrNum1 - chrNum2));
+            for (size_t k = 0; k < chrNum1.size(); k++){
+                for (size_t l = 0; l < chrNum2.size(); l++){
+                    chrRange = (unsigned int)(std::abs((int)chrNum1[k] - (int)chrNum2[l]));
+                    if (chrRange == 0 || chrRange == 1){
+                        continue;
+                    }
+                    else if (chrRange == 2){
+                        continue;
+                    }
+                    if (!std::count(baseNumCandidates.begin(), baseNumCandidates.end(), chrRange)){
+                        if (minRange == 0){
+                            minRange = chrRange;
+                        }else{
+                            if (chrRange < minRange){
+                                minRange = chrRange;
+                            }
+                        }
+                        baseNumCandidates.push_back(chrRange);
+
                     }
                 }
-                baseNumCandidates.push_back(chrRange);
-
             }
 
         }
@@ -465,7 +481,30 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
     }
 
 }
+/*************************************************************************************/
+std::map<std::string, std::vector<int>> ChromosomeNumberOptimizer::getNonZeroStatesForEachSequence(){
+    vector <string> sequenceNames = vsc_->getSequencesNames();
+    std::map<std::string, std::vector<int>> nonZeroStates;
+    for (size_t i = 0; i < sequenceNames.size(); i++){
+        BasicProbabilisticSequence seq = *(vsc_->getSequence(sequenceNames[i]));
+        nonZeroStates[sequenceNames[i]] = getNonZeroStatesAtSite(seq);
 
+    }
+    return nonZeroStates;
+
+}
+/*************************************************************************************/
+std::vector<int> ChromosomeNumberOptimizer::getNonZeroStatesAtSite(BasicProbabilisticSequence &seq) const
+{
+    std::vector<int> states;
+    for (int i = alphabet_->getMin(); i <= static_cast<int>(alphabet_->getMax()); i++){
+        if (seq.getStateValueAt(0, i) >  0){
+            states.push_back(i);
+        }
+
+    }
+    return states;
+}
 // /**********************************************************************************/
 unsigned int ChromosomeNumberOptimizer::optimizeModelParameters(SingleProcessPhyloLikelihood* tl, double tol, unsigned int maxNumOfIterations, std::vector <unsigned int> &baseNumCandidates, std::map<int, std::vector<std::pair<uint, int>>>* sharedParams, std::map<uint, vector<int>>* fixedParams, string* textToPrint, std::map<uint, uint> &baseNumberUpperBounds){
     unsigned int numOfEvaluations = 0;
@@ -1481,7 +1520,7 @@ std::map<uint, pair<int, std::map<int, std::vector<double>>>> ChromosomeNumberOp
 }
 /***********************************************************************************************/
 //ifNanTryToResampleLikObject(lik, tree_, vsc_, alphabet_, baseNumberUpperBound_, mapModelNodesIds, modelParams, numOfModels, parsimonyBound, numOfPoints, fixedParams, sharedParams);
-void ChromosomeNumberOptimizer::ifNanTryToResampleLikObject(SingleProcessPhyloLikelihood** lik, const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet,
+void ChromosomeNumberOptimizer::ifNanTryToResampleLikObject(SingleProcessPhyloLikelihood** lik, const PhyloTree* tree, const VectorProbabilisticSiteContainer* vsc, const IntegerAlphabet* alphabet,
     std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, 
     std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, 
     uint numOfModels, double parsimonyBound, int numOfPoints,
@@ -1531,7 +1570,7 @@ void ChromosomeNumberOptimizer::getMutableMapOfModelAndNodeIds(std::map<uint, ve
     }
 }
 /**********************************************************************************************/
-SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet,
+SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousModel(const PhyloTree* tree, const VectorProbabilisticSiteContainer* vsc, const IntegerAlphabet* alphabet,
     std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, 
     std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, 
     uint numOfModels, double parsimonyBound, 
@@ -1605,7 +1644,7 @@ void ChromosomeNumberOptimizer::aliasParametersInSubstitutionProcess(std::map<ui
     }
 }
 /**********************************************************************************************/
-SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(const PhyloTree* tree, const VectorSiteContainer* vsc, const ChromosomeAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* updatedSharedParams){
+SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(const PhyloTree* tree, const VectorProbabilisticSiteContainer* vsc, const IntegerAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* updatedSharedParams){
     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
     ParametrizablePhyloTree* parTree = new ParametrizablePhyloTree(*tree);
     string fixedRootFreqPath = ChromEvolOptions::fixedFrequenciesFilePath_;

@@ -52,7 +52,7 @@
 #include <Bpp/Numeric/VectorTools.h>
 
 // From Seqlib:
-#include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
+#include <Bpp/Seq/Alphabet/IntegerAlphabet.h>
 #include <vector>
 #include <map>
 #include <utility>
@@ -81,7 +81,7 @@ namespace bpp
 
             const PhyloTree* tree_;
             const NonHomogeneousSubstitutionProcess* model_;
-            const ChromosomeAlphabet* alphabet_;
+            const IntegerAlphabet* alphabet_;
             // The branches on which the chromsome number changes are simulated
             vector<vector<Branch>> branchOrder_;
 
@@ -127,7 +127,7 @@ namespace bpp
             bool isMaxStateValid(int prevState, const ChromosomeSubstitutionModel* model) const;
             
         public:
-            ComputeChromosomeTransitionsExp(const std::shared_ptr<NonHomogeneousSubstitutionProcess> model,  const PhyloTree* tree, const ChromosomeAlphabet* alphabet, map<uint, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
+            ComputeChromosomeTransitionsExp(const std::shared_ptr<NonHomogeneousSubstitutionProcess> model,  const PhyloTree* tree, const IntegerAlphabet* alphabet, map<uint, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
             :jointProbabilitiesFatherSon_(jointProbabilitiesFatherSon), tree_(tree), model_(model.get()), alphabet_(alphabet),
             //waitingTimes_(), jumpProbs_(), 
             branchOrder_(), 

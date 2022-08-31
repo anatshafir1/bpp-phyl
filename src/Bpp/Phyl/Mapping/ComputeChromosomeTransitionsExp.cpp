@@ -1002,7 +1002,7 @@ bool ComputeChromosomeTransitionsExp::getProbabilitiesPerType(vector<double> &pr
     bool legalMove = false;
     probabilities.resize(ChromosomeSubstitutionModel::NUMTYPES);
     std::fill(probabilities.begin(), probabilities.end(), 0);
-    const ChromosomeAlphabet* alphabet = dynamic_cast<const ChromosomeAlphabet*>(model->getAlphabet());
+    const IntegerAlphabet* alphabet = dynamic_cast<const IntegerAlphabet*>(model->getAlphabet());
     int chrStart = startStateIndex + alphabet->getMin();
     int chrEnd = endStateIndex + alphabet->getMin();
     double sumOfRates = 0; //for normalization of weights

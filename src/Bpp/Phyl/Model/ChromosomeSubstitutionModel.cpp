@@ -292,7 +292,7 @@ std::vector<std::string> compositeParameter::getRelatedParameterNames(ParameterL
 // Chromosome model ///////////////////////////////////////////////////////////
 /******************************************************************************/
 ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
-  const ChromosomeAlphabet* alpha, 
+  const IntegerAlphabet* alpha, 
   std::vector<double> gain, 
   std::vector<double> loss, 
   std::vector<double> dupl, 
@@ -304,7 +304,7 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
   std::vector<int> rateChangeType,
   bool simulated):
     AbstractParameterAliasable("Chromosome."),
-    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
+    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, false)), "Chromosome."),
     gain_(0),
     loss_(0),
     dupl_(0),
@@ -359,7 +359,7 @@ ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
 
 }
 /******************************************************************************/
-ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
+ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const IntegerAlphabet* alpha, 
   std::map<int, vector<double>> mapOfParamValues,
   int baseNum,
   unsigned int chrRange, 
@@ -367,7 +367,7 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
   vector<int> rateChangeType,
   bool simulated):
     AbstractParameterAliasable("Chromosome."),
-    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
+    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, false)), "Chromosome."),
     gain_(0),
     loss_(0),
     dupl_(0),
@@ -430,7 +430,7 @@ ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabe
 
 /******************************************************************************/
 ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
-  const ChromosomeAlphabet* alpha,
+  const IntegerAlphabet* alpha,
   int &baseNumber,
   map<int, vector<double>> initParams,
   unsigned int chrRange,
@@ -1371,34 +1371,34 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t_func4(double d) cons
 
 }
 /*********************************************************************************/
-double ChromosomeSubstitutionModel::getInitValue(size_t i, int state) const
-{
-  if (i >= size_)
-    throw IndexOutOfBoundsException("ChromosomeSubstitutionModel::getInitValue", i, 0, size_ - 1);
-  if (state < 0 || !alphabet_->isIntInAlphabet(state))
-    throw BadIntException(state, "ChromosomeSubstitutionModel::getInitValue. Character " + alphabet_->intToChar(state) + " is not allowed in model.");
-  vector<int> states = alphabet_->getAlias(state);
-  for (size_t j = 0; j < states.size(); j++)
-  {
-     if (getAlphabetStateAsInt(i) == states[j]){
-       if (dynamic_cast<const ChromosomeAlphabet*>(alphabet_)){
-         const ChromosomeAlphabet* alpha = dynamic_cast<const ChromosomeAlphabet*>(alphabet_);
-         // it is a composite state
-         if (state > alpha->getMax() + 1){
-           return alpha->getProbabilityForState(state, states[j]);
+// double ChromosomeSubstitutionModel::getInitValue(size_t i, int state) const
+// {
+//   if (i >= size_)
+//     throw IndexOutOfBoundsException("ChromosomeSubstitutionModel::getInitValue", i, 0, size_ - 1);
+//   if (state < 0 || !alphabet_->isIntInAlphabet(state))
+//     throw BadIntException(state, "ChromosomeSubstitutionModel::getInitValue. Character " + alphabet_->intToChar(state) + " is not allowed in model.");
+//   vector<int> states = alphabet_->getAlias(state);
+//   for (size_t j = 0; j < states.size(); j++)
+//   {
+//      if (getAlphabetStateAsInt(i) == states[j]){
+//        if (dynamic_cast<const IntegerAlphabet*>(alphabet_)){
+//          const IntegerAlphabet* alpha = dynamic_cast<const IntegerAlphabet*>(alphabet_);
+//          // it is a composite state
+//          if (state > alpha->getMax() + 1){
+//            return alpha->getProbabilityForState(state, states[j]);
 
-         }else{
-           return 1.0;
-         }
+//          }else{
+//            return 1.0;
+//          }
 
-       }else{
-         return 1.;
-       }
+//        }else{
+//          return 1.;
+//        }
 
-     }
-  }
-  return 0.;
-}
+//      }
+//   }
+//   return 0.;
+// }
 
 const Matrix<double>& ChromosomeSubstitutionModel::getPijt_test(double t) const {
   RowMatrix<double> pijt_temp;

@@ -657,7 +657,7 @@ void test_pasta_format(){
     string counts_file = "/home/anat/Docs/Sida/counts_p.pasta";
     string tree_path = "/home/anat/Docs/Sida/tree.newick";
     Pasta pasta;
-    const ChromosomeAlphabet* alphabet = new ChromosomeAlphabet(6,26);
+    const IntegerAlphabet* alphabet = new IntegerAlphabet(26, 6);
   
     VectorProbabilisticSiteContainer sites(alphabet);
     pasta.readAlignment(counts_file,sites);

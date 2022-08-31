@@ -52,7 +52,7 @@
 //from bpp-seq
 #include <Bpp/Seq/Alphabet/Alphabet.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
-#include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
+#include <Bpp/Seq/Alphabet/IntegerAlphabet.h>
 #include <Bpp/Seq/Container/VectorSequenceContainer.h>
 #include <Bpp/Seq/Container/VectorSiteContainer.h>
 #include <Bpp/Seq/Container/SiteContainerTools.h>
@@ -62,6 +62,7 @@
 #include <Bpp/Seq/Io/Fasta.h>
 #include <Bpp/Seq/SiteTools.h>
 #include <Bpp/Seq/App/SequenceApplicationTools.h>
+#include <Bpp/Seq/Io/Pasta.h>
 
 //from bpp-phyl
 #include <Bpp/Phyl/Tree/TreeTemplate.h>
@@ -99,14 +100,18 @@
 #include <regex>
 
 using namespace std;
+
 namespace bpp{
     class ChromosomeNumberMng{
         private:
             PhyloTree* tree_;
-            ChromosomeAlphabet* alphabet_;
-            VectorSiteContainer* vsc_;
+            IntegerAlphabet* alphabet_;
+            VectorProbabilisticSiteContainer* vsc_;
             std::map<uint, uint> chrRange_; //maxObserved-minObserved chromosome number
             unsigned int numberOfUniqueStates_; // number of unique states (number of chromosomes)
+        public :
+            typedef Table<double> DataTable;
+
 
 
 
@@ -139,8 +144,8 @@ namespace bpp{
             void getTree(const string &path, double treeLength = 0);
 
             // getters for testers
-            const ChromosomeAlphabet* getAlphabet() const {return alphabet_;}
-            const VectorSiteContainer* getSeqData() const {return vsc_;}
+            const IntegerAlphabet* getAlphabet() const {return alphabet_;}
+            const VectorProbabilisticSiteContainer* getSeqData() const {return vsc_;}
             const map<uint, uint> getChromosomeRange() const {return chrRange_;}
             const PhyloTree* getPhyloTree() const {return tree_;}
             
@@ -171,15 +176,17 @@ namespace bpp{
             void printResultsForEachMapping(std::map<uint, std::map<int, double>> &expectationsPerTypeRootToLeaf, const NonHomogeneousSubstitutionProcess* NonHomoProcess, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &rootToLeafTransitions, std::map<uint, std::map<size_t, bool>> &presentMapping, const string &outStMappingRootToLeafPath, size_t mappingIndex);
 
         protected:
+            void createProbabilisticVsc(std::map<std::string, std::map<string, double>> &species_states_map);
+            string getStateWithMaxProbability(const shared_ptr<BasicProbabilisticSequence> seq) const;
+            VectorSiteContainer* convertToNotProbVsc() const;
+            std::map<std::string, std::map<string, double>> extract_alphabet_states(const string &file_path, int &min, int &max, vector<int> &uniqueStates, uint &numberOfComposite);
             void writeZeroInTable(ofstream &stream);
             void writeNanInTable(ofstream &stream);
             void writeRunningParameters(ofstream &outFile) const;
             void setNodeIdsForAllModels(string &path);
-            //shared_ptr<PhyloNode> getMRCA(PhyloTree* tree, std::vector<shared_ptr<PhyloNode>> nodes);
             void getNodeIdsPerModelFromLine(string &content, PhyloTree* tree, std::map<uint, std::pair<uint, std::vector<uint>>> &modelAndNodeIds, std::map<uint,uint> &mapOriginalToAssignedModel);
             std::shared_ptr<LikelihoodCalculationSingleProcess> setHeterogeneousLikInstance(SingleProcessPhyloLikelihood* likProcess, ParametrizablePhyloTree* parTree, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, bool forAncestral = false) const;
             std::shared_ptr<NonHomogeneousSubstitutionProcess> setHeterogeneousModel(ParametrizablePhyloTree* tree, SingleProcessPhyloLikelihood* ntl, ValueRef <Eigen::RowVectorXd> rootFreqs,  std::map<int, vector<pair<uint, int>>> sharedParams) const;
-            VectorSiteContainer* resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* initialAlpha);
             void rescale_tree(PhyloTree* tree, double chrRange);
             void getMaxParsimonyUpperBound(double* parsimonyScore) const;
             // functions to print the tree with ancestral reconstruction
@@ -191,8 +198,6 @@ namespace bpp{
             double getOriginalTreeLength(string &path) const;
             void fixFailedMappings(StochasticMapping* stm);
             vector <uint> getVectorOfMapKeys(std::map<uint, vector<size_t>> &mapOfVectors);
-            //bool checkIfSimulationSuccess(string &simEvolutionPath);
-            // void printPosteriorProbNodes(std::map<int, std::map<size_t, VVdouble>>& jointProbabilitiesFatherSon, vector<double>& rootPosterior) const;
 
 
 

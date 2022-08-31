@@ -4,53 +4,13 @@
 using namespace bpp;
 
 void ChromosomeNumberMng::getCharacterData (const string& path){
-    ChromosomeAlphabet* alphaInitial = new ChromosomeAlphabet(ChromEvolOptions::minAlpha_, ChromEvolOptions::maxAlpha_);
-    VectorSequenceContainer* initialSetOfSequences = chrFasta::readSequencesFromFile(path, alphaInitial);
-    size_t numOfSequences = initialSetOfSequences->getNumberOfSequences();
-    vector <string> sequenceNames = initialSetOfSequences->getSequencesNames();
-
-    unsigned int maxNumberOfChr = 1; //the minimal number of chromosomes cannot be zero
-    unsigned int minNumOfChr = ChromEvolOptions::maxAlpha_;
-
-    std::vector <int> UniqueCharacterStates;
-    cout<<"vector size is "<< UniqueCharacterStates.size()<<endl;
-    for (size_t i = 0; i < numOfSequences; i++){
-        BasicSequence seq = initialSetOfSequences->getSequence(sequenceNames[i]);
-        int character = seq.getValue(0);
-        if (character == -1){
-            continue;
-        }
-        if (character == static_cast<int>(ChromEvolOptions::maxAlpha_)+1){
-            continue;
-        }
-        // if it is a composite state
-        if (character > static_cast<int>(ChromEvolOptions::maxAlpha_) +1){
-            const std::vector<int> compositeCharacters = alphaInitial->getSetOfStatesForAComposite(character);
-            for (size_t j = 0; j < compositeCharacters.size(); j++){
-                if ((unsigned int) compositeCharacters[j] > maxNumberOfChr){
-                    maxNumberOfChr = compositeCharacters[j];
-                }
-                if ((unsigned int) compositeCharacters[j] < minNumOfChr){
-                    minNumOfChr = compositeCharacters[j];
-                }
-                
-            }
-            continue;
-        }
-
-        if (!std::count(UniqueCharacterStates.begin(), UniqueCharacterStates.end(), character)){
-            UniqueCharacterStates.push_back(character);
-        }
-        if ((unsigned int) character > maxNumberOfChr){
-            maxNumberOfChr = character;
-        }
-        if ((unsigned int) character < minNumOfChr){
-            minNumOfChr = character;
-        }
-
-    }
-    numberOfUniqueStates_ = (unsigned int)UniqueCharacterStates.size() + alphaInitial->getNumberOfCompositeStates();
-    uint chrRangeNum = maxNumberOfChr - minNumOfChr;
+    int minChrNum;
+    int maxChrNum;
+    vector <int> UniqueCharacterStates;
+    uint numberOfComposite = 0;
+    std::map<std::string, std::map<string, double>> species_states_map = extract_alphabet_states(path, minChrNum, maxChrNum, UniqueCharacterStates, numberOfComposite);
+    numberOfUniqueStates_ = (unsigned int)UniqueCharacterStates.size() + numberOfComposite;
+    uint chrRangeNum = (uint)(maxChrNum - minChrNum);
     for (uint j = 1; j <= static_cast<uint>(ChromEvolOptions::numOfModels_); j++){      
         if (ChromEvolOptions::baseNum_[j] != IgnoreParam){
             if (ChromEvolOptions::baseNum_[j] > (int)chrRangeNum){
@@ -62,13 +22,58 @@ void ChromosomeNumberMng::getCharacterData (const string& path){
     }
     cout <<"Number of unique states is " << numberOfUniqueStates_ <<endl;
 
-    setMaxChrNum(maxNumberOfChr);
-    setMinChrNum(minNumOfChr);
-
-    vsc_ = resizeAlphabetForSequenceContainer(initialSetOfSequences, alphaInitial);
-    delete initialSetOfSequences;
-    delete alphaInitial;
+    setMaxChrNum(maxChrNum);
+    setMinChrNum(minChrNum);
+    //create_pasta_file(pastaFile, ChromEvolOptions::minChrNum_, ChromEvolOptions::maxChrNum_, species_states_map);
+    alphabet_ =  new IntegerAlphabet(ChromEvolOptions::maxChrNum_, ChromEvolOptions::minChrNum_);
+    
+    vsc_ =  new VectorProbabilisticSiteContainer(alphabet_);
+    createProbabilisticVsc(species_states_map);
     return;
+}
+/*************************************************************************************************************/
+void ChromosomeNumberMng::createProbabilisticVsc(std::map<std::string, std::map<string, double>> &sp_states_map){
+    auto it = sp_states_map.begin();
+    while (it != sp_states_map.end()){
+        shared_ptr<BasicProbabilisticSequence> seq(new BasicProbabilisticSequence(vsc_->getAlphabet()));
+        seq->setName(it->first);
+        auto &states_probs_map = sp_states_map[it->first];
+        DataTable content(alphabet_->getSize(),0);
+        vector<double> row(alphabet_->getSize());
+        if (states_probs_map.find("X") != states_probs_map.end()){
+            for (size_t i = 0; i < row.size(); i++){
+                row[i] = 1.0;
+
+            }
+        }else{
+            auto it_sp_states = states_probs_map.begin();
+            vector<int> states;
+            while (it_sp_states != states_probs_map.end()){
+                states.push_back(std::stoi(it_sp_states->first));
+                it_sp_states ++;
+            }
+            for (int i = alphabet_->getMin(); i <= alphabet_->getMax(); i++){
+                if (std::find(states.begin(), states.end(), i) != states.end()){
+                    string state_str = std::to_string(i);
+                    row[(size_t)(i-alphabet_->getMin())] = states_probs_map[state_str];
+
+
+                }else{
+                    row[(size_t)(i-alphabet_->getMin())] = 0;
+
+                    
+                }
+
+            }
+
+        }
+        content.addColumn(row);
+        seq->setContent(content.getData());
+        vsc_->addSequence(seq);
+        
+        it ++;
+    }
+
 }
 /*************************************************************************************************************/
 void ChromosomeNumberMng::setNodeIdsForAllModels(string &path){
@@ -222,30 +227,97 @@ void ChromosomeNumberMng::getNodeIdsPerModelFromLine(string &content, PhyloTree*
     modelAndNodeIds[model].second = nodes;
 }
 // /*******************************************************************************************************************/
-VectorSiteContainer* ChromosomeNumberMng::resizeAlphabetForSequenceContainer(VectorSequenceContainer* vsc, ChromosomeAlphabet* alphaInitial){
-    size_t numOfSequences = vsc->getNumberOfSequences();
-    vector <string> sequenceNames = vsc->getSequencesNames();
-    alphabet_ = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
-        // fill with composite values
-    if (alphaInitial->getNumberOfCompositeStates() > 0){
-        const std::map <int, std::map<int, double>> compositeStates = alphaInitial->getCompositeStatesMap();
-        std::map <int, std::map<int, double>>::const_iterator it = compositeStates.begin();
-        while (it != compositeStates.end()){
-            int compositeState = it->first;
-            std::string charComposite = alphaInitial->intToChar(compositeState);
-            alphabet_->setCompositeState(charComposite);
-            it++;
+std::map<std::string, std::map<string, double>> ChromosomeNumberMng::extract_alphabet_states(const string &file_path, int &min, int &max, vector<int> &uniqueStates, uint &numberOfComposite){
+    
+    ifstream stream;
+    max = ChromEvolOptions::minAlpha_;
+    min = ChromEvolOptions::maxAlpha_;
+    std::regex rgx_composite("([\\d]+)=[\\d]+");
+    std::regex rgx_prob("[\\d]+=([\\d]+\\.*[\\d]*)");
+    std::regex rgx_state("([\\d]+)");
+    std::regex rgx_species(">([\\S]+)");
+    stream.open(file_path.c_str());
+    vector <string> lines = FileTools::putStreamIntoVectorOfStrings(stream);
+    stream.close();
+    std::string species_name;
+    std::map<std::string, std::map<string, double>> sp_with_states;
+    for (size_t i = 0; i < lines.size(); i ++){
+        vector <string> states;
+        vector<double> probs;
+        if (lines[i] == ""){
+            continue;
+        }else if (lines[i].rfind(">", 0) == 0){
+            std::smatch match_sp_name;
+            regex_search(lines[i], match_sp_name, rgx_species);
+            species_name = match_sp_name[1];
+            continue;
         }
-    }
-    VectorSiteContainer* resized_alphabet_site_container = new VectorSiteContainer(alphabet_);
-    for (size_t i = 0; i < numOfSequences; i++){
-        BasicSequence seq = vsc->getSequence(sequenceNames[i]);
-        BasicSequence new_seq = BasicSequence(seq.getName(), seq.getChar(0), alphabet_);
-        resized_alphabet_site_container->addSequence(new_seq);
+        std::smatch match_composite;
+        std::smatch match_prob;
+        std::smatch match_single_state;
+        string content = lines[i];
+        bool composite = false;
+        bool single_state = false;
+        //uint state;
+        while(regex_search(content, match_composite, rgx_composite))
+        {
+            composite = true;
+            int state = stoi(match_composite[1]);
+            if (state < min){
+                min =  state;
+            }
+            if (state > max){
+                max = state;
+            }
+            //state = static_cast<uint>(stoi(match[1]));
+            
+            states.push_back(match_composite[1]);
+
+            regex_search(content, match_prob, rgx_prob);
+            probs.push_back(std::stod(match_prob[1]));
+            content = match_composite.suffix();
+        }
+        if (!composite){
+            if (lines[i] == "X"){
+                states.push_back("X");
+                probs.push_back(1.0);
+                single_state = true;
+            }else if (regex_search(lines[i], match_single_state, rgx_state)){
+                if ((size_t)(match_single_state[1].length()) == (size_t)(lines[i].length())){
+                    //state = static_cast<uint>(stoi(match_single_state[1]));
+                    int state = stoi(match_single_state[1]);
+                    if (state < min){
+                        min =  state;
+                    }
+                    if (state > max){
+                        max = state;
+                    }
+                    states.push_back(match_single_state[1]);
+                    single_state = true;
+                    probs.push_back(1.0);
+                    
+                    if (!std::count(uniqueStates.begin(), uniqueStates.end(), state)){
+                        uniqueStates.push_back(state);
+                    }
+                }
+            }
+            if (!single_state){
+                throw Exception("Not a state!!!");
+            }
+        }else{
+            numberOfComposite ++;
+        }
+        for (size_t j = 0; j < states.size(); j++){
+            sp_with_states[species_name][states[j]] = probs[j];
+
+        }
 
     }
-    return resized_alphabet_site_container;
+    return sp_with_states;
+
+
 }
+
 /*******************************************************************************************/
 void ChromosomeNumberMng::setMaxChrNum(unsigned int maxNumberOfChr){
     if (ChromEvolOptions::maxChrNum_ < 0){
@@ -315,11 +387,52 @@ void ChromosomeNumberMng::getMaxParsimonyUpperBound(double* parsimonyBound) cons
     TreeTemplate<Node>* tree = reader.readTree(ChromEvolOptions::treeFilePath_);
     double factor = tree_->getTotalLength()/tree->getTotalLength();
     tree->scaleTree(factor);
-    DRTreeParsimonyScore maxParsimonyObject = DRTreeParsimonyScore(*tree, *vsc_);
+    auto vsc = convertToNotProbVsc();
+    DRTreeParsimonyScore maxParsimonyObject = DRTreeParsimonyScore(*tree, *vsc);
     *parsimonyBound = (maxParsimonyObject.getScore())/(tree->getTotalLength());
     delete tree;
+    delete vsc;
     return;   
 
+}
+/*****************************************************************************************/
+VectorSiteContainer* ChromosomeNumberMng::convertToNotProbVsc() const{
+    IntegerAlphabet* alpha = new IntegerAlphabet(ChromEvolOptions::maxChrNum_,ChromEvolOptions::minChrNum_);
+    vector <string> sequenceNames = vsc_->getSequencesNames();
+    VectorSiteContainer* vsc = new VectorSiteContainer(alpha);
+    for (size_t i = 0; i < sequenceNames.size(); i++){
+        auto seq = vsc_->getSequence(sequenceNames[i]);
+        string state = getStateWithMaxProbability(seq);
+        BasicSequence new_seq = BasicSequence(seq->getName(), state, alpha);
+        vsc->addSequence(new_seq);
+    }
+    return vsc;
+    
+}
+/*****************************************************************************************/
+
+string ChromosomeNumberMng::getStateWithMaxProbability(const shared_ptr<BasicProbabilisticSequence> seq) const{
+    int min = alphabet_->getMin();
+    int max = alphabet_->getMax();
+    int max_state;
+    size_t num_of_ambiguous = 0;
+    double max_prob = 0.0;
+    for (int i = min; i <= max; i++){
+        double prob = seq->getStateValueAt(0, i);
+        if (prob == 1){
+            num_of_ambiguous ++;
+        }
+        if (prob > max_prob){
+            max_prob = prob;
+            max_state = i;
+        }
+
+    }
+    if (num_of_ambiguous == alphabet_->getSize()){
+        return "X";
+    }
+    return std::to_string(max_state);
+  
 }
 /*****************************************************************************************/
 ChromosomeNumberOptimizer* ChromosomeNumberMng::optimizeLikelihoodMultiStartPoints() const{
@@ -631,7 +744,7 @@ void ChromosomeNumberMng::simulateData(){
     if (ChromEvolOptions::maxChrNum_ <= ChromEvolOptions::minChrNum_){
         throw Exception("ERROR!!! ChromosomeNumberMng::initializeSimulator(): maximum chromsome number should be larger than minimum chromosome number!");
     }
-    alphabet_ = new ChromosomeAlphabet(ChromEvolOptions::minChrNum_,ChromEvolOptions::maxChrNum_);
+    alphabet_ = new IntegerAlphabet(ChromEvolOptions::maxChrNum_, ChromEvolOptions::minChrNum_);
     DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
     ParametrizablePhyloTree* parTree =  new ParametrizablePhyloTree(*tree_);
     std::map<uint, std::pair<int, std::map<int, vector<double>>>> complexParamsValues;
@@ -1388,7 +1501,7 @@ void ChromosomeNumberMng::printSimulatedData(vector<size_t> leavesStates, vector
             BasicSequence seq = BasicSequence(leavesNames[i], alphabet_->intToChar(state), static_cast <const Alphabet*>(alphabet_));
             simulatedData->addSequence(seq);
         }
-        vsc_ = simulatedData;
+        vsc_ = dynamic_cast<VectorProbabilisticSiteContainer*>(simulatedData);
         
         Fasta fasta;
         fasta.writeSequences(countsPath, *simulatedData);
