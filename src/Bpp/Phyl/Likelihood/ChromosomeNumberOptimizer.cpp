@@ -1793,7 +1793,7 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
     ((ChromEvolOptions::maxNumOfModels_ == 1) && (ChromEvolOptions::heterogeneousModel_)) ? (maxNumOfModels = (static_cast<int>((tree_->getAllLeavesNames()).size())-1)) : (maxNumOfModels = ChromEvolOptions::maxNumOfModels_);
     vector<uint> candidateShiftNodesIds;
     if (ChromEvolOptions::heterogeneousModel_){
-        getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_);
+        getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_, ChromEvolOptions::numOfModels_);
 
     }
     
@@ -1878,9 +1878,12 @@ void ChromosomeNumberOptimizer::optimizeInParallel(std::map<uint, std::pair<int,
             prevModelsRootFrequencies_[numOfShifts] = getRootFrequencies(minAICcLik);
             getParameterNamesAndValues(minAICcLik, numOfShifts);
             fixedParams_ = fixedParameters;
-            numOfShifts ++;
+            
             vectorOfLikelohoods_.push_back(minAICcLik);
-            candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
+            candidateShiftNodesIds.clear();
+            getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_, numOfShifts);
+            numOfShifts ++;
+            //candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
         }else{
             deleteLikObject(bestLikAmongCandidates);
             deltaAICcImproved = false;
@@ -1981,7 +1984,7 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
     ((ChromEvolOptions::maxNumOfModels_ == 1) && (ChromEvolOptions::heterogeneousModel_)) ? (maxNumOfModels = (static_cast<int>((tree_->getAllLeavesNames()).size())-1)) : (maxNumOfModels = ChromEvolOptions::maxNumOfModels_);
     vector<uint> candidateShiftNodesIds;
     if (ChromEvolOptions::heterogeneousModel_){
-        getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_);
+        getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_, ChromEvolOptions::numOfModels_);
 
     }
     
@@ -2091,7 +2094,15 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
            
         }   
         if (vectorOfLikelohoods_[0]->getSubstitutionProcess().getNumberOfModels() > 1){
-            candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
+            
+            if (improvedModelFound){
+                candidateShiftNodesIds.clear();
+                getValidCandidatesForShift(candidateShiftNodesIds, ChromEvolOptions::minCladeSize_, numOfShifts-1);
+
+
+            }
+            
+            //candidateShiftNodesIds.erase(std::remove(candidateShiftNodesIds.begin(), candidateShiftNodesIds.end(), minDetaAICcNode), candidateShiftNodesIds.end());
 
         }
         if (prevLik != minAICcLik){
@@ -2105,25 +2116,55 @@ void ChromosomeNumberOptimizer::optimize(std::map<uint, std::pair<int, std::map<
 
 
 }
-
 /**********************************************************************************************/
-void ChromosomeNumberOptimizer::getValidCandidatesForShift(std::vector<uint> &candidateShiftNodesIds, int minCladeSize){
-    vector<shared_ptr<PhyloNode>> nodes = tree_->getAllNodes();
-    for (size_t i = 0; i < nodes.size(); i++){
-        if (tree_->isLeaf(nodes[i])){
-            continue;
+size_t ChromosomeNumberOptimizer::getValidCandidatesForShiftRec(uint nodeId, std::vector<uint> &candidateShiftNodesIds, int minCladeSize, vector<uint> &shifting_nodes, bool shifting_node){
+    auto sons = tree_->getSons(tree_->getNode(nodeId)); 
+    size_t size = 0; 
+    for (size_t i = 0;  i < sons.size(); i++){       
+        uint sonIndex = tree_->getNodeIndex(sons[i]);
+        if (tree_->isLeaf(sons[i])){
+            size += 1;
+        }else if (std::count(shifting_nodes.begin(), shifting_nodes.end(), sonIndex)){
+            size += 1;
+        }else{
+            size+= getValidCandidatesForShiftRec(sonIndex, candidateShiftNodesIds, minCladeSize, shifting_nodes, false);
+
         }
-        if (tree_->getRootIndex() == tree_->getNodeIndex(nodes[i])){
-            continue;
-        }
-        if (std::find(ChromEvolOptions::initialModelNodes_.begin(), ChromEvolOptions::initialModelNodes_.end(), tree_->getNodeIndex(nodes[i])) != ChromEvolOptions::initialModelNodes_.end()){
-            continue;
-        }
-        auto leavesUnderNode = tree_->getLeavesUnderNode(nodes[i]);
-        if (leavesUnderNode.size() >= (size_t)minCladeSize){
-            candidateShiftNodesIds.push_back(tree_->getNodeIndex(nodes[i]));
-        }
+
     }
+    if (((int)size >= minCladeSize) && (!shifting_node)){
+        candidateShiftNodesIds.push_back(nodeId);
+    }
+    return size;
+    
+
+}
+/**********************************************************************************************/
+void ChromosomeNumberOptimizer::getValidCandidatesForShift(std::vector<uint> &candidateShiftNodesIds, int minCladeSize, uint numOfShifts){
+    vector<shared_ptr<PhyloNode>> nodes = tree_->getAllNodes();
+    auto &shifting_nodes = prevModelsPartitions_[numOfShifts];
+    
+    for (size_t j = 0; j < shifting_nodes.size(); j++){
+        getValidCandidatesForShiftRec(shifting_nodes[j], candidateShiftNodesIds, minCladeSize, shifting_nodes, true);
+
+    }
+
+    
+    // for (size_t i = 0; i < nodes.size(); i++){
+    //     if (tree_->isLeaf(nodes[i])){
+    //         continue;
+    //     }
+    //     if (tree_->getRootIndex() == tree_->getNodeIndex(nodes[i])){
+    //         continue;
+    //     }
+    //     if (std::find(ChromEvolOptions::initialModelNodes_.begin(), ChromEvolOptions::initialModelNodes_.end(), tree_->getNodeIndex(nodes[i])) != ChromEvolOptions::initialModelNodes_.end()){
+    //         continue;
+    //     }
+    //     auto leavesUnderNode = tree_->getLeavesUnderNode(nodes[i]);
+    //     if (leavesUnderNode.size() >= (size_t)minCladeSize){
+    //         candidateShiftNodesIds.push_back(tree_->getNodeIndex(nodes[i]));
+    //     }
+    // }
 
 }
 
