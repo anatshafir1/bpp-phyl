@@ -62,21 +62,17 @@
 
 
 //from bpp-phyl
-#include <Bpp/Phyl/Tree/TreeTemplate.h>
 #include <Bpp/Phyl/Tree/PhyloTree.h>
-#include <Bpp/Phyl/Tree/TreeTemplateTools.h>
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
-#include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/Likelihood/UndirectedGraph.h>
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
-#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
-//#include <Bpp/Phyl/NewLikelihood/JointMLAncestralReconstruction.h>
-#include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
-#include <Bpp/Phyl/Model/SubstitutionModelSet.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
+//#include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
+//#include <Bpp/Phyl/Model/SubstitutionModelSet.h>
 #include <Bpp/Phyl/App/ChromEvolOptions.h>
 #include <Bpp/Phyl/OptimizationTools.h>
 // From Seqlib:

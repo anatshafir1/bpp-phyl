@@ -1,8 +1,8 @@
-#include <Bpp/Phyl/NewLikelihood/DataFlow/ExtendedFloat.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/ExtendedFloat.h>
 #include <Eigen/Core>
-#include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlowNumeric.h>
-#include <Bpp/Phyl/NewLikelihood/DataFlow/DataFlowCWise.h>
-#include <Bpp/Phyl/NewLikelihood/DataFlow/Definitions.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/DataFlowNumeric.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/DataFlowCWise.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/Definitions.h>
 #include<set>
 #include<iterator>
 

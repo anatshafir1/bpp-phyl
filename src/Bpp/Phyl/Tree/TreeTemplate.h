@@ -1,49 +1,51 @@
 //
 // File: TreeTemplate.h
-// Created by: Julien Dutheil
-//             Celine Scornavacca
-// Created on: Thu Mar 13 12:03:18 2003
+// Authors:
+//   Julien Dutheil
+//   Celine Scornavacca
+// Created: 2003-03-13 12:03:18
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
+#ifndef BPP_PHYL_TREE_TREETEMPLATE_H
+#define BPP_PHYL_TREE_TREETEMPLATE_H
 
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
 
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#ifndef _TREETEMPLATE_H_
-#define _TREETEMPLATE_H_
-
+#include "Tree.h"
 #include "TreeExceptions.h"
 #include "TreeTemplateTools.h"
-#include "Tree.h"
 
 // From the STL:
 #include <string>
@@ -164,7 +166,7 @@ public:
   size_t getNumberOfLeaves() const { return TreeTemplateTools::getNumberOfLeaves(*root_); }
 
   size_t getNumberOfNodes() const { return TreeTemplateTools::getNumberOfNodes(*root_); }
-  
+
   size_t getNumberOfBranches() const { return TreeTemplateTools::getNumberOfBranches(*root_); }
 
   int getLeafId(const std::string& name) const { return TreeTemplateTools::getLeafId(*root_, name); }
@@ -178,17 +180,17 @@ public:
   std::vector<int> getBranchesId() const
   {
     Vint vRes = TreeTemplateTools::getNodesId(*root_);
-    int rId=getRootId();
+    int rId = getRootId();
     std::vector<int>::iterator rit(vRes.begin());
-    while(rit<vRes.end())
-      if (*rit==rId)
+    while (rit < vRes.end())
+      if (*rit == rId)
       {
-        vRes.erase(rit, rit+1);
+        vRes.erase(rit, rit + 1);
         return vRes;
       }
       else
         rit++;
-    
+
     return vRes;
   }
 
@@ -196,7 +198,7 @@ public:
 
   std::vector<std::string> getLeavesNames() const { return TreeTemplateTools::getLeavesNames(*const_cast<const N*>( root_)); }
 
-  std::vector<int> getSonsId(int parentId) const  { return getNode(parentId)->getSonsId(); }
+  std::vector<int> getSonsId(int parentId) const { return getNode(parentId)->getSonsId(); }
 
   std::vector<int> getAncestorsId(int nodeId) const { return TreeTemplateTools::getAncestorsId(*getNode(nodeId)); }
 
@@ -265,7 +267,7 @@ public:
     {
       N* son1 = dynamic_cast<N*>(root_->getSon(0));
       N* son2 = dynamic_cast<N*>(root_->getSon(1));
-      if (son1->isLeaf() && son2->isLeaf()) return false;  // We can't unroot a single branch!
+      if (son1->isLeaf() && son2->isLeaf()) return false;                                                             // We can't unroot a single branch!
 
       // We manage to have a subtree in position 0:
       if (son1->isLeaf())
@@ -313,8 +315,10 @@ public:
   {
     if (root_->getNumberOfSons() > 3) return true;
     for (size_t i = 0; i < root_->getNumberOfSons(); i++)
+    {
       if (TreeTemplateTools::isMultifurcating(*root_->getSon(i)))
         return true;
+    }
     return false;
   }
 
@@ -437,13 +441,16 @@ public:
 
   virtual N* getNode(int id, bool checkId = false)
   {
-    if (checkId) {
+    if (checkId)
+    {
       std::vector<N*> nodes;
       TreeTemplateTools::searchNodeWithId<N>(*dynamic_cast<N*>(root_), id, nodes);
       if (nodes.size() > 1) throw Exception("TreeTemplate::getNode(): Non-unique id! (" + TextTools::toString(id) + ").");
       if (nodes.size() == 0) throw NodeNotFoundException("TreeTemplate::getNode(): Node with id not found.", TextTools::toString(id));
       return nodes[0];
-    } else {
+    }
+    else
+    {
       N* node = dynamic_cast<N*>(TreeTemplateTools::searchFirstNodeWithId(*root_, id));
       if (node)
         return node;
@@ -454,13 +461,16 @@ public:
 
   virtual const N* getNode(int id, bool checkId = false) const
   {
-    if (checkId) {
+    if (checkId)
+    {
       std::vector<const N*> nodes;
       TreeTemplateTools::searchNodeWithId<const N>(*root_, id, nodes);
       if (nodes.size() > 1) throw Exception("TreeTemplate::getNode(): Non-unique id! (" + TextTools::toString(id) + ").");
       if (nodes.size() == 0) throw NodeNotFoundException("TreeTemplate::getNode(): Node with id not found.", TextTools::toString(id));
       return nodes[0];
-    } else {
+    }
+    else
+    {
       const N* node = dynamic_cast<const N*>(TreeTemplateTools::searchFirstNodeWithId(*root_, id));
       if (node)
         return node;
@@ -494,9 +504,10 @@ public:
     std::vector<Node*> path = TreeTemplateTools::getPathBetweenAnyTwoNodes(*root_, *newRoot);
     for (size_t i = 0; i < path.size() - 1; i++)
     {
-      if (path[i + 1]->hasDistanceToFather())  { 
-	      path[i]->setDistanceToFather(path[i + 1]->getDistanceToFather());
-	    }
+      if (path[i + 1]->hasDistanceToFather())
+      {
+        path[i]->setDistanceToFather(path[i + 1]->getDistanceToFather());
+      }
       else path[i]->deleteDistanceToFather();
       path[i]->removeSon(path[i + 1]);
       path[i + 1]->addSon(path[i]);
@@ -522,7 +533,7 @@ public:
     {
       for (size_t i = 0; i < root_->getNumberOfSons(); i++)
       {
-        if (root_->getSon(i) == outGroup) return;  // This tree is already rooted appropriately.
+        if (root_->getSon(i) == outGroup) return;                                                     // This tree is already rooted appropriately.
       }
       rootId = getRootId();
       unroot();
@@ -550,6 +561,4 @@ public:
   /** @} */
 };
 } // end of namespace bpp.
-
-#endif  // _TREETEMPLATE_H_
-
+#endif // BPP_PHYL_TREE_TREETEMPLATE_H

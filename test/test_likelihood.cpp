@@ -37,22 +37,22 @@
   knowledge of the CeCILL license and that you accept its terms.
 */
 
-#include <Bpp/Numeric/Matrix/MatrixTools.h>
-#include <Bpp/Numeric/AutoParameter.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/Nucleotide/T92.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
 #include <Bpp/Phyl/Model/RateDistribution/ConstantRateDistribution.h>
 #include <Bpp/Phyl/Tree/TreeTemplate.h>
-#include <Bpp/Phyl/Likelihood/RHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Legacy/Likelihood/RHomogeneousTreeLikelihood.h>
+
+#include <Bpp/Phyl/Legacy/OptimizationTools.h>
 
 #include <Bpp/Phyl/OptimizationTools.h>
-#include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
-#include <Bpp/Phyl/NewLikelihood/SimpleSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/ParametrizablePhyloTree.h>
+#include <Bpp/Phyl/Likelihood/SimpleSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
 
-#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
 
 #include <iostream>
 
@@ -60,7 +60,7 @@
 using namespace bpp;
 using namespace std;
 
-void fitModelHSR(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution* rdist,
+void fitModelHSR(std::shared_ptr<SubstitutionModel> model, std::shared_ptr<DiscreteDistribution> rdist,
                  const Tree& tree,
                  const ParametrizablePhyloTree& partree,
                  const SiteContainer& sites,
@@ -119,11 +119,11 @@ void fitModelHSR(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution*
 
   cout << "=============================" << endl;
 
-  unique_ptr<RateAcrossSitesSubstitutionProcess> process(new RateAcrossSitesSubstitutionProcess(std::shared_ptr<SubstitutionModel>(model->clone()), rdist->clone(), partree.clone()));
+  auto process = std::make_shared<RateAcrossSitesSubstitutionProcess>(std::shared_ptr<SubstitutionModel>(model->clone()), std::shared_ptr<DiscreteDistribution>(rdist->clone()), std::shared_ptr<ParametrizablePhyloTree>(partree.clone()));
 
   Context context;                        
   auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, *process);
-  SingleProcessPhyloLikelihood llh(context, lik, lik->getParameters());
+  SingleProcessPhyloLikelihood llh(context, lik);
 
   llh.getFirstOrderDerivative("BrLen0");
   llh.getFirstOrderDerivative("BrLen1");
@@ -179,7 +179,7 @@ void fitModelHSR(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution*
   RHomogeneousTreeLikelihood tlop(tree, sites, model->clone(), rdist->clone(), false, false);
   tlop.initialize();
 
-  OptimizationTools::optimizeNumericalParameters2(&tlop, tlop.getParameters(), 0, 0.000001, nboptim, 0, 0);
+  OptimizationToolsOld::optimizeNumericalParameters2(&tlop, tlop.getParameters(), 0, 0.000001, nboptim, 0, 0);
   cout << setprecision(20) << tlop.getValue() << endl;
   ApplicationTools::displayResult("* lnL after full optimization (old)", tlop.getValue());
   if (abs(tlop.getValue() - finalValue) > 0.001)
@@ -187,13 +187,13 @@ void fitModelHSR(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution*
   tlop.getParameters().printParameters(cout);
 
   
-  process.reset(new RateAcrossSitesSubstitutionProcess(model, rdist->clone(), partree.clone()));
+  process = std::make_shared<RateAcrossSitesSubstitutionProcess>(model, std::shared_ptr<DiscreteDistribution>(rdist->clone()), std::shared_ptr<ParametrizablePhyloTree>(partree.clone()));
 
   Context context2;
   
   lik.reset(new LikelihoodCalculationSingleProcess(context2, sites, *process));
   
-  SingleProcessPhyloLikelihood llh2(context2, lik, lik->getParameters());
+  SingleProcessPhyloLikelihood llh2(context2, lik);
 
   ParameterList opln1=process->getBranchLengthParameters(true);
 
@@ -226,10 +226,10 @@ int main() {
   sites.addSequence(BasicSequence("D", "TTCCAGACATGCCGGGACTTTACCGAGAAGGAGTTGTTTTCCATTGCAGCCCAGGTGGATAAGGAACATC", alphabet));
 
   shared_ptr<SubstitutionModel> model(new T92(alphabet, 3.));
-  unique_ptr<DiscreteDistribution> rdist(new GammaDiscreteRateDistribution(4, 1.0));
+  std::shared_ptr<DiscreteDistribution> rdist(new GammaDiscreteRateDistribution(4, 1.0));
   try {
     cout << "Testing Single Tree Traversal likelihood class..." << endl;
-    fitModelHSR(model, rdist.get(), *tree, paramphyloTree, sites, 228.6333642493463, 198.47216106233);
+    fitModelHSR(model, rdist, *tree, paramphyloTree, sites, 228.6333642493463, 198.47216106233);
   } catch (Exception& ex) {
     cerr << ex.what() << endl;
     return 1;

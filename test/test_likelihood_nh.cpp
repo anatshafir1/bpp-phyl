@@ -43,19 +43,20 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/Nucleotide/T92.h>
 #include <Bpp/Phyl/Model/FrequencySet/NucleotideFrequencySet.h>
-#include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
+#include <Bpp/Phyl/Legacy/Model/SubstitutionModelSetTools.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
 #include <Bpp/Phyl/Simulation/SimpleSubstitutionProcessSequenceSimulator.h>
 
-#include <Bpp/Phyl/Likelihood/RNonHomogeneousTreeLikelihood.h>
-#include <Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Legacy/Likelihood/RNonHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Legacy/Likelihood/DRNonHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/OptimizationTools.h>
+#include <Bpp/Phyl/Legacy/OptimizationTools.h>
 
-#include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
-#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/ParametrizablePhyloTree.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
 
-#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
 
 #include <iostream>
 
@@ -67,8 +68,7 @@ int main() {
   TreeTemplate<Node>* tree = TreeTemplateTools::parenthesisToTree("(((A:0.1, B:0.2):0.3,C:0.15):0.25,(D:0.35,(E:0.26,F:0.05):0.12):0.16);");
 
   Newick reader;
-  unique_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("(((A:0.1, B:0.2):0.3,C:0.15):0.25,(D:0.35,(E:0.26,F:0.05):0.12):0.16);", false, "", false, false));
-  ParametrizablePhyloTree parTree(*pTree);
+  shared_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("(((A:0.1, B:0.2):0.3,C:0.15):0.25,(D:0.35,(E:0.26,F:0.05):0.12):0.16);", false, "", false, false));
 
   vector<string> seqNames= tree->getLeavesNames();
   vector<int> ids = tree->getNodesId();
@@ -82,10 +82,11 @@ int main() {
   globalParameterVectors["T92.kappa"]=std::vector<Vint>();
   
   //Very difficult to optimize on small datasets:
-  DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(4, 1.0);
+  auto rdist = std::make_shared<GammaDiscreteRateDistribution>(4, 1.0);
   
   auto rootFreqs2 = std::shared_ptr<FrequencySet>(dynamic_cast<FrequencySet*>(rootFreqs->clone()));
-  DiscreteDistribution* rdist2 = rdist->clone();
+
+  auto rdist2 = std::shared_ptr<DiscreteDistribution>(rdist->clone());
   std::shared_ptr<SubstitutionModel> model2(model->clone());
 
   map<string, string> alias;
@@ -95,9 +96,8 @@ int main() {
   std::vector<std::string> globalParameterNames;
   globalParameterNames.push_back("T92.kappa");
 
-  NonHomogeneousSubstitutionProcess* subProSim= NonHomogeneousSubstitutionProcess::createNonHomogeneousSubstitutionProcess(model2, rdist2, parTree.clone(), rootFreqs2, globalParameterNames);
+  NonHomogeneousSubstitutionProcess* subProSim= NonHomogeneousSubstitutionProcess::createNonHomogeneousSubstitutionProcess(model2, rdist2, pTree, rootFreqs2, globalParameterNames);
 
-  SubstitutionProcess* nsubPro=subProSim->clone();
 
   // Simulation
   size_t nsites = 1000;
@@ -128,18 +128,18 @@ int main() {
 
     //Now fit model:
 
-    RNonHomogeneousTreeLikelihood tl(*tree, *sites.get(), modelSet, rdist, true, true, false);
+    RNonHomogeneousTreeLikelihood tl(*tree, *sites.get(), modelSet, rdist.get(), true, true, false);
     tl.initialize();
 
     Context context;
-    auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *sites->clone(), *nsubPro);
-    
-    SingleProcessPhyloLikelihood ntl(context, lik, lik->getParameters());
+    auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *sites->clone(), *subProSim->clone());
+
+    SingleProcessPhyloLikelihood ntl(context, lik);
 
     cout << setprecision(10) << "OldTL init: "  << tl.getValue()  << endl;
     cout << setprecision(10) << "NewTL init: "  << ntl.getValue()  << endl;
 
-    unsigned int c1 = OptimizationTools::optimizeNumericalParameters2(
+    unsigned int c1 = OptimizationToolsOld::optimizeNumericalParameters2(
       &tl, tl.getParameters(), 0,
       0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
     

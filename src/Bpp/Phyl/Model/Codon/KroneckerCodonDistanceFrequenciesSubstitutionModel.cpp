@@ -1,40 +1,42 @@
 //
 // File: KroneckerCodonDistanceFrequenciesSubstitutionModel.cpp
-// Created by:  Laurent Gueguen
-// Created on: Feb 2009
+// Authors:
+//   Laurent Gueguen
+// Created: 2009-02-08 00:00:00
 //
 
 /*
-  Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
   This software is a computer program whose purpose is to provide classes
   for phylogenetic data analysis.
-
-  This software is governed by the CeCILL  license under French law and
-  abiding by the rules of distribution of free software.  You can  use,
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
   modify and/ or redistribute the software under the terms of the CeCILL
   license as circulated by CEA, CNRS and INRIA at the following URL
   "http://www.cecill.info".
-
-  As a counterpart to the access to the source code and  rights to copy,
+  
+  As a counterpart to the access to the source code and rights to copy,
   modify and redistribute granted by the license, users are provided only
-  with a limited warranty  and the software's author,  the holder of the
-  economic rights,  and the successive licensors  have only  limited
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
   liability.
-
+  
   In this respect, the user's attention is drawn to the risks associated
-  with loading,  using,  modifying and/or developing or reproducing the
+  with loading, using, modifying and/or developing or reproducing the
   software by the user in light of its specific status of free software,
-  that may mean  that it is complicated to manipulate,  and  that  also
-  therefore means  that it is reserved for developers  and  experienced
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
   professionals having in-depth computer knowledge. Users are therefore
   encouraged to load and test the software's suitability as regards their
   requirements in conditions enabling the security of their systems and/or
-  data to be ensured and,  more generally, to use and operate it in the
+  data to be ensured and, more generally, to use and operate it in the
   same conditions as regards security.
-
+  
   The fact that you are presently reading this means that you have had
   knowledge of the CeCILL license and that you accept its terms.
 */
+
 
 #include "KroneckerCodonDistanceFrequenciesSubstitutionModel.h"
 
@@ -45,10 +47,10 @@ using namespace std;
 /******************************************************************************/
 
 KroneckerCodonDistanceFrequenciesSubstitutionModel::KroneckerCodonDistanceFrequenciesSubstitutionModel(
-    const GeneticCode* gCode,
-    NucleotideSubstitutionModel* pmod,
-    std::shared_ptr<FrequencySet> pfreq,
-    const AlphabetIndex2* pdist) :
+  const GeneticCode* gCode,
+  NucleotideSubstitutionModel* pmod,
+  std::shared_ptr<FrequencySet> pfreq,
+  const AlphabetIndex2* pdist) :
   AbstractParameterAliasable("KronCodonDistFreq."),
   AbstractKroneckerCodonSubstitutionModel(gCode, pmod, "KronCodonDistFreq."),
   AbstractCodonDistanceSubstitutionModel(pdist, gCode, "KronCodonDistFreq."),
@@ -74,12 +76,12 @@ KroneckerCodonDistanceFrequenciesSubstitutionModel::KroneckerCodonDistanceFreque
 }
 
 KroneckerCodonDistanceFrequenciesSubstitutionModel::KroneckerCodonDistanceFrequenciesSubstitutionModel(
-    const GeneticCode* gCode,
-    NucleotideSubstitutionModel* pmod1,
-    NucleotideSubstitutionModel* pmod2,
-    NucleotideSubstitutionModel* pmod3,
-    std::shared_ptr<FrequencySet> pfreq,
-    const AlphabetIndex2* pdist) :
+  const GeneticCode* gCode,
+  NucleotideSubstitutionModel* pmod1,
+  NucleotideSubstitutionModel* pmod2,
+  NucleotideSubstitutionModel* pmod3,
+  std::shared_ptr<FrequencySet> pfreq,
+  const AlphabetIndex2* pdist) :
   AbstractParameterAliasable("KronCodonDistFreq."),
   AbstractKroneckerCodonSubstitutionModel(gCode, pmod1, pmod2, pmod3, "KronCodonDistFreq."),
   AbstractCodonDistanceSubstitutionModel(pdist, gCode, "KronCodonDistFreq."),
@@ -122,9 +124,9 @@ void KroneckerCodonDistanceFrequenciesSubstitutionModel::fireParameterChanged(co
 
 double KroneckerCodonDistanceFrequenciesSubstitutionModel::getCodonsMulRate(size_t i, size_t j) const
 {
-  return AbstractCodonDistanceSubstitutionModel::getCodonsMulRate(i,j)
-    * AbstractKroneckerCodonSubstitutionModel::getCodonsMulRate(i,j)
-    * AbstractCodonFrequenciesSubstitutionModel::getCodonsMulRate(i,j);
+  return AbstractCodonDistanceSubstitutionModel::getCodonsMulRate(i, j)
+         * AbstractKroneckerCodonSubstitutionModel::getCodonsMulRate(i, j)
+         * AbstractCodonFrequenciesSubstitutionModel::getCodonsMulRate(i, j);
 }
 
 void KroneckerCodonDistanceFrequenciesSubstitutionModel::setNamespace(const std::string& st)
@@ -135,7 +137,7 @@ void KroneckerCodonDistanceFrequenciesSubstitutionModel::setNamespace(const std:
   AbstractCodonFrequenciesSubstitutionModel::setNamespace(st);
 }
 
-void KroneckerCodonDistanceFrequenciesSubstitutionModel::setFreq(map<int,double>& frequencies)
+void KroneckerCodonDistanceFrequenciesSubstitutionModel::setFreq(map<int, double>& frequencies)
 {
   AbstractCodonFrequenciesSubstitutionModel::setFreq(frequencies);
 }

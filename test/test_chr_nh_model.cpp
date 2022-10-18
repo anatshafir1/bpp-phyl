@@ -12,11 +12,11 @@
 #include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
 #include <Bpp/Seq/Io/Pasta.h>
 
-#include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
-#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/ParametrizablePhyloTree.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
 
-#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
 #include <Bpp/Phyl/App/ChromosomeNumberMng.h>
 #include <Bpp/Phyl/App/ChromEvolOptions.h>
 

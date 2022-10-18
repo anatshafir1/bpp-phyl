@@ -60,12 +60,12 @@
 #include <chrono>
 
 
-#include <Bpp/Phyl/NewLikelihood/DataFlow/BackwardLikelihoodTree.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/BackwardLikelihoodTree.h>
 #include <Bpp/Phyl/Io/Newick.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/OneProcessSequencePhyloLikelihood.h>
-#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
-#include "Bpp/Phyl/NewLikelihood/SubstitutionProcess.h"
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/OneProcessSequencePhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
+#include "Bpp/Phyl/Likelihood/SubstitutionProcess.h"
 #include <Bpp/Text/TextTools.h>
 
 static bool enableDotOutput = true;
@@ -237,13 +237,13 @@ int main(int argc, char** argv)
 
   auto rootFreqs = std::make_shared<GCFrequencySet>(&c.alphabet, 0.1);
 
-  auto distribution = new ConstantRateDistribution();
+  auto distribution = std::make_shared<ConstantRateDistribution>();
   //auto distribution = new GammaDiscreteRateDistribution(3, 1);
 
   // Read tree structure
   Newick reader;
-  auto phyloTree = std::unique_ptr<PhyloTree>(reader.parenthesisToPhyloTree(c.treeStr, false, "", false, false));
-  auto paramPhyloTree = new ParametrizablePhyloTree(*phyloTree);
+  auto phyloTree = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree(c.treeStr, false, "", false, false));
+
 //  std::vector<std::string> globalParameterNames({"T92.kappa"});
 
   // auto process =
@@ -259,11 +259,14 @@ int main(int argc, char** argv)
 
   // process->addModel(t92, Vuint({2}));
     
-  auto process  = NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(k80, distribution, paramPhyloTree, rootFreqs);//, scenario));
+  auto process  = NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(k80, distribution, phyloTree, rootFreqs);//, scenario));
 
+  process->getParameters().printParameters(cerr);
+  
   // Build likelihood value node
   auto l = std::make_shared<LikelihoodCalculationSingleProcess>(context, c.sites, *process);
 
+  
   l->setNumericalDerivateConfiguration(0.001, NumericalDerivativeType::ThreePoints);
 //  l->setClockLike();
 
@@ -293,7 +296,7 @@ int main(int argc, char** argv)
 
   // // Manual access to dkappa
   
-  auto kappa= dynamic_cast<ConfiguredParameter*>(llh.getLikelihoodCalculation()->getSharedParameter("K80.kappa_1").get());
+  auto kappa= dynamic_cast<ConfiguredParameter*>(llh.getLikelihoodCalculation()->getSharedParameter("K80.kappa").get());
   auto dlogLik_dkappa = lik->getLikelihoodNode()->deriveAsValue(context, *kappa->dependency(0));
   std::cout << "[dkappa] " << dlogLik_dkappa->getTargetValue() << "\n";
   dotOutput("likelihood_example_dkappa", {dlogLik_dkappa.get()});

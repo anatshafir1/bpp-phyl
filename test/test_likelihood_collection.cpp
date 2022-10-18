@@ -48,16 +48,16 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <Bpp/Phyl/Model/RateDistribution/ConstantRateDistribution.h>
 #include <Bpp/Phyl/OptimizationTools.h>
 
-#include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
+#include <Bpp/Phyl/Likelihood/ParametrizablePhyloTree.h>
 
-#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/SubstitutionProcessCollection.h>
-#include <Bpp/Phyl/NewLikelihood/MixtureSequenceEvolution.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/SubstitutionProcessCollection.h>
+#include <Bpp/Phyl/Likelihood/MixtureSequenceEvolution.h>
 
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/MixtureProcessPhyloLikelihood.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/MixtureOfAlignedPhyloLikelihood.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/FormulaOfPhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/MixtureProcessPhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/MixtureOfAlignedPhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/FormulaOfPhyloLikelihood.h>
 
 #include <iostream>
 
@@ -69,11 +69,14 @@ int main() {
   
   Newick reader;
 
-  unique_ptr<PhyloTree> tree1(reader.parenthesisToPhyloTree("(((A:0.1, B:0.2):0.3,C:0.1):0.2,D:0.3);"));
-  unique_ptr<PhyloTree> tree2(reader.parenthesisToPhyloTree("((A:0.05, C:0.02):0.1,(D:0.01,B:0.03):0.05);"));
+  shared_ptr<PhyloTree> tree1(reader.parenthesisToPhyloTree("(((A:0.1, B:0.2):0.3,C:0.1):0.2,D:0.3);"));
+  shared_ptr<PhyloTree> tree2(reader.parenthesisToPhyloTree("((A:0.05, C:0.02):0.1,(D:0.01,B:0.03):0.05);"));
 
   vector<shared_ptr<PhyloNode> > vl= tree1->getAllLeaves();
   
+  auto parTree1 = std::make_shared<ParametrizablePhyloTree>(*tree1);
+  auto parTree2 = std::make_shared<ParametrizablePhyloTree>(*tree2);
+
   vector<string> seqNames;
   for (size_t i=0; i<vl.size(); i++)
     seqNames.push_back(vl[i]->getName());
@@ -91,13 +94,10 @@ int main() {
   auto rdist1 = std::make_shared<ConstantRateDistribution>();//GammaDiscreteRateDistribution>(4, 2.0);
   auto rdist2 = rdist1;//std::make_shared<GammaDiscreteRateDistribution>(3, 1.0);
   
-  auto parTree1 = std::make_shared<ParametrizablePhyloTree>(*tree1);
-  auto parTree2 = std::make_shared<ParametrizablePhyloTree>(*tree2);
-
   /////////////////////////////////////////
   // First Process
 
-  NonHomogeneousSubstitutionProcess* subPro1=new NonHomogeneousSubstitutionProcess(rdist1->clone(), parTree1->clone());
+  NonHomogeneousSubstitutionProcess* subPro1=new NonHomogeneousSubstitutionProcess(std::shared_ptr<DiscreteDistribution>(rdist1->clone()), std::shared_ptr<PhyloTree>(tree1->clone()));
 
   Vuint vP1m1{0, 3, 4};
   Vuint vP1m2{1, 2, 5};
@@ -108,7 +108,7 @@ int main() {
   ///////////////////////////////////////////
   // Second Process
 
-  NonHomogeneousSubstitutionProcess* subPro2= new NonHomogeneousSubstitutionProcess(rdist2->clone(), parTree2->clone(), rootFreqs->clone());
+  NonHomogeneousSubstitutionProcess* subPro2= new NonHomogeneousSubstitutionProcess(std::shared_ptr<DiscreteDistribution>(rdist2->clone()), std::shared_ptr<PhyloTree>(tree2->clone()), std::shared_ptr<FrequencySet>(rootFreqs->clone()));
   
   Vuint vP2m1{0, 1, 3};
   Vuint vP2m2{2, 4, 5};
@@ -144,6 +144,7 @@ int main() {
 
   modelColl->addSubstitutionProcess(2, mModBr2, 2, 2, 1);
 
+  modelColl->aliasParameters("T92.kappa_1","T92.kappa_2");
   // Data
 
   VectorSiteContainer sites(alphabet);

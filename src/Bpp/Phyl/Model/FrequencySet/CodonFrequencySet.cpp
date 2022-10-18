@@ -1,45 +1,47 @@
 //
 // File: CodonFrequencySet.cpp
-// Created by: Laurent Gueguen
-// Created on: lundi 2 avril 2012, à 14h 15
+// Authors:
+//   Laurent Gueguen
+// Created: lundi 2 avril 2012, ÃÂ  14h 15
 //
 
 /*
-   Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
 
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
+#include "../StateMap.h"
 #include "CodonFrequencySet.h"
 #include "NucleotideFrequencySet.h"
-#include "../StateMap.h"
 
 // From bpp-core:
 #include <Bpp/Numeric/Prob/Simplex.h>
@@ -379,8 +381,7 @@ UserCodonFrequencySet::UserCodonFrequencySet(
   size_t nCol) :
   UserFrequencySet(std::shared_ptr<const StateMap>(new CanonicalStateMap(gCode->getSourceAlphabet(), false)), path, nCol),
   pgc_(gCode)
-{
-}
+{}
 
 void UserCodonFrequencySet::setFrequencies(const vector<double>& frequencies)
 {
@@ -408,7 +409,7 @@ void UserCodonFrequencySet::setFrequencies(const vector<double>& frequencies)
 
 CodonFromIndependentFrequencySet::CodonFromIndependentFrequencySet(
   const GeneticCode* gCode,
-  const std::vector<std::shared_ptr<FrequencySet>>& freqvector,
+  const std::vector<std::shared_ptr<FrequencySet> >& freqvector,
   const string& name,
   const string& mgmtStopCodon) :
   WordFromIndependentFrequencySet(gCode->getSourceAlphabet(), freqvector, "", name),
@@ -602,7 +603,7 @@ void CodonFromUniqueFrequencySet::updateFrequencies()
     // The frequencies of the stop codons are distributed to all
     // neighbour non-stop codons
     double f[64] = {0};
-    
+
     for (const auto& mStopNeigh_it : mStopNeigh_)
     {
       int stNb = mStopNeigh_it.first;
@@ -621,7 +622,9 @@ void CodonFromUniqueFrequencySet::updateFrequencies()
     }
 
     for (size_t i = 0; i < s; i++)
+    {
       getFreq_(i) += f[i];
+    }
   }
   else
   {
@@ -654,7 +657,7 @@ std::shared_ptr<FrequencySet> CodonFrequencySet::getFrequencySetForCodons(short 
     codonFreqs.reset(new CodonFromUniqueFrequencySet(gCode, std::make_shared<FullNucleotideFrequencySet>(gCode->getSourceAlphabet()->getNucleicAlphabet()), "F1X4", mgmtStopCodon));
   else if (option == F3X4)
   {
-    vector<std::shared_ptr<FrequencySet>> v_AFS(3);
+    vector<std::shared_ptr<FrequencySet> > v_AFS(3);
     v_AFS[0] = std::make_shared<FullNucleotideFrequencySet>(gCode->getSourceAlphabet()->getNucleicAlphabet());
     v_AFS[1] = std::make_shared<FullNucleotideFrequencySet>(gCode->getSourceAlphabet()->getNucleicAlphabet());
     v_AFS[2] = std::make_shared<FullNucleotideFrequencySet>(gCode->getSourceAlphabet()->getNucleicAlphabet());

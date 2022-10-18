@@ -47,7 +47,7 @@ knowledge of the CeCILL license and that you accept its terms.
 
 #include <Bpp/Phyl/Simulation/SimpleSubstitutionProcessSequenceSimulator.h>
 
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
 
 #include <iostream>
 
@@ -56,8 +56,7 @@ using namespace std;
 
 int main() {
   Newick reader;
-  auto phyloTree = std::unique_ptr<PhyloTree>(reader.parenthesisToPhyloTree("((A:0.001, B:0.002):0.003,C:0.01,D:0.1);"));
-  auto paramPhyloTree = new ParametrizablePhyloTree(*phyloTree);
+  auto phyloTree = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree("((A:0.001, B:0.002):0.003,C:0.01,D:0.1);"));
 
   auto ids = phyloTree->getAllEdgesIndexes();
   
@@ -66,10 +65,12 @@ int main() {
   NucleicAlphabet* alphabet = new DNA();
   std::shared_ptr<GTR> model(new GTR(alphabet, 1, 0.2, 0.3, 0.4, 0.4, 0.1, 0.35, 0.35, 0.2));
   //DiscreteDistribution* rdist = new GammaDiscreteDistribution(4, 0.4, 0.4);
-  DiscreteDistribution* rdist = new ConstantDistribution(1.0);
+  auto rdist = std::make_shared<ConstantDistribution>(1.0);
 
-  RateAcrossSitesSubstitutionProcess process(model, rdist, paramPhyloTree);
+  RateAcrossSitesSubstitutionProcess process(model, rdist, phyloTree);
 
+  process.setPhyloTree(*phyloTree);
+  
   SimpleSubstitutionProcessSiteSimulator simulatorS(process);
 
   unsigned int n = 200000;
@@ -115,14 +116,12 @@ int main() {
   for (size_t k = 0; k < ids.size(); ++k) {
     if (abs(sums[ids[k]] - phyloTree->getEdge(ids[k])->getLength()) > 0.01) {
       delete alphabet;
-      delete rdist;
       return 1;
     }
   }
   
   //-------------
   delete alphabet;
-  delete rdist;
 
   //return (abs(obs - 0.001) < 0.001 ? 0 : 1);
   return 0;

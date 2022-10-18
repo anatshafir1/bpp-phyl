@@ -41,9 +41,8 @@
 
 
 #include "Bpp/Phyl/Model/ChromosomeSubstitutionModel.h"
-#include "Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h"
+#include "Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h"
 #include "Bpp/Phyl/Tree/PhyloTree.h"
-#include "Bpp/Phyl/Tree/PhyloTreeTools.h"
 #include "Bpp/Phyl/App/ChromEvolOptions.h"
 #include "Bpp/Phyl/Mapping/StochasticMapping.h"
 

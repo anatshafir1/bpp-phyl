@@ -1,53 +1,52 @@
 //
 // File: TreeTemplateTools.cpp
-// Created by: Julien Dutheil
-// Created on: Fri Oct  13 13:00 2006
-// From file TreeTools.cpp
-// Created on: Wed Aug  6 13:45:28 2003
+// Authors:
+//   Julien Dutheil
+// Created: 2003-08-06 13:45:28
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#include "TreeTemplateTools.h"
-#include "TreeTemplate.h"
-
-#include <Bpp/Numeric/Number.h>
 #include <Bpp/BppString.h>
-#include <Bpp/Text/StringTokenizer.h>
-#include <Bpp/Text/NestedStringTokenizer.h>
-#include <Bpp/Text/TextTools.h>
+#include <Bpp/Numeric/Number.h>
 #include <Bpp/Numeric/Random/RandomTools.h>
+#include <Bpp/Text/NestedStringTokenizer.h>
+#include <Bpp/Text/StringTokenizer.h>
+#include <Bpp/Text/TextTools.h>
+
+#include "TreeTemplate.h"
+#include "TreeTemplateTools.h"
 
 using namespace bpp;
 
@@ -334,7 +333,8 @@ TreeTemplate<Node>* TreeTemplateTools::parenthesisToTree(const string& descripti
   {
     tree->resetNodesId();
   }
-  if (verbose) {
+  if (verbose)
+  {
     (*ApplicationTools::message) << " nodes loaded.";
     ApplicationTools::message->endLine();
   }
@@ -575,7 +575,7 @@ void TreeTemplateTools::scaleTree(Node& node, double factor)
 TreeTemplate<Node>* TreeTemplateTools::getRandomTree(vector<string>& leavesNames, bool rooted)
 {
   if (leavesNames.size() == 0)
-    return 0;                                // No taxa.
+    return 0;                                               // No taxa.
   // This vector will contain all nodes.
   // Start with all leaves, and then group nodes randomly 2 by 2.
   // Att the end, contains only the root node of the tree.
@@ -642,18 +642,27 @@ vector<Node*> TreeTemplateTools::getPathBetweenAnyTwoNodes(Node& node1, Node& no
   if (pathMatrix1[pos1] != pathMatrix2[pos2])
     throw Exception("TreeTemplateTools::getPathBetweenAnyTwoNodes(). The two nodes do not have any ancestor in common / do not belong to the same tree.");
 
-  if (pos1 == 0 && pos2 == 0) {
-    //Node 1 and 2 are the root node!
+  if (pos1 == 0 && pos2 == 0)
+  {
+    // Node 1 and 2 are the root node!
     path.push_back(pathMatrix1[0]);
-  } else if (pos1 == 0) {
-    //Node 1 is the root node
-    //Note: we need to use push_back here as the insert method does not work with reverse iterators.
-    for (size_t i = (includeAncestorAtEndOfPath ? pathMatrix2.size(): pathMatrix2.size() - 1); i > 0; --i)
-      path.push_back(pathMatrix2[i-1]);
-  } else if (pos2 == 0) {
-    //Node 2 is the root node
+  }
+  else if (pos1 == 0)
+  {
+    // Node 1 is the root node
+    // Note: we need to use push_back here as the insert method does not work with reverse iterators.
+    for (size_t i = (includeAncestorAtEndOfPath ? pathMatrix2.size() : pathMatrix2.size() - 1); i > 0; --i)
+    {
+      path.push_back(pathMatrix2[i - 1]);
+    }
+  }
+  else if (pos2 == 0)
+  {
+    // Node 2 is the root node
     path.insert(path.end(), pathMatrix1.begin(), (includeAncestorAtEndOfPath ? pathMatrix1.end() : --pathMatrix1.end()));
-  } else {
+  }
+  else
+  {
     Node* commonAnc = 0;
     while (pathMatrix1[pos1] == pathMatrix2[pos2] && pos1 > 0 && pos2 > 0)
     {
@@ -666,9 +675,11 @@ vector<Node*> TreeTemplateTools::getPathBetweenAnyTwoNodes(Node& node1, Node& no
       path.push_back(commonAnc); // pushing once the Node that was common to both.
     // If node1 or node2 is the common ancestor, then commonAnc is null
     // and was added as node1 or node2, respectively, if includeAncestorAtEndOfPath was set to true.
-    //Note: we need to use push_back here as the insert method does not work with reverse iterators.
+    // Note: we need to use push_back here as the insert method does not work with reverse iterators.
     for (size_t i = pos2 + 1; i > 0; --i)
-      path.push_back(pathMatrix2[i-1]);
+    {
+      path.push_back(pathMatrix2[i - 1]);
+    }
   }
   return path;
 }
@@ -703,18 +714,27 @@ vector<const Node*> TreeTemplateTools::getPathBetweenAnyTwoNodes(const Node& nod
   if (pathMatrix1[pos1] != pathMatrix2[pos2])
     throw Exception("TreeTemplateTools::getPathBetweenAnyTwoNodes(). The two nodes do not have any ancestor in common / do not belong to the same tree.");
 
-  if (pos1 == 0 && pos2 == 0) {
-    //Node 1 and 2 are the root node!
+  if (pos1 == 0 && pos2 == 0)
+  {
+    // Node 1 and 2 are the root node!
     path.push_back(pathMatrix1[0]);
-  } else if (pos1 == 0) {
-    //Node 1 is the root node
-    //Note: we need to use push_back here as the insert method does not work with reverse iterators.
-    for (size_t i = (includeAncestorAtEndOfPath ? pathMatrix2.size(): pathMatrix2.size() - 1); i > 0; --i)
-      path.push_back(pathMatrix2[i-1]);
-  } else if (pos2 == 0) {
-    //Node 2 is the root node
+  }
+  else if (pos1 == 0)
+  {
+    // Node 1 is the root node
+    // Note: we need to use push_back here as the insert method does not work with reverse iterators.
+    for (size_t i = (includeAncestorAtEndOfPath ? pathMatrix2.size() : pathMatrix2.size() - 1); i > 0; --i)
+    {
+      path.push_back(pathMatrix2[i - 1]);
+    }
+  }
+  else if (pos2 == 0)
+  {
+    // Node 2 is the root node
     path.insert(path.end(), pathMatrix1.begin(), (includeAncestorAtEndOfPath ? pathMatrix1.end() : --pathMatrix1.end()));
-  } else {
+  }
+  else
+  {
     const Node* commonAnc = 0;
     while (pathMatrix1[pos1] == pathMatrix2[pos2] && pos1 > 0 && pos2 > 0)
     {
@@ -723,14 +743,16 @@ vector<const Node*> TreeTemplateTools::getPathBetweenAnyTwoNodes(const Node& nod
     }
 
     path.insert(path.end(), pathMatrix1.begin(), pathMatrix1.begin() + static_cast<ptrdiff_t>(pos1 + 1));
-    if (commonAnc &&includeAncestor)
-        path.push_back(commonAnc); // pushing once the Node that was common to both.
+    if (commonAnc && includeAncestor)
+      path.push_back(commonAnc); // pushing once the Node that was common to both.
     // If node1 or node2 is the common ancestor, then commonAnc is null
     // and was added as node1 or node2, respectively, if includeAncestorAtEndOfPath was set to true.
-    
-    //Note: we need to use push_back here as the insert method does not work with reverse iterators.
+
+    // Note: we need to use push_back here as the insert method does not work with reverse iterators.
     for (size_t i = pos2 + 1; i > 0; --i)
-      path.push_back(pathMatrix2[i-1]);
+    {
+      path.push_back(pathMatrix2[i - 1]);
+    }
   }
   return path;
 }
@@ -898,10 +920,11 @@ void TreeTemplateTools::deleteNodeProperties(Node& node, const std::vector<std::
     {
       node.deleteNodeProperty(property);
     }
-    catch(exception& e) {}
+    catch (exception& e)
+    {}
   }
   for (size_t i = 0; i < node.getNumberOfSons(); i++)
-  {  
+  {
     deleteNodeProperties(*node.getSon(i), propertyNames);
   }
 }
@@ -945,10 +968,11 @@ void TreeTemplateTools::deleteBranchProperties(Node& node, const std::vector<std
     {
       node.deleteBranchProperty(property);
     }
-    catch(exception& e) {}
+    catch (exception& e)
+    {}
   }
   for (size_t i = 0; i < node.getNumberOfSons(); i++)
-  {  
+  {
     deleteBranchProperties(*node.getSon(i), propertyNames);
   }
 }

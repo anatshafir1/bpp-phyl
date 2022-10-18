@@ -43,17 +43,17 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/Nucleotide/T92.h>
 #include <Bpp/Phyl/Model/RateDistribution/ConstantRateDistribution.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
 #include <Bpp/Phyl/OptimizationTools.h>
 #include <iostream>
 
-#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
 
 using namespace bpp;
 using namespace std;
 
-void fitModelH(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution* rdist,
-               ParametrizablePhyloTree* tree, const VectorSiteContainer& sites,
+void fitModelH(std::shared_ptr<SubstitutionModel> model, std::shared_ptr<DiscreteDistribution> rdist,
+               std::shared_ptr<PhyloTree> tree, const VectorSiteContainer& sites,
                double initialValue, double finalValue)
 {
   RateAcrossSitesSubstitutionProcess process(model, rdist, tree);
@@ -62,7 +62,7 @@ void fitModelH(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution* r
   
   auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, process);
   
-  SingleProcessPhyloLikelihood llh(context, lik, lik->getParameters());
+  SingleProcessPhyloLikelihood llh(context, lik);
 
   ApplicationTools::displayResult("Test model", model->getName());
   double initValue=llh.getValue();
@@ -84,8 +84,8 @@ void fitModelH(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution* r
     throw Exception("Incorrect final value:" + TextTools::toString(llh.getValue()) + "<>" + TextTools::toString(finalValue));
 }
 
-void fitModelHClock(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution* rdist,
-                    ParametrizablePhyloTree* tree, const VectorSiteContainer& sites,
+void fitModelHClock(std::shared_ptr<SubstitutionModel> model, std::shared_ptr<DiscreteDistribution> rdist,
+                    std::shared_ptr<PhyloTree> tree, const VectorSiteContainer& sites,
 
                     double initialValue, double finalValue)
 {
@@ -96,7 +96,7 @@ void fitModelHClock(std::shared_ptr<SubstitutionModel> model, DiscreteDistributi
   auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, process);
   lik->setClockLike();
   
-  SingleProcessPhyloLikelihood llh(context, lik, lik->getParameters());
+  SingleProcessPhyloLikelihood llh(context, lik);
     
   ApplicationTools::displayResult("Test model", model->getName());
   double initValue=llh.getValue();
@@ -119,8 +119,7 @@ void fitModelHClock(std::shared_ptr<SubstitutionModel> model, DiscreteDistributi
 
 int main() {
   bpp::Newick reader;
-  auto phyloTree = std::unique_ptr<bpp::PhyloTree>(reader.parenthesisToPhyloTree("(((A:0.01, B:0.01):0.02,C:0.03):0.01,D:0.04);", false, "", false, false));
-  ParametrizablePhyloTree paramphyloTree(*phyloTree);
+  auto phyloTree = std::shared_ptr<bpp::PhyloTree>(reader.parenthesisToPhyloTree("(((A:0.01, B:0.01):0.02,C:0.03):0.01,D:0.04);", false, "", false, false));
   
   const NucleicAlphabet* alphabet = &AlphabetTools::DNA_ALPHABET;
   shared_ptr<SubstitutionModel> model(new T92(alphabet, 3.));
@@ -133,7 +132,7 @@ int main() {
   sites.addSequence(BasicSequence("D", "CAACGGGAGTGCGCCTA", alphabet));
 
   try {
-    fitModelH(std::shared_ptr<SubstitutionModel>(model->clone()), rdist->clone(), paramphyloTree.clone(), sites, 94.3957, 71.0564);
+    fitModelH(std::shared_ptr<SubstitutionModel>(model->clone()), std::shared_ptr<DiscreteDistribution>(rdist->clone()), std::shared_ptr<PhyloTree>(phyloTree->clone()), sites, 94.3957, 71.0564);
   } catch (Exception& ex) {
     cerr << ex.what() << endl;
     return 1;
@@ -142,7 +141,7 @@ int main() {
   cout << endl << endl;
   
   try {
-    fitModelHClock(model, rdist->clone(), paramphyloTree.clone(), sites, 94.395699, 72.7196);
+    fitModelHClock(model, std::shared_ptr<DiscreteDistribution>(rdist->clone()), std::shared_ptr<PhyloTree>(phyloTree->clone()), sites, 94.395699, 72.7196);
   } catch (Exception& ex) {
     cerr << ex.what() << endl;
     return 1;

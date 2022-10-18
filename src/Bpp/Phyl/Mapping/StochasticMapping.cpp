@@ -1,23 +1,27 @@
-#include "StochasticMapping.h"
-#include "../Simulation/MutationProcess.h"
-#include "RewardMappingTools.h"
-#include "Reward.h"
-#include "DecompositionReward.h"
-#include "ProbabilisticRewardMapping.h"
+//
+// File: StochasticMapping.cpp
+// Authors:
+//
 
-#include <Bpp/Text/TextTools.h>
 #include <Bpp/App/ApplicationTools.h>
 #include <Bpp/Numeric/Number.h>
-#include <Bpp/Numeric/Random/RandomTools.h>
-#include <Bpp/Numeric/Prob/DiscreteDistribution.h>
 #include <Bpp/Numeric/Prob/ConstantDistribution.h>
-#include <Bpp/Seq/AlphabetIndex/UserAlphabetIndex1.h>
+#include <Bpp/Numeric/Prob/DiscreteDistribution.h>
+#include <Bpp/Numeric/Random/RandomTools.h>
 #include <Bpp/Seq/Alphabet/NumericAlphabet.h>
-
-#include <iostream>
-#include <fstream>
+#include <Bpp/Seq/AlphabetIndex/UserAlphabetIndex1.h>
+#include <Bpp/Text/TextTools.h>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
 #include <numeric> // to sum over items in a vector
+
+#include "../Simulation/MutationProcess.h"
+#include "DecompositionReward.h"
+#include "ProbabilisticRewardMapping.h"
+#include "Reward.h"
+#include "RewardMappingTools.h"
+#include "StochasticMapping.h"
 
 using namespace bpp;
 using namespace std;
@@ -28,7 +32,7 @@ using namespace std;
 
 StochasticMapping::StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings, size_t numOfMappingTrials) :
   likelihood_(drl),
-  tree_ (make_shared<PhyloTree>(drl->getSubstitutionProcess().getParametrizablePhyloTree())),
+  tree_ (make_shared<PhyloTree>(*drl->getSubstitutionProcess().getParametrizablePhyloTree())),
 //  mappingParameters_(drl->getSubstitutionProcess()),
   ConditionalProbabilities_(),
   nodesCounter_(0),
@@ -49,8 +53,7 @@ StochasticMapping::StochasticMapping(std::shared_ptr<LikelihoodCalculationSingle
 /******************************************************************************/
 
 StochasticMapping::~StochasticMapping()
-{
-}
+{}
 
 /******************************************************************************/
 
@@ -173,16 +176,16 @@ void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapp
   // {
   //   Node* node = nodes[i];
   //   int nodeId = node->getId();
-  //   size_t j = static_cast<size_t>(nodeId); //Note@Laurent (Julien 17/06/20): is this really intended, as nodeIds can be discontinuous? Should there be some can of index instead? 
+  //   size_t j = static_cast<size_t>(nodeId); //Note@Laurent (Julien 17/06/20): is this really intended, as nodeIds can be discontinuous? Should there be some can of index instead?
   //   auto d = distance(ancestralStatesFrequencies[j].begin(), max_element(ancestralStatesFrequencies[j].begin(), ancestralStatesFrequencies[j].end()));
-  //   size_t state = static_cast<size_t>(d); //Note@Laurent (Julien 17/06/20): assimuming this is always positive, is that so? 
+  //   size_t state = static_cast<size_t>(d); //Note@Laurent (Julien 17/06/20): assimuming this is always positive, is that so?
   //   setNodeState(node, state); // in the case of a leaf, the assigned state must be sampled
   // }
 }
 
 /******************************************************************************/
 
-shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_ptr<PhyloTree>>& mappings, size_t divMethod)
+shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_ptr<PhyloTree> >& mappings, size_t divMethod)
 {
   // // initialize the expected history
   // nodesCounter_ = dynamic_cast<TreeTemplate<Node>*>(baseTree_)->getNodes().size() - 1;
@@ -219,7 +222,7 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_p
   //       Node* father = mapping->getNode(node->getFather()->getName()); // the original father of the node (according to the base tree) in the mapping
   //       while (curNode != father)
   //       {
-  //         AverageDwellingTimes[static_cast<size_t>(getNodeState(curNode))] += curNode->getDistanceToFather(); //Note@Laurent (Julien 17/06/20): assuming state is positive, is that so? 
+  //         AverageDwellingTimes[static_cast<size_t>(getNodeState(curNode))] += curNode->getDistanceToFather(); //Note@Laurent (Julien 17/06/20): assuming state is positive, is that so?
   //         curNode = curNode->getFather();
   //       }
   //     }
@@ -259,7 +262,7 @@ shared_ptr<PhyloTree> StochasticMapping::generateAnalyticExpectedMapping(size_t 
   // // because the sum of partial likelihoods (i.e, the fractional probabilities) is in fact the probablity of the data, it is sufficient to standardize the vector of fractional probabilires for each node to obtain the posterior probabilities
   // for (size_t n = 0; n < baseTree_->getNumberOfNodes(); ++n)
   // {
-  //   nodeId = static_cast<size_t>(nodeIds[n]); //Note@Laurent (Julien 17/06/20): what is nodeId is negative? 
+  //   nodeId = static_cast<size_t>(nodeIds[n]); //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
   //   nodeDataProb = 0;
   //   for (size_t s = 0; s < states.size(); ++s)
   //   {
@@ -313,7 +316,7 @@ shared_ptr<PhyloTree> StochasticMapping::generateAnalyticExpectedMapping(size_t 
   //     node = nodes[n];
   //     if (node->hasFather()) // for any node except to the root
   //     {
-  //       expectedDwellingTimes[static_cast<size_t>(node->getId())][s] = mapping->getReward(node->getId(), 0); //Note@Laurent (Julien 17/06/20): what is nodeId is negative? 
+  //       expectedDwellingTimes[static_cast<size_t>(node->getId())][s] = mapping->getReward(node->getId(), 0); //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
   //     }
   //   }
   // }
@@ -332,12 +335,12 @@ shared_ptr<PhyloTree> StochasticMapping::generateAnalyticExpectedMapping(size_t 
   //     updateBranch = true;
   //     for (size_t s = 0; s < states.size(); ++s)
   //     {
-  //       if (expectedDwellingTimes[static_cast<size_t>(node->getId())][s] == 0) //Note@Laurent (Julien 17/06/20): what is nodeId is negative? 
+  //       if (expectedDwellingTimes[static_cast<size_t>(node->getId())][s] == 0) //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
 
   //       {
   //         updateBranch = false;
   //       }
-  //       sumOfDwellingTimes = sumOfDwellingTimes + expectedDwellingTimes[static_cast<size_t>(node->getId())][s]; //Note@Laurent (Julien 17/06/20): what is nodeId is negative? 
+  //       sumOfDwellingTimes = sumOfDwellingTimes + expectedDwellingTimes[static_cast<size_t>(node->getId())][s]; //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
 
   //     }
 
@@ -404,18 +407,18 @@ void StochasticMapping::giveNamesToInternalNodes(PhyloTree& tree)
 
 void StochasticMapping::setLeafsStates(std::shared_ptr<PhyloTree> mapping)
 {
-  //auto leafsStates = likelihood_->getData();
+  // auto leafsStates = likelihood_->getData();
   auto leaves = mapping->getAllLeaves();
 
   for (auto& leaf: leaves)
   {
     string nodeName = leaf->getName();
 //    auto lstates = likelihoods_->getNode(mapping->getNodeIndex(leaf))
-  //   size_t leafState = static_cast<size_t>(tl_->getAlphabetStateAsInt(leafsStates->getSequence(nodeName).getValue(0)));
-  //     //note@Laurent (Julien on 17/06/20): I thing the above line is incorrect, in particulat the use of the getAlphabetStateAsInt function. It is supposed to take as input a state index (size_t) and return the corresponding character state as an integer. Here you give as input to the method already a sequence character (integer). In most cases that will still work as the characters states for resolved characters are usually 0..n, and there corresponding states 0..n. But it will fail for models with gaps (character state -1) and Markov modulated models (character states 0..n, but state index 0..k*n)
-  //     setNodeState(node, leafState);
-  //   }
-      }
+//   size_t leafState = static_cast<size_t>(tl_->getAlphabetStateAsInt(leafsStates->getSequence(nodeName).getValue(0)));
+//     //note@Laurent (Julien on 17/06/20): I thing the above line is incorrect, in particulat the use of the getAlphabetStateAsInt function. It is supposed to take as input a state index (size_t) and return the corresponding character state as an integer. Here you give as input to the method already a sequence character (integer). In most cases that will still work as the characters states for resolved characters are usually 0..n, and there corresponding states 0..n. But it will fail for models with gaps (character state -1) and Markov modulated models (character states 0..n, but state index 0..k*n)
+//     setNodeState(node, leafState);
+//   }
+  }
 }
 
 /******************************************************************************/
@@ -484,7 +487,7 @@ void StochasticMapping::fillRootConditionals(ExtendedFloatArrayXd &conditionals)
 
 /******************************************************************************/
 
-void StochasticMapping::computeStatesFrequencies(VVDouble& ancestralStatesFrequencies, vector<shared_ptr<PhyloTree>>& mappings)
+void StochasticMapping::computeStatesFrequencies(VVDouble& ancestralStatesFrequencies, vector<shared_ptr<PhyloTree> >& mappings)
 {
   // // some auxiliiary variables
   // size_t statesNum = tl_->getNumberOfStates();
@@ -521,7 +524,7 @@ void StochasticMapping::computeStatesFrequencies(VVDouble& ancestralStatesFreque
   //     for (size_t h = 0; h < mappings.size(); ++h)
   //     {
   //       Node* nodeInMapping = dynamic_cast<TreeTemplate<Node>*>(mappings[h])->getNode(nodeName);
-  //       ancestralStatesFrequencies[nodeId][static_cast<size_t>(getNodeState(nodeInMapping))]++; //Note@Laurent (Julien 17/06/20): assuming node state is positive, is that so? 
+  //       ancestralStatesFrequencies[nodeId][static_cast<size_t>(getNodeState(nodeInMapping))]++; //Note@Laurent (Julien 17/06/20): assuming node state is positive, is that so?
   //     }
   //     // now divide the vector entries by the number of mappings
   //     for (size_t nodeState = 0; nodeState < statesNum; ++nodeState)

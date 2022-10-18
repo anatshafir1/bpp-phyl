@@ -1,49 +1,49 @@
 //
 // File: TreeTemplateTools.h
-// Created by:  Julien Dutheil
-// Created on: Fri Oct  13 13:00 2006
-// From file TreeTools.h
-// Created on: Wed Aug  6 13:45:28 2003
+// Authors:
+//   Julien Dutheil
+// Created: 2003-08-06 13:45:28
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
+#ifndef BPP_PHYL_TREE_TREETEMPLATETOOLS_H
+#define BPP_PHYL_TREE_TREETEMPLATETOOLS_H
 
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#ifndef _TREETEMPLATETOOLS_H_
-#define _TREETEMPLATETOOLS_H_
+#include <Bpp/Numeric/Random/RandomTools.h>
 
 #include "TreeTools.h"
-#include <Bpp/Numeric/Random/RandomTools.h>
 
 // From the STL:
 #include <string>
@@ -418,7 +418,7 @@ public:
       getInnerNodes<N>(*dynamic_cast<N*>(node.getSon(i)), nodes);
     }
     if (!node.isLeaf())
-      nodes.push_back(&node);  // Do not add leaves!
+      nodes.push_back(&node);                                 // Do not add leaves!
   }
 
   /**
@@ -449,7 +449,7 @@ public:
       getInnerNodesId(*node.getSon(i), ids);
     }
     if (!node.isLeaf())
-      ids.push_back(node.getId());  // Do not add leaves!
+      ids.push_back(node.getId());                                      // Do not add leaves!
   }
 
   /**
@@ -603,13 +603,12 @@ public:
    * @param node The node defining the subtree to check.
    * @return The number of branches.
    */
-    
   static size_t getNumberOfBranches(const Node& node)
   {
-    size_t nbBranches = 0; //Basal node has no branch
+    size_t nbBranches = 0; // Basal node has no branch
     for (int i = 0; i < static_cast<int>(node.getNumberOfSons()); i++)
     {
-      nbBranches += getNumberOfNodes(*node[i]); //All son nodes define one branch each
+      nbBranches += getNumberOfNodes(*node[i]); // All son nodes define one branch each
     }
     return nbBranches;
   }
@@ -628,7 +627,6 @@ public:
    * @param node The node defining the subtree to check.
    * @return The number of nodes.
    */
-  
   static size_t getNumberOfNodes(const Node& node)
   {
     size_t nbNodes = 1;
@@ -1109,7 +1107,7 @@ public:
    * Property objects are not cloned when added to the map, but passed as pointers.
    */
   static void getNodeProperties(Node& node, const std::string& propertyName, std::map<int, Clonable*>& properties);
-  
+
   /**
    * @brief Delete the given properties in the tree.
    *
@@ -1157,7 +1155,7 @@ public:
    * @param propertyNames [int] a vector of property names to be deleted.
    */
   static void deleteBranchProperties(Node& node, const std::vector<std::string>& propertyNames);
-  
+
 /** @} */
 
 
@@ -1210,7 +1208,7 @@ public:
    * @param criterion The criterion upon which to reroot. Legal values : TreeTemplateTools::MIDROOT_VARIANCE
    *   to minimize root-leaf distance variance (molecular clock assumption) or
    *   TreeTemplateTools::MIDROOT_SUM_OF_SQUARES to minimize the sum of root-leaf distance squares.
-   * @param forceBranchRoot If true, the root must be placed on a branch, otherwise it may also be placed on a node. 
+   * @param forceBranchRoot If true, the root must be placed on a branch, otherwise it may also be placed on a node.
    *
    * @author Nicolas Rochette
    */
@@ -1298,6 +1296,4 @@ public:
   static const short MIDROOT_SUM_OF_SQUARES;
 };
 } // end of namespace bpp.
-
-#endif // _TREETEMPLATETOOLS_H_
-
+#endif // BPP_PHYL_TREE_TREETEMPLATETOOLS_H

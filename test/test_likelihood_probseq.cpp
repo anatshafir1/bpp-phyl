@@ -47,14 +47,15 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <Bpp/Phyl/Model/Nucleotide/T92.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
 #include <Bpp/Phyl/Model/RateDistribution/ConstantRateDistribution.h>
-#include <Bpp/Phyl/Likelihood/RHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Legacy/Likelihood/RHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/OptimizationTools.h>
+#include <Bpp/Phyl/Legacy/OptimizationTools.h>
 
-#include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
-#include <Bpp/Phyl/NewLikelihood/SimpleSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/ParametrizablePhyloTree.h>
+#include <Bpp/Phyl/Likelihood/SimpleSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
 
-#include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
+#include <Bpp/Phyl/Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
 
 #include <iostream>
 
@@ -121,11 +122,11 @@ void fitModelHSR(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution*
   
   ApplicationTools::startTimer();
   
-  unique_ptr<RateAcrossSitesSubstitutionProcess> process(new RateAcrossSitesSubstitutionProcess(std::shared_ptr<SubstitutionModel>(model->clone()), rdist->clone(), new_tree.clone()));
+  auto process= std::make_shared<RateAcrossSitesSubstitutionProcess> (std::shared_ptr<SubstitutionModel>(model->clone()), std::shared_ptr<DiscreteDistribution>(rdist->clone()), std::shared_ptr<ParametrizablePhyloTree>(new_tree.clone()));
 
   Context context;                        
   auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, *process);
-  auto newTl = std::make_shared<SingleProcessPhyloLikelihood>(context, lik, lik->getParameters());
+  auto newTl = std::make_shared<SingleProcessPhyloLikelihood>(context, lik);
 
   
   cout << "NewTL: " << setprecision(20) << newTl->getValue() << endl;
@@ -173,7 +174,7 @@ void fitModelHSR(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution*
   RHomogeneousTreeLikelihood tlop(tree, sites, model->clone(), rdist->clone(), false, false);
   tlop.initialize();
 
-  OptimizationTools::optimizeNumericalParameters2(&tlop, tlop.getParameters(), 0, 0.000001, nboptim, 0, 0);
+  OptimizationToolsOld::optimizeNumericalParameters2(&tlop, tlop.getParameters(), 0, 0.000001, nboptim, 0, 0);
   cout << setprecision(20) << tlop.getValue() << endl;
   ApplicationTools::displayResult("* lnL after full optimization (old)", tlop.getValue());
   if (abs(tlop.getValue() - finalValue) > 0.001)
@@ -181,9 +182,9 @@ void fitModelHSR(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution*
   tlop.getParameters().printParameters(cout);
 
 
-  process.reset(new RateAcrossSitesSubstitutionProcess(model, rdist->clone(), new_tree.clone()));  
+  process.reset(new RateAcrossSitesSubstitutionProcess(model, std::shared_ptr<DiscreteDistribution>(rdist->clone()), std::shared_ptr<ParametrizablePhyloTree>(new_tree.clone())));  
   lik.reset(new LikelihoodCalculationSingleProcess(context, sites, *process));
-  newTl.reset(new SingleProcessPhyloLikelihood(context, lik, lik->getParameters()));
+  newTl.reset(new SingleProcessPhyloLikelihood(context, lik));
 
   ParameterList opln1=process->getBranchLengthParameters(true);
   

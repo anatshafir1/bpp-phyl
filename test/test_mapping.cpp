@@ -54,10 +54,10 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <Bpp/Phyl/Mapping/UniformizationSubstitutionCount.h>
 #include <Bpp/Phyl/Mapping/NaiveSubstitutionCount.h>
 #include <Bpp/Phyl/Mapping/SubstitutionMappingTools.h>
-#include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
-#include <Bpp/Phyl/NewLikelihood/SimpleSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/ParametrizablePhyloTree.h>
+#include <Bpp/Phyl/Likelihood/SimpleSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
 #include <Bpp/Seq/AlphabetIndex/GranthamAAVolumeIndex.h>
 #include <iostream>
 
@@ -69,7 +69,7 @@ int main() {
   Newick reader;
   Context context;
   
-  unique_ptr<PhyloTree> new_tree(reader.parenthesisToPhyloTree("((A:0.001, B:0.002):0.008,C:0.01,D:0.02);", false, "", false, false));
+  shared_ptr<PhyloTree> new_tree(reader.parenthesisToPhyloTree("((A:0.001, B:0.002):0.008,C:0.01,D:0.02);", false, "", false, false));
 
   vector<uint> ids = {0, 1, 2, 3, 4};
 
@@ -78,9 +78,9 @@ int main() {
   NucleicAlphabet* alphabet = new DNA();
   auto model = std::make_shared<GTR>(alphabet, 1, 0.2, 0.3, 0.4, 0.4, 0.1, 0.35, 0.35, 0.2);
 //  DiscreteDistribution* rdist = new ConstantDistribution(1);
-  DiscreteDistribution* rdist = new GammaDiscreteDistribution(4, 0.4, 0.4);
-  std::shared_ptr<ParametrizablePhyloTree> pTree(new ParametrizablePhyloTree(*new_tree));
-  unique_ptr<RateAcrossSitesSubstitutionProcess> process(new RateAcrossSitesSubstitutionProcess(model, rdist->clone(), pTree->clone()));
+  auto rdist = std::make_shared<GammaDiscreteDistribution>(4, 0.4, 0.4);
+
+  shared_ptr<RateAcrossSitesSubstitutionProcess> process(new RateAcrossSitesSubstitutionProcess(model, std::shared_ptr<DiscreteDistribution>(rdist->clone()), std::shared_ptr<PhyloTree>(new_tree->clone())));
 
   SimpleSubstitutionProcessSiteSimulator simulator(*process);
   
@@ -281,7 +281,6 @@ int main() {
   
   //-------------
   delete alphabet;
-  delete rdist;
   delete sCountTot;
   delete sCountDet;
   delete probNEWMapTot;

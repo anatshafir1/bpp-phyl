@@ -1,49 +1,50 @@
 //
 // File: SingleProcessSubstitutionMapping.h
-// Created by: Laurent Guéguen
-// Created on: dimanche 3 décembre 2017, à 13h 56
+// Authors:
+//   Laurent GuÃÂ©guen
+// Created: dimanche 3 dÃÂ©cembre 2017, ÃÂ  13h 56
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
+#ifndef BPP_PHYL_MAPPING_PHYLOMAPPINGS_SINGLEPROCESSSUBSTITUTIONMAPPING_H
+#define BPP_PHYL_MAPPING_PHYLOMAPPINGS_SINGLEPROCESSSUBSTITUTIONMAPPING_H
 
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
 
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#ifndef _SINGLE_PROCESS_SUBSTITUTION_MAPPING_H_
-#define _SINGLE_PROCESS_SUBSTITUTION_MAPPING_H_
-
-#include "../../NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h"
+#include "../../Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h"
 #include "../ProbabilisticSubstitutionMapping.h"
 #include "../SubstitutionMappingTools.h"
-//#include "../SubstitutionMappingToolsForASite.h"
 
 #include "AbstractSinglePhyloSubstitutionMapping.h"
 
@@ -57,101 +58,81 @@ namespace bpp
  *
  */
 
-  class SingleProcessSubstitutionMapping :
-    public AbstractSinglePhyloSubstitutionMapping
+class SingleProcessSubstitutionMapping :
+  public AbstractSinglePhyloSubstitutionMapping
+{
+private:
+  SingleProcessPhyloLikelihood* pSPP_;
+
+  /*
+   * @brief Set the models of the BranchedModelSet to the adhoc
+   * branches, for normalization.
+   *
+   */
+
+  void setBranchedModelSet_();
+
+public:
+  SingleProcessSubstitutionMapping(SingleProcessPhyloLikelihood& spp, SubstitutionRegister& reg, std::shared_ptr<const AlphabetIndex2> weights, std::shared_ptr<const AlphabetIndex2> distances, double threshold = -1, bool verbose = true);
+
+  SingleProcessSubstitutionMapping(const SingleProcessSubstitutionMapping& sppm) :
+    AbstractSinglePhyloSubstitutionMapping(sppm),
+    pSPP_(sppm.pSPP_)
+  {}
+
+  SingleProcessSubstitutionMapping& operator=(const SingleProcessSubstitutionMapping& sppm)
   {
-  private:
-    SingleProcessPhyloLikelihood* pSPP_;
+    AbstractSinglePhyloSubstitutionMapping::operator=(sppm);
+    pSPP_ = sppm.pSPP_;
+    return *this;
+  }
 
-    /*
-     * @brief Set the models of the BranchedModelSet to the adhoc
-     * branches, for normalization.
-     *
-     */
-    
-    void setBranchedModelSet_();
-    
-  public:
-    SingleProcessSubstitutionMapping(SingleProcessPhyloLikelihood& spp, SubstitutionRegister& reg, std::shared_ptr<const AlphabetIndex2> weights, std::shared_ptr<const AlphabetIndex2> distances, double threshold = -1, bool verbose = true);
+  virtual ~SingleProcessSubstitutionMapping() {}
 
-    SingleProcessSubstitutionMapping(const SingleProcessSubstitutionMapping& sppm) :
-      AbstractSinglePhyloSubstitutionMapping(sppm),
-      pSPP_(sppm.pSPP_)
-    {
-    }
+  SingleProcessSubstitutionMapping* clone() const { return new SingleProcessSubstitutionMapping(*this); }
 
-    SingleProcessSubstitutionMapping& operator=(const SingleProcessSubstitutionMapping& sppm)
-    {
-      AbstractSinglePhyloSubstitutionMapping::operator=(sppm);
-      pSPP_ = sppm.pSPP_;
-      return *this;
-    }
+  /*
+   * @brief ComputeCounts
+   *
+   */
+  void computeCounts(short unresolvedOption = SubstitutionMappingTools::UNRESOLVED_ZERO, double threshold = -1, bool verbose = true)
+  {
+    counts_.reset(SubstitutionMappingTools::computeCounts(getLikelihoodCalculationSingleProcess(),
+                                                          getRegister(),
+                                                          getWeights(),
+                                                          getDistances(),
+                                                          unresolvedOption,
+                                                          threshold,
+                                                          verbose));
+  }
 
-    virtual ~SingleProcessSubstitutionMapping() {}
-    
-    SingleProcessSubstitutionMapping* clone() const { return new SingleProcessSubstitutionMapping(*this); }
+  void computeNormalizations(const ParameterList& nullParams,
+                             short unresolvedOption = SubstitutionMappingTools::UNRESOLVED_ZERO,
+                             bool verbose = true);
 
-    /*
-     * @brief ComputeCounts
-     *
-     */
+  /*
+   * @brief Return the tree of counts
+   *
+   */
+  size_t getNumberOfModels() const
+  {
+    return pSPP_->getSubstitutionProcess().getNumberOfModels();
+  }
 
-    void computeCounts(double threshold = -1, bool verbose = true)
-    {
-      counts_.reset(SubstitutionMappingTools::computeCounts(getLikelihoodCalculationSingleProcess(),
-                                                            getRegister(),
-                                                            getWeights(),
-                                                            getDistances(),
-                                                            threshold,
-                                                            verbose));
-    }
-    
-    // void computeCountsForASite(size_t site, double threshold = -1, bool verbose=true)
-    // {
-    //   counts_.reset(SubstitutionMappingToolsForASite::computeCounts(
-    //                   site,
-    //                   getLikelihoodCalculationSingleProcess(),
-    //                   getRegister(),
-    //                   getWeights(),
-    //                   getDistances(),
-    //                   threshold,
-    //                   verbose));
-    // }
+  std::vector<size_t> getModelNumbers() const
+  {
+    return pSPP_->getSubstitutionProcess().getModelNumbers();
+  }
 
-    void computeNormalizations(const ParameterList& nullParams,
-                               bool verbose = true);
+  LikelihoodCalculationSingleProcess& getLikelihoodCalculationSingleProcess()
+  {
+    return *pSPP_->getLikelihoodCalculationSingleProcess();
+  }
 
-    // void computeNormalizationsForASite(size_t site,
-    //                                    const ParameterList& nullParams,
-    //                                    bool verbose = true);
-
-    /*
-     * @brief Return the tree of counts
-     *
-     */
-
-    size_t getNumberOfModels() const
-    {
-      return pSPP_->getSubstitutionProcess().getNumberOfModels();
-    }
-
-    std::vector<size_t> getModelNumbers() const
-    {
-      return pSPP_->getSubstitutionProcess().getModelNumbers();
-    }
-        
-    LikelihoodCalculationSingleProcess& getLikelihoodCalculationSingleProcess()
-    {
-      return *pSPP_->getLikelihoodCalculationSingleProcess();
-    }
-
-    const LikelihoodCalculationSingleProcess& getLikelihoodCalculationSingleProcess() const
-    {
-      return *pSPP_->getLikelihoodCalculationSingleProcess();
-    }
-
-  };
-  
+  const LikelihoodCalculationSingleProcess& getLikelihoodCalculationSingleProcess() const
+  {
+    return *pSPP_->getLikelihoodCalculationSingleProcess();
+  }
+};
 } // end of namespace bpp.
-
-#endif  // _SINGLE_PROCESS_SUBSTITUTION_MAPPING_H_
+#endif // BPP_PHYL_MAPPING_PHYLOMAPPINGS_SINGLEPROCESSSUBSTITUTIONMAPPING_H
