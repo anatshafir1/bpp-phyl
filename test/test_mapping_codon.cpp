@@ -57,10 +57,10 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <Bpp/Phyl/Mapping/SubstitutionMappingTools.h>
 #include <Bpp/Phyl/Mapping/ProbabilisticSubstitutionMapping.h>
 #include <Bpp/Phyl/Mapping/SubstitutionMappingTools.h>
-#include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
-#include <Bpp/Phyl/NewLikelihood/SimpleSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/ParametrizablePhyloTree.h>
+#include <Bpp/Phyl/Likelihood/SimpleSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/RateAcrossSitesSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
 #include <iostream>
 
 using namespace bpp;
@@ -70,7 +70,7 @@ int main() {
   Newick reader;
   Context context;
   
-  unique_ptr<PhyloTree> new_tree(reader.parenthesisToPhyloTree("((A:0.001, B:0.002):0.008,C:0.01,D:0.1);", false, "", false, false));
+  shared_ptr<PhyloTree> new_tree(reader.parenthesisToPhyloTree("((A:0.001, B:0.002):0.008,C:0.01,D:0.1);", false, "", false, false));
 
   vector<uint> ids = {0, 1, 2, 3, 4};
 
@@ -79,9 +79,8 @@ int main() {
   auto gc = std::make_shared<StandardGeneticCode>(AlphabetTools::DNA_ALPHABET);
   
   auto model = std::make_shared<YN98>(gc.get(), CodonFrequencySet::getFrequencySetForCodons(CodonFrequencySet::F0, gc.get()));
-  DiscreteDistribution* rdist = new ConstantDistribution(1.0);
-  std::shared_ptr<ParametrizablePhyloTree> pTree(new ParametrizablePhyloTree(*new_tree));
-  unique_ptr<RateAcrossSitesSubstitutionProcess> process(new RateAcrossSitesSubstitutionProcess(model, rdist->clone(), pTree->clone()));
+  auto rdist = std::make_shared<ConstantDistribution>(1.0);
+  shared_ptr<RateAcrossSitesSubstitutionProcess> process(new RateAcrossSitesSubstitutionProcess(model, rdist, std::shared_ptr<PhyloTree>(new_tree->clone())));
 
   SimpleSubstitutionProcessSiteSimulator simulator(*process);
 
@@ -211,7 +210,6 @@ int main() {
   }
 
   //-------------
-  delete rdist;
   delete sCountTot;
   delete sCountDnDs;
   delete probMapAna;

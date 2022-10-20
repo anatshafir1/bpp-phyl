@@ -1,46 +1,47 @@
 //
 // File: T92.cpp
-// Created by:  Julien Dutheil
-// Created on: Mon May 26 14:41:24 2003
+// Authors:
+//   Julien Dutheil
+// Created: 2003-05-26 14:41:24
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
-
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#include "T92.h"
-#include "../FrequencySet/NucleotideFrequencySet.h"
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
 #include <Bpp/Numeric/Matrix/MatrixTools.h>
+
+#include "../FrequencySet/NucleotideFrequencySet.h"
+#include "T92.h"
 
 using namespace bpp;
 
@@ -84,8 +85,8 @@ void T92::updateMatrices()
   piG_ = theta_ / 2;
   piT_ = (1 - theta_) / 2;
   k_ = (kappa_ + 1.) / 2.;
-  r_ = isScalable()?2. / (1. + 2. * theta_ * kappa_ - 2. * theta_ * theta_ * kappa_):1;
-  
+  r_ = isScalable() ? 2. / (1. + 2. * theta_ * kappa_ - 2. * theta_ * theta_ * kappa_) : 1;
+
 
   freq_[0] = piA_;
   freq_[1] = piC_;
@@ -191,40 +192,45 @@ double T92::Pij_t(size_t i, size_t j, double d) const
   exp1_ = exp(-l_);
   exp2_ = exp(-k_ * l_);
 
-  switch (i) {
-    case 0: // A
-      switch (j) {
-        case 0: return piA_ * (1. + exp1_) + theta_ * exp2_; // A
-        case 1: return piC_ * (1. - exp1_);                 // C
-        case 2: return piG_ * (1. + exp1_) - theta_ * exp2_; // G
-        case 3: return piT_ * (1. - exp1_);                 // T, U
-        default: return 0;
-      }
-    case 1: // C
-      switch (j) {
-        case 0: return piA_ * (1. - exp1_);                        // A
-        case 1: return piC_ * (1. + exp1_) + (1. - theta_) * exp2_; // C
-        case 2: return piG_ * (1. - exp1_);                        // G
-        case 3: return piT_ * (1. + exp1_) - (1. - theta_) * exp2_; // T, U
-        default: return 0;
-      }
-    case 2: // G
-      switch (j) {
-        case 0: return piA_ * (1. + exp1_) - (1. - theta_) * exp2_; // A
-        case 1: return piC_ * (1. - exp1_);                        // C
-        case 2: return piG_ * (1. + exp1_) + (1. - theta_) * exp2_; // G
-        case 3: return piT_ * (1. - exp1_);                        // T, U
-        default: return 0;
-      }
-    case 3: // T, U
-      switch (j) {
-        case 0: return piA_ * (1. - exp1_);                 // A
-        case 1: return piC_ * (1. + exp1_) - theta_ * exp2_; // C
-        case 2: return piG_ * (1. - exp1_);                 // G
-        case 3: return piT_ * (1. + exp1_) + theta_ * exp2_; // T, U
-        default: return 0;
-      }
+  switch (i)
+  {
+  case 0: // A
+    switch (j)
+    {
+    case 0: return piA_ * (1. + exp1_) + theta_ * exp2_; // A
+    case 1: return piC_ * (1. - exp1_);                 // C
+    case 2: return piG_ * (1. + exp1_) - theta_ * exp2_; // G
+    case 3: return piT_ * (1. - exp1_);                 // T, U
     default: return 0;
+    }
+  case 1: // C
+    switch (j)
+    {
+    case 0: return piA_ * (1. - exp1_);                        // A
+    case 1: return piC_ * (1. + exp1_) + (1. - theta_) * exp2_; // C
+    case 2: return piG_ * (1. - exp1_);                        // G
+    case 3: return piT_ * (1. + exp1_) - (1. - theta_) * exp2_; // T, U
+    default: return 0;
+    }
+  case 2: // G
+    switch (j)
+    {
+    case 0: return piA_ * (1. + exp1_) - (1. - theta_) * exp2_; // A
+    case 1: return piC_ * (1. - exp1_);                        // C
+    case 2: return piG_ * (1. + exp1_) + (1. - theta_) * exp2_; // G
+    case 3: return piT_ * (1. - exp1_);                        // T, U
+    default: return 0;
+    }
+  case 3: // T, U
+    switch (j)
+    {
+    case 0: return piA_ * (1. - exp1_);                 // A
+    case 1: return piC_ * (1. + exp1_) - theta_ * exp2_; // C
+    case 2: return piG_ * (1. - exp1_);                 // G
+    case 3: return piT_ * (1. + exp1_) + theta_ * exp2_; // T, U
+    default: return 0;
+    }
+  default: return 0;
   }
 }
 
@@ -236,40 +242,45 @@ double T92::dPij_dt(size_t i, size_t j, double d) const
   exp1_ = exp(-l_);
   exp2_ = exp(-k_ * l_);
 
-  switch (i) {
-    case 0: // A
-      switch (j) {
-        case 0: return rate_ * r_ * (piA_ * -exp1_ + theta_ * -k_ * exp2_); // A
-        case 1: return rate_ * r_ * (piC_ *   exp1_);                       // C
-        case 2: return rate_ * r_ * (piG_ * -exp1_ - theta_ * -k_ * exp2_); // G
-        case 3: return rate_ * r_ * (piT_ *   exp1_);                       // T, U
-        default: return 0;
-      }
-    case 1: // C
-      switch (j) {
-        case 0: return rate_ * r_ * (piA_ *   exp1_);                              // A
-        case 1: return rate_ * r_ * (piC_ * -exp1_ + (1. - theta_) * -k_ * exp2_); // C
-        case 2: return rate_ * r_ * (piG_ *   exp1_);                              // G
-        case 3: return rate_ * r_ * (piT_ * -exp1_ - (1. - theta_) * -k_ * exp2_); // T, U
-        default: return 0;
-      }
-    case 2: // G
-      switch (j) {
-        case 0: return rate_ * r_ * (piA_ * -exp1_ - (1. - theta_) * -k_ * exp2_); // A
-        case 1: return rate_ * r_ * (piC_ *   exp1_);                              // C
-        case 2: return rate_ * r_ * (piG_ * -exp1_ + (1. - theta_) * -k_ * exp2_); // G
-        case 3: return rate_ * r_ * (piT_ *   exp1_);                              // T, U
-        default: return 0;
-      }
-    case 3: // T, U
-      switch (j) {
-        case 0: return rate_ * r_ * (piA_ *   exp1_);                       // A
-        case 1: return rate_ * r_ * (piC_ * -exp1_ - theta_ * -k_ * exp2_); // C
-        case 2: return rate_ * r_ * (piG_ *   exp1_);                       // G
-        case 3: return rate_ * r_ * (piT_ * -exp1_ + theta_ * -k_ * exp2_); // T, U
-        default: return 0;
-      }
+  switch (i)
+  {
+  case 0: // A
+    switch (j)
+    {
+    case 0: return rate_ * r_ * (piA_ * -exp1_ + theta_ * -k_ * exp2_); // A
+    case 1: return rate_ * r_ * (piC_ *   exp1_);                       // C
+    case 2: return rate_ * r_ * (piG_ * -exp1_ - theta_ * -k_ * exp2_); // G
+    case 3: return rate_ * r_ * (piT_ *   exp1_);                       // T, U
     default: return 0;
+    }
+  case 1: // C
+    switch (j)
+    {
+    case 0: return rate_ * r_ * (piA_ *   exp1_);                              // A
+    case 1: return rate_ * r_ * (piC_ * -exp1_ + (1. - theta_) * -k_ * exp2_); // C
+    case 2: return rate_ * r_ * (piG_ *   exp1_);                              // G
+    case 3: return rate_ * r_ * (piT_ * -exp1_ - (1. - theta_) * -k_ * exp2_); // T, U
+    default: return 0;
+    }
+  case 2: // G
+    switch (j)
+    {
+    case 0: return rate_ * r_ * (piA_ * -exp1_ - (1. - theta_) * -k_ * exp2_); // A
+    case 1: return rate_ * r_ * (piC_ *   exp1_);                              // C
+    case 2: return rate_ * r_ * (piG_ * -exp1_ + (1. - theta_) * -k_ * exp2_); // G
+    case 3: return rate_ * r_ * (piT_ *   exp1_);                              // T, U
+    default: return 0;
+    }
+  case 3: // T, U
+    switch (j)
+    {
+    case 0: return rate_ * r_ * (piA_ *   exp1_);                       // A
+    case 1: return rate_ * r_ * (piC_ * -exp1_ - theta_ * -k_ * exp2_); // C
+    case 2: return rate_ * r_ * (piG_ *   exp1_);                       // G
+    case 3: return rate_ * r_ * (piT_ * -exp1_ + theta_ * -k_ * exp2_); // T, U
+    default: return 0;
+    }
+  default: return 0;
   }
 }
 
@@ -283,40 +294,45 @@ double T92::d2Pij_dt2(size_t i, size_t j, double d) const
   exp1_ = exp(-l_);
   exp2_ = exp(-k_ * l_);
 
-  switch (i) {
-    case 0: // A
-      switch (j) {
-        case 0: return r2 * (piA_ *   exp1_ + theta_ * k2_ * exp2_); // A
-        case 1: return r2 * (piC_ * -exp1_);                       // C
-        case 2: return r2 * (piG_ *   exp1_ - theta_ * k2_ * exp2_); // G
-        case 3: return r2 * (piT_ * -exp1_);                       // T, U
-        default: return 0;
-      }
-    case 1: // C
-      switch (j) {
-        case 0: return r2 * (piA_ * -exp1_);                              // A
-        case 1: return r2 * (piC_ *   exp1_ + (1. - theta_) * k2_ * exp2_); // C
-        case 2: return r2 * (piG_ * -exp1_);                              // G
-        case 3: return r2 * (piT_ *   exp1_ - (1. - theta_) * k2_ * exp2_); // T, U
-        default: return 0;
-      }
-    case 2: // G
-      switch (j) {
-        case 0: return r2 * (piA_ *   exp1_ - (1. - theta_) * k2_ * exp2_); // A
-        case 1: return r2 * (piC_ * -exp1_);                              // C
-        case 2: return r2 * (piG_ *   exp1_ + (1. - theta_) * k2_ * exp2_); // G
-        case 3: return r2 * (piT_ * -exp1_);                              // T, U
-        default: return 0;
-      }
-    case 3: // T, U
-      switch (j) {
-        case 0: return r2 * (piA_ * -exp1_);                       // A
-        case 1: return r2 * (piC_ *   exp1_ - theta_ * k2_ * exp2_); // C
-        case 2: return r2 * (piG_ * -exp1_);                       // G
-        case 3: return r2 * (piT_ *   exp1_ + theta_ * k2_ * exp2_); // T, U
-        default: return 0;
-      }
+  switch (i)
+  {
+  case 0: // A
+    switch (j)
+    {
+    case 0: return r2 * (piA_ *   exp1_ + theta_ * k2_ * exp2_); // A
+    case 1: return r2 * (piC_ * -exp1_);                       // C
+    case 2: return r2 * (piG_ *   exp1_ - theta_ * k2_ * exp2_); // G
+    case 3: return r2 * (piT_ * -exp1_);                       // T, U
     default: return 0;
+    }
+  case 1: // C
+    switch (j)
+    {
+    case 0: return r2 * (piA_ * -exp1_);                              // A
+    case 1: return r2 * (piC_ *   exp1_ + (1. - theta_) * k2_ * exp2_); // C
+    case 2: return r2 * (piG_ * -exp1_);                              // G
+    case 3: return r2 * (piT_ *   exp1_ - (1. - theta_) * k2_ * exp2_); // T, U
+    default: return 0;
+    }
+  case 2: // G
+    switch (j)
+    {
+    case 0: return r2 * (piA_ *   exp1_ - (1. - theta_) * k2_ * exp2_); // A
+    case 1: return r2 * (piC_ * -exp1_);                              // C
+    case 2: return r2 * (piG_ *   exp1_ + (1. - theta_) * k2_ * exp2_); // G
+    case 3: return r2 * (piT_ * -exp1_);                              // T, U
+    default: return 0;
+    }
+  case 3: // T, U
+    switch (j)
+    {
+    case 0: return r2 * (piA_ * -exp1_);                       // A
+    case 1: return r2 * (piC_ *   exp1_ - theta_ * k2_ * exp2_); // C
+    case 2: return r2 * (piG_ * -exp1_);                       // G
+    case 3: return r2 * (piT_ *   exp1_ + theta_ * k2_ * exp2_); // T, U
+    default: return 0;
+    }
+  default: return 0;
   }
 }
 
@@ -433,4 +449,3 @@ void T92::setFreq(std::map<int, double>& freqs)
 }
 
 /******************************************************************************/
-

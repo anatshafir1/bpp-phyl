@@ -47,11 +47,10 @@ knowledge of the CeCILL license and that you accept its terms.
 #include <Bpp/Phyl/Model/FrequencySet/NucleotideFrequencySet.h>
 #include <Bpp/Phyl/Model/RateDistribution/ConstantRateDistribution.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
-#include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
 #include <Bpp/Phyl/Simulation/SimpleSubstitutionProcessSiteSimulator.h>
 #include <Bpp/Phyl/Simulation/GivenDataSubstitutionProcessSequenceSimulator.h>
-#include <Bpp/Phyl/NewLikelihood/NonHomogeneousSubstitutionProcess.h>
-#include <Bpp/Phyl/NewLikelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
 #include <Bpp/Phyl/OptimizationTools.h>
 #include <iostream>
 
@@ -61,19 +60,18 @@ using namespace std;
 int main() {
 
   Newick reader;
-  auto phyloTree = std::unique_ptr<PhyloTree>(reader.parenthesisToPhyloTree("((A:0.01, B:0.02):0.03,C:0.01,D:0.1);", false, "", false, false));
-  auto partree = new ParametrizablePhyloTree(*phyloTree);
+  auto phyloTree = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree("((A:0.01, B:0.02):0.03,C:0.01,D:0.1);", false, "", false, false));
 
   vector<string> seqNames= phyloTree->getAllLeavesNames();
   //-------------
 
   NucleicAlphabet* alphabet = new DNA();
   auto model = std::make_shared<T92>(alphabet, 3.);
-  DiscreteDistribution* rdist = new ConstantRateDistribution();
+  auto rdist = std::make_shared<ConstantRateDistribution>();
   auto rootFreqs = std::make_shared<GCFrequencySet>(alphabet);
   std::vector<std::string> globalParameterNames({"T92.kappa"});
 
-  auto process=NonHomogeneousSubstitutionProcess::createNonHomogeneousSubstitutionProcess(model, rdist, partree, rootFreqs, globalParameterNames);
+  auto process=NonHomogeneousSubstitutionProcess::createNonHomogeneousSubstitutionProcess(model, rdist, phyloTree, rootFreqs, globalParameterNames);
 
   vector<double> thetas;
   for (unsigned int i = 0; i < process->getNumberOfModels(); ++i) {
@@ -106,7 +104,7 @@ int main() {
   //Now fit model:
   Context context;
   auto l = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, *process);
-  SingleProcessPhyloLikelihood llh(context, l, l->getParameters());
+  SingleProcessPhyloLikelihood llh(context, l);
 
   OptimizationTools::optimizeNumericalParameters2(
       llh, llh.getParameters(), 0,
@@ -139,7 +137,7 @@ int main() {
   //Now fit model:
   auto process2 = std::shared_ptr<SubstitutionProcess>(process->clone());
   auto l2 = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites2, *process2);
-  SingleProcessPhyloLikelihood llh2(context, l2, l2->getParameters());
+  SingleProcessPhyloLikelihood llh2(context, l2);
 
   OptimizationTools::optimizeNumericalParameters2(
     llh2, llh2.getParameters(), 0,
@@ -182,9 +180,6 @@ int main() {
     cerr << name << ":" << SiteContainerTools::computeSimilarity(seq1, seq2) << endl;
   }
   
-  delete partree;
   delete alphabet;
-  delete rdist;
-
   return 0;
 }

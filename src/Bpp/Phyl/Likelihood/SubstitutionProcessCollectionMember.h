@@ -1,47 +1,48 @@
 //
 // File: SubstitutionProcessCollectionMember.h
-// Created by: Laurent Guéguen
-// Created on: mercredi 13 mai 2015, à 22h 32
+// Authors:
+//   Laurent GuÃÂ©guen
+// Created: mercredi 13 mai 2015, ÃÂ  22h 32
 //
 
 /*
-   Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#ifndef _SUBSTITUTIONPROCESSCOLLECTIONMEMBER_H_
-#define _SUBSTITUTIONPROCESSCOLLECTIONMEMBER_H_
+#ifndef BPP_PHYL_LIKELIHOOD_SUBSTITUTIONPROCESSCOLLECTIONMEMBER_H
+#define BPP_PHYL_LIKELIHOOD_SUBSTITUTIONPROCESSCOLLECTIONMEMBER_H
 
 
-#include "SubstitutionProcess.h"
+#include "AbstractSubstitutionProcess.h"
 
 namespace bpp
 {
@@ -55,8 +56,7 @@ namespace bpp
 class SubstitutionProcessCollection;
 
 class SubstitutionProcessCollectionMember :
-  public virtual SubstitutionProcess,
-  public virtual AbstractParameterAliasable
+  public AbstractSubstitutionProcess
 {
 private:
   /**
@@ -92,36 +92,30 @@ private:
   std::map<size_t, std::vector<unsigned int> > modelToNodes_;
 
   /**
-     *@brief The number of the tree
+   *@brief The number of the tree: 0 means no assigned tree
    *
    */
 
   size_t nTree_;
 
   /**
-     *@brief The number of the rate distribution
+   *@brief The number of the rate distribution
    *
    */
 
   size_t nDist_;
 
   /**
-   * @brief A boolean if the model is stationary, and the number of
-   *  the root frequencies.
+   * @brief The number of the root frequencies (0 if the process is stationary).
    *
    */
-
-  bool stationarity_;
 
   size_t nRoot_;
 
   /**
-   * @brief A boolean if the model has a Set Of Model Path, and the
-   *  number of the set of model path.
+   * @brief the number of the set of model path, if needed.
    *
    */
-
-  bool hasModelScenario_;
 
   size_t nPath_;
 
@@ -172,8 +166,6 @@ public:
   {
     return getModel(modelToNodes_.begin()->first)->getStateMap();
   }
-  
-  const Alphabet* getAlphabet() const;
 
   /**
    * @return the number of the process in the collection
@@ -199,7 +191,7 @@ public:
    **/
   bool isStationary() const
   {
-    return stationarity_;
+    return nRoot_==0;
   }
 
   /**
@@ -209,7 +201,9 @@ public:
    * @return A pointer toward the corresponding model.
    */
 
-  const BranchModel* getModel(size_t n) const;
+  std::shared_ptr<const BranchModel> getModel(size_t n) const;
+
+  std::shared_ptr<BranchModel> getModel(size_t n);
 
   std::vector<size_t> getModelNumbers() const;
 
@@ -220,7 +214,6 @@ public:
    * @return The number of the model associated to the given node.
    * @throw Exception If no model is found for this node.
    */
-  
   size_t getModelNumberForNode(unsigned int nodeId) const
   {
     std::map<unsigned int, size_t>::const_iterator i = nodeToModel_.find(nodeId);
@@ -237,7 +230,7 @@ public:
    * @throw Exception If no model is found for this node.
    */
 
-  const BranchModel* getModelForNode(unsigned int nodeId) const;
+  std::shared_ptr<const BranchModel> getModelForNode(unsigned int nodeId) const;
 
   /**
    * @brief Get a list of nodes id for which the given model is associated.
@@ -246,7 +239,6 @@ public:
    * @return A vector with the ids of the node associated to this model.
    * @throw IndexOutOfBoundsException If the index is not valid.
    */
-
   const std::vector<unsigned int> getNodesWithModel(size_t i) const
   {
     const auto it = modelToNodes_.find(i);
@@ -271,26 +263,26 @@ public:
    *
    **/
 
-  const DiscreteDistribution* getRateDistribution() const;
+  std::shared_ptr<const DiscreteDistribution> getRateDistribution() const;
+
+  std::shared_ptr<DiscreteDistribution> getRateDistribution();
 
   const size_t getRateDistributionNumber() const { return nDist_; }
 
-  /*
+  /**
    * @brief Set the root Frequencies Set
    * @param numFreq the index of the frequencies in the collection.
    *
    */
-
   void setRootFrequencies(size_t numFreq);
 
   const size_t getRootFrequenciesNumber() const { return nRoot_; }
 
-  /**
-   * @return The set of root frequencies.
-   *
-   */
+  bool hasRootFrequencySet() const { return !isStationary(); }
 
   std::shared_ptr<const FrequencySet> getRootFrequencySet() const;
+
+  std::shared_ptr<FrequencySet> getRootFrequencySet();
 
   /*
    * @brief Set the Set of Model Path
@@ -304,9 +296,9 @@ public:
 
   const size_t getModelScenarioNumber() const { return nPath_; }
 
-  bool hasModelScenario() const { return hasModelScenario_; }
+  std::shared_ptr<const ModelScenario> getModelScenario() const;
 
-  const ModelScenario& getModelScenario() const;
+  std::shared_ptr<ModelScenario> getModelScenario();
 
   /**
    * @brief AbsractParametrizable interface
@@ -314,10 +306,6 @@ public:
    **/
 
   bool matchParametersValues(const ParameterList& parameters);
-
-  void fireParameterChanged(const ParameterList& parameters)
-  {
-  }
 
   /**
    * @brief Check if the model set is fully specified for a given tree.
@@ -347,21 +335,6 @@ protected:
   /** @} */
 
 public:
-  /*
-   * Inheriting from SubstitutionProcess
-   */
-
-  bool isCompatibleWith(const AlignedValuesContainer& data) const;
-
-  /**
-   * @brief Get the number of states associated to this model set.
-   *
-   * @return The number of states, or 0 if no model is associated to
-   * the set.
-   */
-
-  size_t getNumberOfStates() const;
-
   /**
    * @return The values of the root frequencies.
    */
@@ -372,11 +345,11 @@ public:
    * @return the Tree
    */
 
-  const ParametrizablePhyloTree& getParametrizablePhyloTree() const;
+  std::shared_ptr<const ParametrizablePhyloTree> getParametrizablePhyloTree() const;
+
+  std::shared_ptr<ParametrizablePhyloTree> getParametrizablePhyloTree();
 
   size_t getTreeNumber() const { return nTree_; }
-
-  size_t getNumberOfClasses() const;
 
   /**
    * @brief Get the substitution model corresponding to a certain branch, site pattern, and model class.
@@ -385,7 +358,7 @@ public:
    * @param classIndex The model class index.
    */
 
-  const BranchModel* getModel(unsigned int nodeId, size_t classIndex) const;
+  std::shared_ptr<const BranchModel> getModel(unsigned int nodeId, size_t classIndex) const;
 
   /**
    * @brief Get the parameters of the substitution models.
@@ -408,8 +381,6 @@ public:
 
   ParameterList getBranchLengthParameters(bool independent) const;
 
-  bool hasBranchLengthParameter(const std::string& name) const;
-
   /**
    * @brief Get the parameters of the root frequencies set.
    *
@@ -424,69 +395,6 @@ public:
 
   ParameterList getNonDerivableParameters() const;
 
-
-  /**
-   * @brief Get the transition probabilities corresponding to a
-   * certain branch, and model class.
-   *
-   * @param nodeId The id of the node.
-   * @param classIndex The model class index.
-   */
-  const Matrix<double>& getTransitionProbabilities(unsigned int nodeId, size_t classIndex) const
-  {
-    throw Exception("SubstitutionProcessCollectionMember::getTransitionProbabilities not finished. Ask developpers.");
-  }
-
-  /**
-   * @brief Get the first order derivatives of the transition
-   * probabilities according to time, corresponding to a certain
-   * branch, and model class.
-   *
-   * @param nodeId The id of the node.
-   * @param classIndex The model class index.
-   */
-  const Matrix<double>& getTransitionProbabilitiesD1(unsigned int nodeId, size_t classIndex) const
-  {
-    throw Exception("SubstitutionProcessCollectionMember::getTransitionProbabilitiesD1 not finished. Ask developpers.");
-  }
-
-  /**
-   * @brief Get the second order derivatives of the transition
-   * probabilities according to time, corresponding to a certain
-   * branch, and model class.
-   *
-   * @param nodeId The id of the node.
-   * @param classIndex The model class index.
-   */
-  const Matrix<double>& getTransitionProbabilitiesD2(unsigned int nodeId, size_t classIndex) const
-  {
-    throw Exception("SubstitutionProcessCollectionMember::getTransitionProbabilitiesD2 not finished. Ask developpers.");
-  }
-
-
-  // const Matrix<double>& getGenerator(unsigned int nodeId, size_t classIndex) const
-  // {
-  //   return getSubstitutionModel(nodeId, classIndex).getGenerator();
-  // }
-
-  /**
-   * This method is used to initialize likelihoods in reccursions.
-   * It typically sends 1 if i = state, 0 otherwise, where
-   * i is one of the possible states of the alphabet allowed in the model
-   * and state is the observed state in the considered sequence/site.
-   *
-   * The model used is the first one in the list of the models.
-   *
-   * @param i the index of the state in the model.
-   * @param state An observed state in the sequence/site.
-   * @return 1 or 0 depending if the two states are compatible.
-   * @throw BadIntException if states are not allowed in the associated alphabet.
-   * @see getStates();
-   * @see SubstitutionModel
-   */
-
-  double getInitValue(size_t i, int state) const;
-
   double getProbabilityForModel(size_t classIndex) const;
 
   Vdouble getClassProbabilities() const;
@@ -496,5 +404,4 @@ public:
   friend class SubstitutionProcessCollection;
 };
 } // end of namespace bpp.
-
-#endif // _SUBSTITUTIONPROCESSCOLLECTIONMEMBER_H_
+#endif // BPP_PHYL_LIKELIHOOD_SUBSTITUTIONPROCESSCOLLECTIONMEMBER_H

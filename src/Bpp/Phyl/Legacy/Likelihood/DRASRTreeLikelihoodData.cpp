@@ -1,45 +1,46 @@
 //
 // File: DRASRTreeLikelihoodData.cpp
-// Created by: Julien Dutheil
-// Created on: Sat Dec 30 14:20 2006
-// From file HomogeneousTreeLikelihood.cpp
+// Authors:
+//   Julien Dutheil
+// Created: 2006-12-30 14:20:00
 //
 
 /*
-   Copyright or © or Copr. CNRS, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. CNRS, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
 
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
+#include "../../PatternTools.h"
 #include "DRASRTreeLikelihoodData.h"
-#include "../PatternTools.h"
 
 // From SeqLib:
 #include <Bpp/Seq/SiteTools.h>
@@ -66,11 +67,11 @@ void DRASRTreeLikelihoodData::initLikelihoods(const AlignedValuesContainer& site
   alphabet_ = sites.getAlphabet();
   nbStates_ = model.getNumberOfStates();
   nbSites_  = sites.getNumberOfSites();
-  unique_ptr<SitePatterns> patterns;
+  shared_ptr<SitePatterns> patterns;
 
   if (usePatterns_)
   {
-    patterns.reset(initLikelihoodsWithPatterns(tree_->getRootNode(), sites, model));
+    patterns = initLikelihoodsWithPatterns(tree_->getRootNode(), sites, model);
     shrunkData_       = patterns->getSites();
     rootWeights_      = patterns->getWeights();
     rootPatternLinks_.resize((size_t)patterns->getIndices().size());
@@ -79,8 +80,7 @@ void DRASRTreeLikelihoodData::initLikelihoods(const AlignedValuesContainer& site
   }
   else
   {
-    patterns.reset(new SitePatterns(&sites));
-    
+    patterns = std::make_shared<SitePatterns>(&sites);
     shrunkData_       = patterns->getSites();
     rootWeights_      = patterns->getWeights();
     rootPatternLinks_.resize(size_t(patterns->getIndices().size()));
@@ -136,7 +136,7 @@ void DRASRTreeLikelihoodData::initLikelihoods(const Node* node, const AlignedVal
     size_t posSeq;
     try
     {
-      posSeq=sequences.getSequencePosition(node->getName());
+      posSeq = sequences.getSequencePosition(node->getName());
     }
     catch (SequenceNotFoundException& snfe)
     {
@@ -188,13 +188,13 @@ void DRASRTreeLikelihoodData::initLikelihoods(const Node* node, const AlignedVal
 
 /******************************************************************************/
 
-SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* node, const AlignedValuesContainer& sequences, const TransitionModel& model)
+std::shared_ptr<SitePatterns> DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* node, const AlignedValuesContainer& sequences, const TransitionModel& model)
 {
-  vector<const Node *> leaves = TreeTemplateTools::getLeaves(*node);
+  vector<const Node*> leaves = TreeTemplateTools::getLeaves(*node);
 
-  AlignedValuesContainer* tmp = PatternTools::getSequenceSubset(sequences, *node);
+  auto tmp = std::shared_ptr<AlignedValuesContainer>(PatternTools::getSequenceSubset(sequences, *node));
 
-  SitePatterns* patterns = new SitePatterns(tmp, true);
+  auto patterns = std::make_shared<SitePatterns>(tmp.get(), true);
 
   shared_ptr<AlignedValuesContainer> subSequences = patterns->getSites();
   size_t nbSites = subSequences->getNumberOfSites();
@@ -238,10 +238,10 @@ SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* n
 
   if (node->isLeaf())
   {
-    size_t posSeq;    
+    size_t posSeq;
     try
     {
-      posSeq=subSequences->getSequencePosition(node->getName());
+      posSeq = subSequences->getSequencePosition(node->getName());
     }
     catch (SequenceNotFoundException& snfe)
     {
@@ -251,7 +251,7 @@ SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* n
     for (size_t i = 0; i < nbSites; i++)
     {
       VVdouble* _likelihoods_node_i = &(*_likelihoods_node)[i];
-      
+
       for (size_t c = 0; c < nbClasses_; c++)
       {
         Vdouble* _likelihoods_node_i_c = &(*_likelihoods_node_i)[c];
@@ -286,7 +286,7 @@ SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* n
       // Initialize subtree 'l' and retrieves corresponding
       // subSequences:
 
-      unique_ptr<SitePatterns> subPatterns(initLikelihoodsWithPatterns(son, *subSequences, model));
+      shared_ptr<SitePatterns> subPatterns(initLikelihoodsWithPatterns(son, *subSequences, model));
 
       patternLinks__node_son->resize(size_t(subPatterns->getIndices().size()));
       SitePatterns::IndicesType::Map(&((*patternLinks__node_son)[0]), subPatterns->getIndices().size()) = subPatterns->getIndices();
@@ -296,4 +296,3 @@ SitePatterns* DRASRTreeLikelihoodData::initLikelihoodsWithPatterns(const Node* n
 }
 
 /******************************************************************************/
-

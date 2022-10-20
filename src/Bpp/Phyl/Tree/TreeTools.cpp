@@ -1,59 +1,61 @@
 //
 // File: TreeTools.cpp
-// Created by: Julien Dutheil
-// Created on: Wed Aug  6 13:45:28 2003
+// Authors:
+//   Julien Dutheil
+// Created: 2003-08-06 13:45:28
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#include "TreeTools.h"
-#include "Tree.h"
-#include "BipartitionTools.h"
-#include "../Model/Nucleotide/JCnuc.h"
-#include "../Distance/DistanceEstimation.h"
-#include "../Distance/BioNJ.h"
-#include "../Parsimony/DRTreeParsimonyScore.h"
-#include "../OptimizationTools.h"
-
-#include <Bpp/Text/TextTools.h>
-#include <Bpp/Text/StringTokenizer.h>
-#include <Bpp/Numeric/Number.h>
-#include <Bpp/BppString.h>
 #include <Bpp/App/ApplicationTools.h>
-#include <Bpp/Numeric/VectorTools.h>
-#include <Bpp/Numeric/Prob/ConstantDistribution.h>
+#include <Bpp/BppString.h>
 #include <Bpp/Numeric/Matrix/MatrixTools.h>
+#include <Bpp/Numeric/Number.h>
+#include <Bpp/Numeric/Prob/ConstantDistribution.h>
+#include <Bpp/Numeric/VectorTools.h>
+#include <Bpp/Text/StringTokenizer.h>
+#include <Bpp/Text/TextTools.h>
+
+#include "../Distance/BioNJ.h"
+
+// #include "../Distance/DistanceEstimation.h"
+// #include "../OptimizationTools.h"
+#include "../Parsimony/DRTreeParsimonyScore.h"
+#include "../Model/Nucleotide/JCnuc.h"
+#include "BipartitionTools.h"
+#include "Tree.h"
+#include "TreeTools.h"
 
 // From bpp-seq:
 #include <Bpp/Seq/Alphabet/DNA.h>
@@ -321,7 +323,7 @@ string TreeTools::nodeToParenthesis(const Tree& tree, int nodeId, bool bootstrap
   }
   if (tree.hasDistanceToFather(nodeId))
     s << ":" << tree.getDistanceToFather(nodeId);
-  
+
   return s.str();
 }
 
@@ -365,7 +367,7 @@ string TreeTools::treeToParenthesis(const Tree& tree, bool bootstrap, const stri
   s << "(";
   int rootId = tree.getRootId();
   vector<int> sonsId = tree.getSonsId(rootId);
-  
+
   if (tree.hasNoSon(rootId))
   {
     s << tree.getNodeName(rootId);
@@ -394,7 +396,7 @@ string TreeTools::treeToParenthesis(const Tree& tree, bool bootstrap, const stri
       s << dynamic_cast<const BppString*>(tree.getBranchProperty(rootId, propertyName))->toSTL();
   }
   s << ";" << endl;
-  
+
   return s.str();
 }
 
@@ -443,7 +445,7 @@ vector<int> TreeTools::getPathBetweenAnyTwoNodes(const Tree& tree, int nodeId1, 
     path.push_back(pathMatrix1[y]);
   }
   if (includeAncestor)
-    path.push_back(pathMatrix1[tmp1]);  // pushing once, the Node that was common to both.
+    path.push_back(pathMatrix1[tmp1]);                                          // pushing once, the Node that was common to both.
   for (size_t j = tmp2; j > 0; --j)
   {
     path.push_back(pathMatrix2[j - 1]);
@@ -819,20 +821,20 @@ VectorSiteContainer* TreeTools::MRPEncode(const vector<Tree*>& vecTr)
 
 VectorSiteContainer* TreeTools::MRPEncodeMultilabel(const vector<Tree*>& vecTr)
 {
-    vector<BipartitionList*> vecBipL;
-    for (size_t i = 0; i < vecTr.size(); i++)
-    {
-        vecBipL.push_back(new BipartitionList(*vecTr[i]));
-    }
-    
-    VectorSiteContainer* cont = BipartitionTools::MRPEncodeMultilabel(vecBipL);
-    
-    for (size_t i = 0; i < vecTr.size(); i++)
-    {
-        delete vecBipL[i];
-    }
-    
-    return cont;
+  vector<BipartitionList*> vecBipL;
+  for (size_t i = 0; i < vecTr.size(); i++)
+  {
+    vecBipL.push_back(new BipartitionList(*vecTr[i]));
+  }
+
+  VectorSiteContainer* cont = BipartitionTools::MRPEncodeMultilabel(vecBipL);
+
+  for (size_t i = 0; i < vecTr.size(); i++)
+  {
+    delete vecBipL[i];
+  }
+
+  return cont;
 }
 
 /******************************************************************************/
@@ -1093,29 +1095,32 @@ TreeTemplate<Node>* TreeTools::strictConsensus(const vector<Tree*>& vecTr, bool 
 
 Tree* TreeTools::MRP(const vector<Tree*>& vecTr)
 {
-  // matrix representation
-  VectorSiteContainer* sites = TreeTools::MRPEncode(vecTr);
+  throw Exception("TreeTools::MRP not updated.");
+  
+  // // matrix representation
+  // VectorSiteContainer* sites = TreeTools::MRPEncode(vecTr);
 
-  // starting bioNJ tree
-  const DNA* alphabet = dynamic_cast<const DNA*>(sites->getAlphabet());
-  JCnuc* jc = new JCnuc(alphabet);
-  ConstantDistribution* constRate = new ConstantDistribution(1.);
-  DistanceEstimation distFunc(jc, constRate, sites, 0, true);
-  BioNJ bionjTreeBuilder(false, false);
-  bionjTreeBuilder.setDistanceMatrix(*(distFunc.getMatrix()));
-  bionjTreeBuilder.computeTree();
-  if (ApplicationTools::message)
-    ApplicationTools::message->endLine();
-  TreeTemplate<Node>* startTree = new TreeTemplate<Node>(*bionjTreeBuilder.getTree());
+  // // starting bioNJ tree
+  // const DNA* alphabet = dynamic_cast<const DNA*>(sites->getAlphabet());
+  // JCnuc* jc = new JCnuc(alphabet);
+  // ConstantDistribution* constRate = new ConstantDistribution(1.);
+  // DistanceEstimation distFunc(jc, constRate, sites, 0, true);
+  // BioNJ bionjTreeBuilder(false, false);
+  // bionjTreeBuilder.setDistanceMatrix(*(distFunc.getMatrix()));
+  // bionjTreeBuilder.computeTree();
+  // if (ApplicationTools::message)
+  //   ApplicationTools::message->endLine();
+  // TreeTemplate<Node>* startTree = new TreeTemplate<Node>(*bionjTreeBuilder.getTree());
 
-  // MP optimization
-  DRTreeParsimonyScore* MPScore = new DRTreeParsimonyScore(*startTree, *sites, false);
-  MPScore = OptimizationTools::optimizeTreeNNI(MPScore, 0);
-  delete startTree;
-  Tree* retTree = new TreeTemplate<Node>(MPScore->getTree());
-  delete MPScore;
+  // // MP optimization
+  // DRTreeParsimonyScore* MPScore = new DRTreeParsimonyScore(*startTree, *sites, false);
+  // MPScore = OptimizationToolsOld::optimizeTreeNNI(MPScore, 0);
+  // delete startTree;
+  // Tree* retTree = new TreeTemplate<Node>(MPScore->getTree());
+  // delete MPScore;
 
-  return retTree;
+  // return retTree;
+  return 0;
 }
 
 /******************************************************************************/
@@ -1180,7 +1185,7 @@ int TreeTools::getLastCommonAncestor(const Tree& tree, const vector<int>& nodeId
   }
   int lca = tree.getRootId();
   size_t count = 1;
-  for ( ; ; )
+  for ( ; ;)
   {
     if (ancestors[0].size() <= count)
       return lca;
@@ -1285,29 +1290,30 @@ TreeTools::Moments_ TreeTools::statFromNode_(Tree& tree, int rootId)
 
 Tree* TreeTools::MRPMultilabel(const vector<Tree*>& vecTr)
 {
-    // matrix representation
-    VectorSiteContainer* sites = TreeTools::MRPEncode(vecTr);
-    
-    // starting bioNJ tree
-    const DNA* alphabet = dynamic_cast<const DNA*>(sites->getAlphabet());
-    JCnuc* jc = new JCnuc(alphabet);
-    ConstantDistribution* constRate = new ConstantDistribution(1.);
-    DistanceEstimation distFunc(jc, constRate, sites, 0, true);
-    BioNJ bionjTreeBuilder(false, false);
-    bionjTreeBuilder.setDistanceMatrix(*(distFunc.getMatrix()));
-    bionjTreeBuilder.computeTree();
-    if (ApplicationTools::message)
-        ApplicationTools::message->endLine();
-    TreeTemplate<Node>* startTree = new TreeTemplate<Node>(*bionjTreeBuilder.getTree());
-    
-    // MP optimization
-    DRTreeParsimonyScore* MPScore = new DRTreeParsimonyScore(*startTree, *sites, false);
-    MPScore = OptimizationTools::optimizeTreeNNI(MPScore, 0);
-    delete startTree;
-    Tree* retTree = new TreeTemplate<Node>(MPScore->getTree());
-    delete MPScore;
-    
-    return retTree;
+  throw Exception("TreeTools::MRPMultilabel not updated.");
+  
+  // // matrix representation
+  // VectorSiteContainer* sites = TreeTools::MRPEncode(vecTr);
+
+  // // starting bioNJ tree
+  // const DNA* alphabet = dynamic_cast<const DNA*>(sites->getAlphabet());
+  // JCnuc* jc = new JCnuc(alphabet);
+  // ConstantDistribution* constRate = new ConstantDistribution(1.);
+  // DistanceEstimation distFunc(jc, constRate, sites, 0, true);
+  // BioNJ bionjTreeBuilder(false, false);
+  // bionjTreeBuilder.setDistanceMatrix(*(distFunc.getMatrix()));
+  // bionjTreeBuilder.computeTree();
+  // if (ApplicationTools::message)
+  //   ApplicationTools::message->endLine();
+  // TreeTemplate<Node>* startTree = new TreeTemplate<Node>(*bionjTreeBuilder.getTree());
+
+  // // MP optimization
+  // DRTreeParsimonyScore* MPScore = new DRTreeParsimonyScore(*startTree, *sites, false);
+  // MPScore = OptimizationToolsOld::optimizeTreeNNI(MPScore, 0);
+  // delete startTree;
+  // Tree* retTree = new TreeTemplate<Node>(MPScore->getTree());
+  // delete MPScore;
+
+  // return retTree;
+  return 0;
 }
-
-

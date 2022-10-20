@@ -1,48 +1,49 @@
 //
 // File: DRTreeParsimonyScore.cpp
-// Created by: Julien Dutheil
-// Created on: Thu Jul 28 17:25 2005
+// Authors:
+//   Julien Dutheil
+// Created: 2005-07-28 17:25:00
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
-
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#include "DRTreeParsimonyScore.h"
-#include "../PatternTools.h"
-#include "../Tree/TreeTemplateTools.h" // Needed for NNIs
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
 #include <Bpp/App/ApplicationTools.h>
 #include <Bpp/Numeric/VectorTools.h>
+
+#include "../PatternTools.h"
+#include "../Tree/TreeTemplateTools.h" // Needed for NNIs
+#include "DRTreeParsimonyScore.h"
 
 using namespace bpp;
 using namespace std;
@@ -128,7 +129,8 @@ void DRTreeParsimonyScore::computeScores()
 
 void DRTreeParsimonyScore::computeScoresPostorder(const Node* node)
 {
-  if (node->isLeaf()) return;
+  if (node->isLeaf())
+    return;
   DRTreeParsimonyNodeData* pData = &parsimonyData_->getNodeData(node->getId());
   for (unsigned int k = 0; k < node->getNumberOfSons(); k++)
   {
@@ -180,7 +182,8 @@ void DRTreeParsimonyScore::computeScoresPostorderForNode(const DRTreeParsimonyNo
 
 void DRTreeParsimonyScore::computeScoresPreorder(const Node* node)
 {
-  if (node->getNumberOfSons() == 0) return;
+  if (node->getNumberOfSons() == 0)
+    return;
   DRTreeParsimonyNodeData* pData = &parsimonyData_->getNodeData(node->getId());
   if (node->hasFather())
   {
@@ -311,9 +314,11 @@ void DRTreeParsimonyScore::computeScoresFromArrays(
 double DRTreeParsimonyScore::testNNI(int nodeId) const
 {
   const Node* son = getTreeP_()->getNode(nodeId);
-  if (!son->hasFather()) throw NodePException("DRTreeParsimonyScore::testNNI(). Node 'son' must not be the root node.", son);
+  if (!son->hasFather())
+    throw NodePException("DRTreeParsimonyScore::testNNI(). Node 'son' must not be the root node.", son);
   const Node* parent = son->getFather();
-  if (!parent->hasFather()) throw NodePException("DRTreeParsimonyScore::testNNI(). Node 'parent' must not be the root node.", parent);
+  if (!parent->hasFather())
+    throw NodePException("DRTreeParsimonyScore::testNNI(). Node 'parent' must not be the root node.", parent);
   const Node* grandFather = parent->getFather();
   // From here: Bifurcation assumed.
   // In case of multifurcation, an arbitrary uncle is chosen.
@@ -383,9 +388,11 @@ double DRTreeParsimonyScore::testNNI(int nodeId) const
 void DRTreeParsimonyScore::doNNI(int nodeId)
 {
   Node* son = getTreeP_()->getNode(nodeId);
-  if (!son->hasFather()) throw NodePException("DRTreeParsimonyScore::doNNI(). Node 'son' must not be the root node.", son);
+  if (!son->hasFather())
+    throw NodePException("DRTreeParsimonyScore::doNNI(). Node 'son' must not be the root node.", son);
   Node* parent = son->getFather();
-  if (!parent->hasFather()) throw NodePException("DRTreeParsimonyScore::doNNI(). Node 'parent' must not be the root node.", parent);
+  if (!parent->hasFather())
+    throw NodePException("DRTreeParsimonyScore::doNNI(). Node 'parent' must not be the root node.", parent);
   Node* grandFather = parent->getFather();
   // From here: Bifurcation assumed.
   // In case of multifurcation, an arbitrary uncle is chosen.
@@ -402,24 +409,24 @@ void DRTreeParsimonyScore::doNNI(int nodeId)
 /******************************************************************************/
 
 // /******************************************************************************/
-// 
+//
 // void DRTreeParsimonyScore::setNodeState(Node* node, size_t state)
 // {
 //     Number<size_t>* stateProperty = new Number<size_t>(state);
 //     node->setNodeProperty(STATE, *stateProperty);
-//     delete stateProperty; 
+//     delete stateProperty;
 // }
-// 
+//
 // /******************************************************************************/
-// 
+//
 // size_t DRTreeParsimonyScore::getNodeState(const Node* node)
 // {
 //   return (dynamic_cast<const Number<size_t>*>(node->getNodeProperty(STATE)))->getValue(); // exception on root on the true history - why didn't the root recieve a state?
 // }
-// 
+//
 // /******************************************************************************/
-// 
-// void DRTreeParsimonyScore::computeSolution() 
+//
+// void DRTreeParsimonyScore::computeSolution()
 // {
 //   map< int, vector<size_t> > nodeToPossibleStates;
 //   TreeTemplate<Node>* tree = getTreeP_();
@@ -461,12 +468,12 @@ void DRTreeParsimonyScore::doNNI(int nodeId)
 //     }
 //     nodeToPossibleStates[nodes[n]->getId()] = possibleStates;
 //   }
-// 
+//
 //   // set states for the nodes according to their possible assignments and parent state
 //   TreeIterator* treeIt = new PreOrderTreeIterator(*tree);
 //   for (const Node* node = treeIt->begin(); node != treeIt->end(); node = treeIt->next())
 //   {
-//     size_t nodeState; 
+//     size_t nodeState;
 //     vector<size_t> possibleStates = nodeToPossibleStates[node->getId()];
 //     if (possibleStates.size() == 1)
 //     {
@@ -474,7 +481,7 @@ void DRTreeParsimonyScore::doNNI(int nodeId)
 //     }
 //     else if (node->hasFather()) // if the node has a father -> set its state according to its father's state
 //     {
-//       nodeState = getNodeState(node->getFather()); 
+//       nodeState = getNodeState(node->getFather());
 //     }
 //     else                       // if there is no restriction from the father -> set the state randomely
 //     {
@@ -484,4 +491,3 @@ void DRTreeParsimonyScore::doNNI(int nodeId)
 //   }
 //   delete treeIt;
 // }
-

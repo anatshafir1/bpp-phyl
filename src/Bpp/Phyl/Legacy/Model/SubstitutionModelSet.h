@@ -1,55 +1,54 @@
 //
 // File: SubstitutionModelSet.h
-// Created by: Bastien Boussau
-//             Julien Dutheil
-// Created on: Tue Aug 21 2007
+// Authors:
+//   Bastien Boussau
+//   Julien Dutheil
+// Created: 2007-08-21 00:00:00
 //
 
 /*
-   Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#ifndef _SUBSTITUTIONMODELSET_H_
-#define _SUBSTITUTIONMODELSET_H_
-
-
-#include "../Tree/Tree.h"
-#include "SubstitutionModel.h"
-#include "AbstractSubstitutionModel.h"
-#include "FrequencySet/FrequencySet.h"
+#ifndef BPP_PHYL_LEGACY_MODEL_SUBSTITUTIONMODELSET_H
+#define BPP_PHYL_LEGACY_MODEL_SUBSTITUTIONMODELSET_H
 
 #include <Bpp/Exceptions.h>
 #include <Bpp/Numeric/Random/RandomTools.h>
 #include <Bpp/Numeric/VectorTools.h>
+
+#include "../../Model/AbstractSubstitutionModel.h"
+#include "../../Model/FrequencySet/FrequencySet.h"
+#include "../../Tree/Tree.h"
 
 // From Seqlib:
 #include <Bpp/Seq/Alphabet/Alphabet.h>
@@ -148,7 +147,7 @@ public:
    *
    * @param alpha The alphabet to use for this set.
    */
-  SubstitutionModelSet(const Alphabet* alpha):
+  SubstitutionModelSet(const Alphabet* alpha) :
     AbstractParameterAliasable(""),
     alphabet_(alpha),
     nbStates_(0),
@@ -158,8 +157,7 @@ public:
     modelToNodes_(),
     modelParameters_(),
     stationarity_(true)
-  {
-  }
+  {}
 
   /**
    * @brief Create a model set according to the specified alphabet and root frequencies.
@@ -168,7 +166,7 @@ public:
    * @param alpha The alphabet to use for this set.
    * @param rootFreqs The frequencies at root node. The underlying object will be owned by this instance.
    */
-  SubstitutionModelSet(const Alphabet* alpha, std::shared_ptr<FrequencySet> rootFreqs):
+  SubstitutionModelSet(const Alphabet* alpha, std::shared_ptr<FrequencySet> rootFreqs) :
     AbstractParameterAliasable(""),
     alphabet_(alpha),
     nbStates_(0),
@@ -192,7 +190,7 @@ public:
   {
     return stationarity_;
   }
-  
+
   /**
    * @brief Sets a given FrequencySet for root frequencies.
    *
@@ -276,7 +274,7 @@ public:
       throw Exception("SubstitutionModelSet::getSubstitutionModel : " + getModel(i)->getName() + " is not a sustitution model." );
     }
   }
-  
+
 
   SubstitutionModel* getSubstitutionModel(size_t i)
   {
@@ -294,16 +292,17 @@ public:
    * @brief check if has only markovian substitution models
    *
    */
- 
   bool hasOnlySubstitutionModels() const
   {
     for (const auto& mod : modelSet_)
-      if (dynamic_cast<const SubstitutionModel*>(mod)==0)
+    {
+      if (dynamic_cast<const SubstitutionModel*>(mod) == 0)
         return false;
+    }
 
     return true;
   }
-  
+
   /**
    * @brief Get the index in the set of the model associated to a particular node id.
    *
@@ -313,7 +312,7 @@ public:
    */
   size_t getModelIndexForNode(int nodeId) const
   {
-   std::map<int, size_t>::iterator i = nodeToModel_.find(nodeId);
+    std::map<int, size_t>::iterator i = nodeToModel_.find(nodeId);
     if (i == nodeToModel_.end())
       throw Exception("SubstitutionModelSet::getModelIndexForNode(). No model associated to node with id " + TextTools::toString(nodeId));
     return i->second;
@@ -328,14 +327,14 @@ public:
    */
   const TransitionModel* getModelForNode(int nodeId) const
   {
-   std::map<int, size_t>::const_iterator i = nodeToModel_.find(nodeId);
+    std::map<int, size_t>::const_iterator i = nodeToModel_.find(nodeId);
     if (i == nodeToModel_.end())
       throw Exception("SubstitutionModelSet::getModelForNode(). No model associated to node with id " + TextTools::toString(nodeId));
     return modelSet_[i->second];
   }
   TransitionModel* getModelForNode(int nodeId)
   {
-   std::map<int, size_t>::iterator i = nodeToModel_.find(nodeId);
+    std::map<int, size_t>::iterator i = nodeToModel_.find(nodeId);
     if (i == nodeToModel_.end())
       throw Exception("SubstitutionModelSet::getModelForNode(). No model associated to node with id " + TextTools::toString(nodeId));
     return modelSet_[i->second];
@@ -388,18 +387,18 @@ public:
    * <li>etc.</li>
    * </ul>
    */
-  void addModel(TransitionModel* model, const std::vector<int>& nodesId);//, const std::vector<std::string>& newParams);
+  void addModel(TransitionModel* model, const std::vector<int>& nodesId);// , const std::vector<std::string>& newParams);
 
   /**
    * @brief Sets an assignment of a given modle index to a given onde id
    *
    * @param modelIndex The index of the model in the set.
-   * @param model      The node ID
+   * @param nodeId      The node ID
    *
    * @throw Exception if the modle index doesn't correspond to an existing modle in the modelSet
    */
   void setNodeToModel(size_t modelIndex, int nodeId); // Keren: added on my own to allow alternation of nodes assignemnts to existing nodes
-  
+
   /**
    * @brief Reset model indices to node ids assignment
    */
@@ -458,7 +457,7 @@ public:
   {
     ParameterList pl;
     for (size_t i = stationarity_ ? 0 : rootFrequencies_->getNumberOfParameters();
-        i < getNumberOfParameters(); i++)
+         i < getNumberOfParameters(); i++)
     {
       pl.addParameter(getParameter_(i));
     }
@@ -482,23 +481,28 @@ public:
    *
    * @see Alphabet
    */
-  const std::vector<int>& getAlphabetStates() const {
+  const std::vector<int>& getAlphabetStates() const
+  {
     return getModel(0)->getAlphabetStates();
   }
 
-  const StateMap& getStateMap() const {
+  const StateMap& getStateMap() const
+  {
     return getModel(0)->getStateMap();
   }
 
-  std::shared_ptr<const StateMap> shareStateMap() const {
+  std::shared_ptr<const StateMap> shareStateMap() const
+  {
     return getModel(0)->shareStateMap();
   }
 
-  std::vector<size_t> getModelStates(int code) const {
+  std::vector<size_t> getModelStates(int code) const
+  {
     return getModel(0)->getModelStates(code);
   }
 
-  std::vector<size_t> getModelStates(const std::string& code) const {
+  std::vector<size_t> getModelStates(const std::string& code) const
+  {
     return getModel(0)->getModelStates(code);
   }
 
@@ -506,17 +510,17 @@ public:
    * @param index The model state.
    * @return The corresponding alphabet state as character code.
    */
-
-  int getAlphabetStateAsInt(size_t index) const {
+  int getAlphabetStateAsInt(size_t index) const
+  {
     return getModel(0)->getAlphabetStateAsInt(index);
   }
-  
+
   /**
    * @param index The model state.
    * @return The corresponding alphabet state as character code.
    */
-
-  std::string getAlphabetStateAsChar(size_t index) const {
+  std::string getAlphabetStateAsChar(size_t index) const
+  {
     return getModel(0)->getAlphabetStateAsChar(index);
   }
 
@@ -535,7 +539,7 @@ public:
   bool isFullySetUpFor(const Tree& tree, bool throwEx = true) const
   {
     return checkOrphanModels(throwEx)
-      //           && checkOrphanParameters(throwEx)
+           //           && checkOrphanParameters(throwEx)
            && checkOrphanNodes(tree, throwEx)
            && checkUnknownNodes(tree, throwEx);
   }
@@ -563,6 +567,4 @@ protected:
   /** @} */
 };
 } // end of namespace bpp.
-
-#endif // _SUBSTITUTIONMODELSET_H_
-
+#endif // BPP_PHYL_LEGACY_MODEL_SUBSTITUTIONMODELSET_H

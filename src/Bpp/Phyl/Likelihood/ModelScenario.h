@@ -1,50 +1,50 @@
 //
 // File: ModelScenario.h
-// Created by: Laurent Guéguen
-// Created on: jeudi 28 novembre 2019, à 00h 59
+// Authors:
+//   Laurent GuÃÂ©guen
+// Created: jeudi 28 novembre 2019, ÃÂ  00h 59
 //
 
 /*
-   Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or (c) or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#ifndef _MODEL_SCENARIO_H_
-#define _MODEL_SCENARIO_H_
-
-
-#include "ModelPath.h"
+#ifndef BPP_PHYL_LIKELIHOOD_MODELSCENARIO_H
+#define BPP_PHYL_LIKELIHOOD_MODELSCENARIO_H
 
 #include <Bpp/Exceptions.h>
 #include <Bpp/Numeric/VectorTools.h>
+
+#include "ModelPath.h"
 
 namespace bpp
 {
@@ -113,7 +113,7 @@ namespace bpp
  *
  */
 
-class ModelScenario 
+class ModelScenario
 {
 private:
   std::vector<std::shared_ptr<ModelPath> > vModelPaths_;
@@ -122,7 +122,7 @@ public:
   ModelScenario() :
     vModelPaths_() {}
 
-  ~ModelScenario(){};
+  ~ModelScenario(){}
 
   ModelScenario(std::vector<std::shared_ptr<ModelPath> > vModelPaths) :
     vModelPaths_(vModelPaths)
@@ -134,7 +134,7 @@ public:
 
   ModelScenario& operator=(const ModelScenario& set)
   {
-    vModelPaths_=set.vModelPaths_;
+    vModelPaths_ = set.vModelPaths_;
     return *this;
   }
 
@@ -143,7 +143,6 @@ public:
   /**
    * @brief Resets the list of the ModelPaths
    */
-
   void clear()
   {
     vModelPaths_.clear();
@@ -153,7 +152,6 @@ public:
    *@brief adds the copy of an ModelPath to the end of the
    * ModelPaths list.
    */
-
   void addModelPath(std::shared_ptr<ModelPath> hn)
   {
     vModelPaths_.push_back(hn);
@@ -202,9 +200,9 @@ public:
    * @brief return models found in several paths
    *
    */
- 
-  std::vector<std::shared_ptr<MixedTransitionModel>> getModels() const;
- 
+
+  std::vector<std::shared_ptr<MixedTransitionModel> > getModels() const;
+
   /*
    *@brief Checks if all the path (ie hypernodes) are exclusive.
    *
@@ -243,11 +241,8 @@ public:
    * @brief string description
    *
    */
-    
-  std::string to_string() const;
 
+  std::string to_string() const;
 };
 } // end of namespace bpp.
-
-#endif // _MIXEDSUBSTITUTIONMODELSET_H_
-
+#endif // BPP_PHYL_LIKELIHOOD_MODELSCENARIO_H

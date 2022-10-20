@@ -1,44 +1,46 @@
 //
 // File: AbstractWordSubstitutionModel.h
-// Created by: Laurent Gueguen
-// Created on: Jan 2009
+// Authors:
+//   Laurent Gueguen
+// Created: 2009-01-08 00:00:00
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
+#ifndef BPP_PHYL_MODEL_ABSTRACTWORDSUBSTITUTIONMODEL_H
+#define BPP_PHYL_MODEL_ABSTRACTWORDSUBSTITUTIONMODEL_H
 
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#ifndef _ABSTRACTWORDSUBSTITUTIONMODEL_H_
-#define _ABSTRACTWORDSUBSTITUTIONMODEL_H_
 
 #include "AbstractSubstitutionModel.h"
 
@@ -50,7 +52,6 @@
 
 namespace bpp
 {
-
 /**
  * @brief A list of models, for building a WordSubstitutionModel
  *
@@ -60,66 +61,69 @@ namespace bpp
  */
 class ModelList
 {
-  protected:
-    std::vector<SubstitutionModel *> models_;
-    std::unique_ptr<WordAlphabet> wordAlphabet_;
-    WordAlphabet* pWordAlphabet_;
+protected:
+  std::vector<SubstitutionModel*> models_;
+  std::unique_ptr<WordAlphabet> wordAlphabet_;
+  WordAlphabet* pWordAlphabet_;
 
-  public:
-    /**
-     * @brief Create a ModelList from one template substitution model.
-     *
-     * @param models A vector of pointers toward substitution model objects.
-     */
-    ModelList(const std::vector<SubstitutionModel *>& models):
-      models_(models), wordAlphabet_(), pWordAlphabet_(0)
+public:
+  /**
+   * @brief Create a ModelList from one template substitution model.
+   *
+   * @param models A vector of pointers toward substitution model objects.
+   */
+  ModelList(const std::vector<SubstitutionModel*>& models) :
+    models_(models), wordAlphabet_(), pWordAlphabet_(0)
+  {
+    std::vector<const Alphabet*> alphabets(models.size());
+    for (size_t i = 0; i < models.size(); ++i)
     {
-      std::vector<const Alphabet *> alphabets(models.size());
-      for (size_t i = 0; i < models.size(); ++i) {
-        alphabets[i] = models[i]->getAlphabet();
-      }
-      wordAlphabet_.reset(new WordAlphabet(alphabets));
-      pWordAlphabet_ = wordAlphabet_.get();
+      alphabets[i] = models[i]->getAlphabet();
     }
+    wordAlphabet_.reset(new WordAlphabet(alphabets));
+    pWordAlphabet_ = wordAlphabet_.get();
+  }
 
-    ModelList(const ModelList& ml):
-      models_(ml.models_),
-      wordAlphabet_(ml.wordAlphabet_.get() ? ml.wordAlphabet_.get()->clone() : 0),
-      pWordAlphabet_(wordAlphabet_.get())
-    {}
- 
-    ModelList& operator=(const ModelList& ml)
-    {
-      models_ = ml.models_;
-      wordAlphabet_.reset(ml.wordAlphabet_.get() ? ml.wordAlphabet_.get()->clone() : 0);
-      pWordAlphabet_ = wordAlphabet_.get();
-      return *this;
-    }
+  ModelList(const ModelList& ml) :
+    models_(ml.models_),
+    wordAlphabet_(ml.wordAlphabet_.get() ? ml.wordAlphabet_.get()->clone() : 0),
+    pWordAlphabet_(wordAlphabet_.get())
+  {}
 
-  public:
-    size_t size() const { return models_.size(); }
+  ModelList& operator=(const ModelList& ml)
+  {
+    models_ = ml.models_;
+    wordAlphabet_.reset(ml.wordAlphabet_.get() ? ml.wordAlphabet_.get()->clone() : 0);
+    pWordAlphabet_ = wordAlphabet_.get();
+    return *this;
+  }
 
-    const SubstitutionModel* getModel(size_t i) const {
-      return models_[i];
-    }
+public:
+  size_t size() const { return models_.size(); }
 
-    SubstitutionModel* getModel(size_t i) {
-      return models_[i];
-    }
+  const SubstitutionModel* getModel(size_t i) const
+  {
+    return models_[i];
+  }
 
-    const WordAlphabet* getWordAlphabet() {
-      if (wordAlphabet_.get()) //First call
-        return wordAlphabet_.release();
-      else //Other calls, this class does not own the pointer anymore.
-        return pWordAlphabet_; 
-    }    
+  SubstitutionModel* getModel(size_t i)
+  {
+    return models_[i];
+  }
+
+  const WordAlphabet* getWordAlphabet()
+  {
+    if (wordAlphabet_.get()) // First call
+      return wordAlphabet_.release();
+    else // Other calls, this class does not own the pointer anymore.
+      return pWordAlphabet_;
+  }
 };
-
 
 
 /**
  * @brief Abstract Basal class for words of substitution models.
- * @author Laurent Guéguen
+ * @author Laurent GuÃÂ©guen
  *
  * Objects of this class are built from several substitution models.
  * Each model corresponds to a position in the word. No model is
@@ -146,9 +150,9 @@ class ModelList
  * enumerated.
  *
  */
-  
+
 class AbstractWordSubstitutionModel :
-    public AbstractSubstitutionModel
+  public AbstractSubstitutionModel
 {
 private:
   /**
@@ -175,9 +179,9 @@ protected:
    * @brief First fill of the generator, from the position model
    *
    */
-  
+
   virtual void fillBasicGenerator();
-  
+
 public:
   /**
    * @brief Build a new AbstractWordSubstitutionModel object from a
@@ -224,27 +228,27 @@ protected:
   AbstractWordSubstitutionModel(const Alphabet* alph, std::shared_ptr<const StateMap> stateMap, const std::string& prefix);
 
 public:
-  virtual size_t getNumberOfStates() const;
 
   /**
    * @brief returns the ith model, or Null if i is not a valid number.
    *
    */
-  
-  const SubstitutionModel* getNModel(size_t i) const {
+  const SubstitutionModel* getNModel(size_t i) const
+  {
     if (i < VSubMod_.size())
       return dynamic_cast<const SubstitutionModel*>(VSubMod_[i]);
     else
       return 0;
   }
 
-  size_t getNumberOfModels() const {
+  size_t getNumberOfModels() const
+  {
     return VSubMod_.size();
   }
-  
+
   /**
    *@brief Estimation of the parameters of the models so that the
-   *equilibrium frequencies match the given ones.
+   * equilibrium frequencies match the given ones.
    *
    *@param freqs  map of the frequencies
    *
@@ -254,10 +258,8 @@ public:
    * corresponding position in the word.
    *
    **/
-  
+
   virtual void setFreq(std::map<int, double>& freqs);
 };
 } // end of namespace bpp.
-
-#endif  // ABSTRACTWORDSUBSTITUTIONMODEL_
-
+#endif // BPP_PHYL_MODEL_ABSTRACTWORDSUBSTITUTIONMODEL_H

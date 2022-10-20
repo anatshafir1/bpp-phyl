@@ -1,47 +1,48 @@
 //
-// File: DRHomogeneousTreeLikelihood.cpp
-// Created by: Julien Dutheil
-// Created on: Fri Oct 17 18:14:51 2003
+// File: NNIHomogeneousTreeLikelihood.cpp
+// Authors:
+//   Julien Dutheil
+// Created: 2003-10-17 18:14:51
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#include "NNIHomogeneousTreeLikelihood.h"
-
-#include <Bpp/Text/TextTools.h>
 #include <Bpp/App/ApplicationTools.h>
 #include <Bpp/Numeric/AutoParameter.h>
+#include <Bpp/Text/TextTools.h>
+
+#include "NNIHomogeneousTreeLikelihood.h"
 
 using namespace bpp;
 
@@ -184,9 +185,11 @@ NNIHomogeneousTreeLikelihood::NNIHomogeneousTreeLikelihood(const NNIHomogeneousT
 NNIHomogeneousTreeLikelihood& NNIHomogeneousTreeLikelihood::operator=(const NNIHomogeneousTreeLikelihood& lik)
 {
   DRHomogeneousTreeLikelihood::operator=(lik);
-  if (brLikFunction_) delete brLikFunction_;
+  if (brLikFunction_)
+    delete brLikFunction_;
   brLikFunction_  = dynamic_cast<BranchLikelihood*>(lik.brLikFunction_->clone());
-  if (brentOptimizer_) delete brentOptimizer_;
+  if (brentOptimizer_)
+    delete brentOptimizer_;
   brentOptimizer_ = dynamic_cast<BrentOneDimension*>(lik.brentOptimizer_->clone());
   brLenNNIValues_ = lik.brLenNNIValues_;
   brLenNNIParams_ = lik.brLenNNIParams_;
@@ -197,7 +200,8 @@ NNIHomogeneousTreeLikelihood& NNIHomogeneousTreeLikelihood::operator=(const NNIH
 
 NNIHomogeneousTreeLikelihood::~NNIHomogeneousTreeLikelihood()
 {
-  if (brLikFunction_) delete brLikFunction_;
+  if (brLikFunction_)
+    delete brLikFunction_;
   delete brentOptimizer_;
 }
 
@@ -205,9 +209,11 @@ NNIHomogeneousTreeLikelihood::~NNIHomogeneousTreeLikelihood()
 double NNIHomogeneousTreeLikelihood::testNNI(int nodeId) const
 {
   const Node* son    = tree_->getNode(nodeId);
-  if (!son->hasFather()) throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'son' must not be the root node.", son);
+  if (!son->hasFather())
+    throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'son' must not be the root node.", son);
   const Node* parent = son->getFather();
-  if (!parent->hasFather()) throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'parent' must not be the root node.", parent);
+  if (!parent->hasFather())
+    throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'parent' must not be the root node.", parent);
   const Node* grandFather = parent->getFather();
   // From here: Bifurcation assumed.
   // In case of multifurcation, an arbitrary uncle is chosen.
@@ -286,8 +292,10 @@ double NNIHomogeneousTreeLikelihood::testNNI(int nodeId) const
   brLikFunction_->initLikelihoods(&array1, &array2);
   ParameterList parameters;
   size_t pos = 0;
-  while (pos < nodes_.size() && nodes_[pos]->getId() != parent->getId()) pos++;
-  if (pos == nodes_.size()) throw Exception("NNIHomogeneousTreeLikelihood::testNNI. Unvalid node id.");
+  while (pos < nodes_.size() && nodes_[pos]->getId() != parent->getId())
+    pos++;
+  if (pos == nodes_.size())
+    throw Exception("NNIHomogeneousTreeLikelihood::testNNI. Unvalid node id.");
   Parameter brLen = getParameter("BrLen" + TextTools::toString(pos));
   brLen.setName("BrLen");
   parameters.addParameter(brLen);
@@ -313,9 +321,11 @@ void NNIHomogeneousTreeLikelihood::doNNI(int nodeId)
 {
   // Perform the topological move, the likelihood array will have to be recomputed...
   Node* son    = tree_->getNode(nodeId);
-  if (!son->hasFather()) throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'son' must not be the root node.", son);
+  if (!son->hasFather())
+    throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'son' must not be the root node.", son);
   Node* parent = son->getFather();
-  if (!parent->hasFather()) throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'parent' must not be the root node.", parent);
+  if (!parent->hasFather())
+    throw NodePException("DRHomogeneousTreeLikelihood::testNNI(). Node 'parent' must not be the root node.", parent);
   Node* grandFather = parent->getFather();
   // From here: Bifurcation assumed.
   // In case of multifurcation, an arbitrary uncle is chosen.
@@ -328,8 +338,10 @@ void NNIHomogeneousTreeLikelihood::doNNI(int nodeId)
   parent->addSon(uncle);
   grandFather->addSon(son);
   size_t pos = 0;
-  while (pos < nodes_.size() && nodes_[pos]->getId() != parent->getId()) pos++;
-  if (pos == nodes_.size()) throw Exception("NNIHomogeneousTreeLikelihood::doNNI. Unvalid node id.");
+  while (pos < nodes_.size() && nodes_[pos]->getId() != parent->getId())
+    pos++;
+  if (pos == nodes_.size())
+    throw Exception("NNIHomogeneousTreeLikelihood::doNNI. Unvalid node id.");
 
   string name = "BrLen" + TextTools::toString(pos);
   if (brLenNNIValues_.find(nodeId) != brLenNNIValues_.end())
@@ -339,7 +351,8 @@ void NNIHomogeneousTreeLikelihood::doNNI(int nodeId)
     getParameter_(name).setValue(length);
     parent->setDistanceToFather(length);
   }
-  else cerr << "ERROR, branch not found: " << nodeId << endl;
+  else
+    cerr << "ERROR, branch not found: " << nodeId << endl;
   try
   {
     brLenNNIParams_.addParameter(brLenParameters_.getParameter(name));
@@ -358,4 +371,3 @@ void NNIHomogeneousTreeLikelihood::doNNI(int nodeId)
 }
 
 /*******************************************************************************/
-

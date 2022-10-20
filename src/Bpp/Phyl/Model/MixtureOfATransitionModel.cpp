@@ -1,49 +1,49 @@
 //
 // File: MixtureOfATransitionModel.cpp
-// Created by: David Fournier, Laurent Gueguen
+// Authors:
+//   David Fournier, Laurent Gueguen
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
+#include <Bpp/Exceptions.h>
+#include <Bpp/Numeric/NumConstants.h>
+#include <Bpp/Numeric/Prob/ConstantDistribution.h>
+#include <Bpp/Numeric/VectorTools.h>
+#include <string>
 
 #include "MixtureOfATransitionModel.h"
-
-#include <Bpp/Numeric/NumConstants.h>
-#include <Bpp/Numeric/VectorTools.h>
-#include <Bpp/Numeric/Prob/ConstantDistribution.h>
-#include <Bpp/Exceptions.h>
-
-#include <string>
 
 using namespace bpp;
 using namespace std;
@@ -91,7 +91,7 @@ MixtureOfATransitionModel::MixtureOfATransitionModel(
     else
       distributionMap_[s1]->setNamespace(s1 + "_");
 
-    auto constr =model->getParameter(s2).getConstraint();
+    auto constr = model->getParameter(s2).getConstraint();
     if (constr)
       distributionMap_[s1]->restrictToConstraint(*constr);
   }
@@ -107,14 +107,14 @@ MixtureOfATransitionModel::MixtureOfATransitionModel(
 
   for (i = 0; i < c; i++)
   {
-    modelsContainer_.push_back(model->clone());
+    modelsContainer_.push_back(std::shared_ptr<TransitionModel>(model->clone()));
     vProbas_.push_back(1.0 / static_cast<double>(c));
     vRates_.push_back(1.0);
   }
 
   // Initialization of parameters_.
 
-  
+
   DiscreteDistribution* pd;
 
   for (it = distributionMap_.begin(); it != distributionMap_.end(); it++)
@@ -230,7 +230,7 @@ void MixtureOfATransitionModel::updateMatrices()
   {
     vProbas_[i] = 1;
     j = i;
-    for (auto & distrib:distributionMap_)
+    for (auto& distrib:distributionMap_)
     {
       s = distrib.first;
       l = j % distrib.second->getNumberOfCategories();
@@ -257,7 +257,6 @@ void MixtureOfATransitionModel::updateMatrices()
       freq_[i] += vProbas_[j] * modelsContainer_[j]->freq(i);
     }
   }
-
 }
 
 void MixtureOfATransitionModel::setFreq(std::map<int, double>& m)
@@ -268,11 +267,13 @@ void MixtureOfATransitionModel::setFreq(std::map<int, double>& m)
 
 const TransitionModel* MixtureOfATransitionModel::getModel(const std::string& name) const
 {
-  size_t nbmod=getNumberOfModels();
-  
-  for (size_t i=0; i<nbmod; i++)
-    if (getNModel(i)->getName()==name)
+  size_t nbmod = getNumberOfModels();
+
+  for (size_t i = 0; i < nbmod; i++)
+  {
+    if (getNModel(i)->getName() == name)
       return getNModel(i);
+  }
 
   return NULL;
 }

@@ -1,46 +1,47 @@
 //
 // File: AbstractWordSubstitutionModel.cpp
-// Created by:  Laurent Gueguen
-// Created on: Jan 2009
+// Authors:
+//   Laurent Gueguen
+// Created: 2009-01-08 00:00:00
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
+#include <Bpp/Numeric/Matrix/EigenValue.h>
+#include <Bpp/Numeric/Matrix/MatrixTools.h>
+#include <Bpp/Numeric/VectorTools.h>
 
 #include "AbstractWordSubstitutionModel.h"
-
-#include <Bpp/Numeric/Matrix/MatrixTools.h>
-#include <Bpp/Numeric/Matrix/EigenValue.h>
-#include <Bpp/Numeric/VectorTools.h>
 
 // From SeqLib:
 #include <Bpp/Seq/Alphabet/WordAlphabet.h>
@@ -64,9 +65,9 @@ AbstractWordSubstitutionModel::AbstractWordSubstitutionModel(
   const std::string& prefix) :
   AbstractParameterAliasable(prefix),
   AbstractSubstitutionModel(
-      modelList.getWordAlphabet(),
-      std::shared_ptr<const StateMap>(new CanonicalStateMap(modelList.getWordAlphabet(), false)),
-      prefix),
+    modelList.getWordAlphabet(),
+    std::shared_ptr<const StateMap>(new CanonicalStateMap(modelList.getWordAlphabet(), false)),
+    prefix),
   new_alphabet_ (true),
   VSubMod_      (),
   VnestedPrefix_(),
@@ -122,7 +123,6 @@ AbstractWordSubstitutionModel::AbstractWordSubstitutionModel(
   {
     Vrate_[i] = 1.0 / static_cast<double>(n);
   }
-
 }
 
 AbstractWordSubstitutionModel::AbstractWordSubstitutionModel(
@@ -135,8 +135,7 @@ AbstractWordSubstitutionModel::AbstractWordSubstitutionModel(
   VSubMod_      (),
   VnestedPrefix_(),
   Vrate_        (0)
-{
-}
+{}
 
 AbstractWordSubstitutionModel::AbstractWordSubstitutionModel(
   SubstitutionModel* pmodel,
@@ -147,9 +146,9 @@ AbstractWordSubstitutionModel::AbstractWordSubstitutionModel(
   new_alphabet_ (true),
   VSubMod_      (),
   VnestedPrefix_(),
-  Vrate_        (num,1.0/num)
+  Vrate_        (num, 1.0 / num)
 {
-  stateMap_=std::shared_ptr<const StateMap>(new CanonicalStateMap(getAlphabet(), false));
+  stateMap_ = std::shared_ptr<const StateMap>(new CanonicalStateMap(getAlphabet(), false));
 
   size_t i;
 
@@ -234,11 +233,6 @@ AbstractWordSubstitutionModel::~AbstractWordSubstitutionModel()
     delete alphabet_;
 }
 
-size_t AbstractWordSubstitutionModel::getNumberOfStates() const
-{
-  return getAlphabet()->getSize();
-}
-
 void AbstractWordSubstitutionModel::setNamespace(const std::string& prefix)
 {
   AbstractSubstitutionModel::setNamespace(prefix);
@@ -293,7 +287,7 @@ void AbstractWordSubstitutionModel::updateMatrices()
   RowMatrix<double> gk, exch;
 
   // First fill of the generator from simple position generators
-  
+
   this->fillBasicGenerator();
 
   // modification of generator_
@@ -308,7 +302,7 @@ void AbstractWordSubstitutionModel::updateMatrices()
   // without enableEigenDecomposition
 
   // Eigen values:
-  
+
   if (enableEigenDecomposition())
   {
     AbstractSubstitutionModel::updateMatrices();
@@ -319,8 +313,10 @@ void AbstractWordSubstitutionModel::updateMatrices()
     {
       size_t salph = getNumberOfStates();
       for (auto& fr : freq_)
+      {
         fr = 1;
-  
+      }
+
       m = 1;
       for (k = nbmod; k > 0; k--)
       {
@@ -346,10 +342,13 @@ void AbstractWordSubstitutionModel::updateMatrices()
 
   // compute the exchangeability_
   for (i = 0; i < size_; i++)
+  {
     for (j = 0; j < size_; j++)
+    {
       exchangeability_(i, j) = generator_(i, j) / freq_[j];
+    }
+  }
 }
-
 
 
 void AbstractWordSubstitutionModel::fillBasicGenerator()
@@ -360,23 +359,23 @@ void AbstractWordSubstitutionModel::fillBasicGenerator()
 // Generator
 
   RowMatrix<double> gk;
-  
+
   vector<size_t> vsize;
 
   for (size_t k = 0; k < nbmod; k++)
   {
     vsize.push_back(VSubMod_[k]->getNumberOfStates());
   }
-  
+
   size_t m = 1;
-  
+
   for (size_t k = nbmod; k > 0; k--)
   {
     gk = VSubMod_[k - 1]->getGenerator();
     for (size_t i = 0; i < vsize[k - 1]; i++)
     {
-      const vector<double>& row_gi=gk.getRow(i);
-      
+      const vector<double>& row_gi = gk.getRow(i);
+
       for (size_t j = 0; j < vsize[k - 1]; j++)
       {
         if (i != j)

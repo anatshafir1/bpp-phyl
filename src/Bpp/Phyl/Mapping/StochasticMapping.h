@@ -1,50 +1,51 @@
 //
 // File: StochasticMapping.h
-// Created by: Keren Halabi
-// Created on: June 2018
+// Authors:
+//   Keren Halabi
+// Created: 2018-06-08 00:00:00
 //
 
 /*
-  Copyright or © or Copr. CNRS, (November 16, 2004)
-
+  Copyright or ÃÂ© or Copr. CNRS, (November 16, 2004)
+  
   This software is a computer program whose purpose is to provide classes
   for phylogenetic data analysis.
-
-  This software is governed by the CeCILL  license under French law and
-  abiding by the rules of distribution of free software.  You can  use,
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
   modify and/ or redistribute the software under the terms of the CeCILL
   license as circulated by CEA, CNRS and INRIA at the following URL
   "http://www.cecill.info".
-
-  As a counterpart to the access to the source code and  rights to copy,
+  
+  As a counterpart to the access to the source code and rights to copy,
   modify and redistribute granted by the license, users are provided only
-  with a limited warranty  and the software's author,  the holder of the
-  economic rights,  and the successive licensors  have only  limited
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
   liability.
-
+  
   In this respect, the user's attention is drawn to the risks associated
-  with loading,  using,  modifying and/or developing or reproducing the
+  with loading, using, modifying and/or developing or reproducing the
   software by the user in light of its specific status of free software,
-  that may mean  that it is complicated to manipulate,  and  that  also
-  therefore means  that it is reserved for developers  and  experienced
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
   professionals having in-depth computer knowledge. Users are therefore
   encouraged to load and test the software's suitability as regards their
   requirements in conditions enabling the security of their systems and/or
-  data to be ensured and,  more generally, to use and operate it in the
+  data to be ensured and, more generally, to use and operate it in the
   same conditions as regards security.
-
+  
   The fact that you are presently reading this means that you have had
   knowledge of the CeCILL license and that you accept its terms.
 */
 
-#ifndef ___STOCHASTIC_MAPPING_H
-#define ___STOCHASTIC_MAPPING_H
+#ifndef BPP_PHYL_MAPPING_STOCHASTICMAPPING_H
+#define BPP_PHYL_MAPPING_STOCHASTICMAPPING_H
 
-#include "../Simulation/SubstitutionProcessSequenceSimulator.h"
+
+#include "../Likelihood/DataFlow/DataFlowCWise.h"
+#include "../Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h"
 #include "../Simulation/MutationProcess.h"
-
-#include "../NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h"
-#include "../NewLikelihood/DataFlow/DataFlowCWise.h"
+#include "../Simulation/SubstitutionProcessSequenceSimulator.h"
 
 // From the STL:
 #include <iostream>
@@ -54,7 +55,6 @@
 using namespace std;
 
 /* Store the countings on a DAG similar to the computing DAG */
-
 
 
 typedef vector<vector<vector<double> > > VVVDouble;
@@ -72,26 +72,26 @@ typedef vector<double> VDouble;
 
 namespace bpp
 {
-  class StochasticMapping
-  {
-  protected:
-    /*
-     * @brief The tree likelihood instance is used for computing the
-     * the conditional sampling probabilities of the ancestral states as
-     * well as the root assignment probabilities.
-     *
-     */
-  
-    std::shared_ptr<LikelihoodCalculationSingleProcess> likelihood_;  
+class StochasticMapping
+{
+protected:
+  /*
+   * @brief The tree likelihood instance is used for computing the
+   * the conditional sampling probabilities of the ancestral states as
+   * well as the root assignment probabilities.
+   *
+   */
 
-    std::shared_ptr<PhyloTree> tree_;
+  std::shared_ptr<LikelihoodCalculationSingleProcess> likelihood_;
 
-    /*
-     * @brief this instance will hold the parameters required for the
-     * stochastic mapping procedure, and be used to generate stochastic
-     * mappings.
-     */
-  
+  std::shared_ptr<PhyloTree> tree_;
+
+  /*
+   * @brief this instance will hold the parameters required for the
+   * stochastic mapping procedure, and be used to generate stochastic
+   * mappings.
+   */
+
 //    SimpleSubstitutionProcessSequenceSimulator mappingParameters_;
 
   
@@ -104,24 +104,23 @@ namespace bpp
     map<uint, vector<size_t>> notRepresentedNodes_;     // a map of nodes that were underrepresented, because the mapping didn't match any possible evolutionary path
     size_t numOfMappingTrials_;
 
-  public:
-    /* constructors and destructors */
 
-    explicit StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings, size_t numOfMappingTrials = 1000000); // it is a good general practice to use "explicit" keyword on constructors with a single argument: https://stackoverflow.com/questions/121162/what-does-the-explicit-keyword-mean
+  explicit StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings, size_t numOfMappingTrials = 1000000); // it is a good general practice to use "explicit" keyword on constructors with a single argument: https://stackoverflow.com/questions/121162/what-does-the-explicit-keyword-mean
 
-    ~StochasticMapping();
 
-    StochasticMapping(const StochasticMapping& sm) : 
-      likelihood_(sm.likelihood_),
-      tree_(sm.tree_),
-//      mappingParameters_(likelihood_->getSubstitutionProcess()),
-      ConditionalProbabilities_(sm.ConditionalProbabilities_),
-      nodesCounter_(0), numOfMappings_(sm.numOfMappings_),
-      ancetralStates_(),
-      mappings_(),
-      jumpsProbs_(sm.jumpsProbs_),
-      notRepresentedNodes_(sm.notRepresentedNodes_),
-      numOfMappingTrials_(sm.numOfMappingTrials_)
+  ~StochasticMapping();
+
+  StochasticMapping(const StochasticMapping& sm) :
+    likelihood_(sm.likelihood_),
+    tree_(sm.tree_),
+//   mappingParameters_(likelihood_->getSubstitutionProcess()),
+    ConditionalProbabilities_(sm.ConditionalProbabilities_),
+    nodesCounter_(0), numOfMappings_(sm.numOfMappings_),
+    ancetralStates_(),
+    mappings_(),
+    jumpsProbs_(sm.jumpsProbs_),
+    notRepresentedNodes_(sm.notRepresentedNodes_),
+    numOfMappingTrials_(sm.numOfMappingTrials_)
       
     { 
 
@@ -408,5 +407,4 @@ namespace bpp
 
   };
 }
-
-#endif// ___STOCHASTIC_MAPPING_H
+#endif // BPP_PHYL_MAPPING_STOCHASTICMAPPING_H

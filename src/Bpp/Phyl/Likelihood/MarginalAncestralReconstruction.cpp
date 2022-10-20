@@ -1,72 +1,71 @@
 //
 // File: MarginalAncestralReconstruction.cpp
-// Created by: Julien Dutheil
-// Created on: Fri Jul 08 13:32 2005
+// Authors:
+//   Julien Dutheil
+// Created: 2005-07-08 13:32:00
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
+#include <Bpp/Numeric/Random/RandomTools.h>
+#include <Bpp/Numeric/VectorTools.h>
 
 #include "MarginalAncestralReconstruction.h"
-#include <Bpp/Numeric/VectorTools.h>
-#include <Bpp/Numeric/Random/RandomTools.h>
 
 using namespace bpp;
 using namespace std;
 
 vector<size_t> MarginalAncestralReconstruction::getAncestralStatesForNode(uint nodeId, VVdouble& probs, bool sample) const
 {
-  vector<size_t> ancestors(nbDistinctSites_);
-
-  DataLik r;
-
+  vector<size_t> ancestors(nbSites_);
   auto vv = likelihood_->getLikelihoodsAtNode(nodeId)->getTargetValue();
-  auto vv_t = vv.transpose();
-  auto vv_t_f = vv_t.float_part();
-  auto sumStates = vv_t_f.sum();
-  vv_t_f /= sumStates;
-  copyEigenToBpp(vv_t_f, probs);
+  probs.resize(nbSites_);
+  for (uint i = 0; i < (uint)nbSites_; i++)
+  {
+    copyEigenToBpp(vv.col(i) / vv.col(i).sum(), probs[size_t(i)]);
+  }
 
   if (sample)
-  { 
-    for (size_t i = 0; i < nbDistinctSites_; i++)
+  {
+    for (size_t i = 0; i < nbSites_; i++)
     {
-      const auto& coli = vv.col(Eigen::Index(i));
-      r = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.);
+      const auto& coli = probs[i];
+      double r = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.);
       for (size_t j = 0; j < nbStates_; j++)
       {
-        r -= coli(Eigen::Index(j));
-        if (r < DataLik(0))
+        r -= coli[j];
+        if (r < 0)
         {
           ancestors[i] = j;
           break;
@@ -77,7 +76,7 @@ vector<size_t> MarginalAncestralReconstruction::getAncestralStatesForNode(uint n
   else
   {
     size_t pos;
-    for (size_t i = 0; i < nbDistinctSites_; i++)
+    for (size_t i = 0; i < nbSites_; i++)
     {
       vv.col(Eigen::Index(i)).maxCoeff(&pos);
       ancestors[i] = pos;
@@ -100,28 +99,21 @@ Sequence* MarginalAncestralReconstruction::getAncestralSequenceForNode(uint node
   string name = tree_->getNode(nodeId)->hasName() ? tree_->getNode(nodeId)->getName() : ("" + TextTools::toString(nodeId));
   vector<int> allStates(nbSites_);
 
-  const auto& rootPatternLinks = likelihood_->getRootArrayPositions();
-
   const auto& statemap = likelihood_->getStateMap();
 
   VVdouble patternedProbs;
+
   if (probs)
   {
-    auto states = getAncestralStatesForNode(nodeId, patternedProbs, sample);
-    probs->resize(nbSites_);
+    auto states = getAncestralStatesForNode(nodeId, *probs, sample);
     for (size_t i = 0; i < nbSites_; i++)
-    {
-      allStates[i] = statemap.getAlphabetStateAsInt(states[rootPatternLinks(Eigen::Index(i))]);
-      (*probs)[i] = patternedProbs[rootPatternLinks(Eigen::Index(i))];
-    }
+      allStates[i] = statemap.getAlphabetStateAsInt(states[i]);
   }
   else
   {
     auto states = getAncestralStatesForNode(nodeId, patternedProbs, sample);
     for (size_t i = 0; i < nbSites_; i++)
-    {
-      allStates[i] = statemap.getAlphabetStateAsInt(states[rootPatternLinks(Eigen::Index(i))]);
-    }
+      allStates[i] = statemap.getAlphabetStateAsInt(states[i]);
   }
 
   return new BasicSequence(name, allStates, alphabet_);
@@ -133,8 +125,8 @@ void MarginalAncestralReconstruction::recursiveMarginalAncestralStates(
   AlignedValuesContainer& data) const
 {
   if (tree_->isLeaf(node))
-  { 
-    const SiteContainer* sc=dynamic_cast<const SiteContainer*>(&data);
+  {
+    const SiteContainer* sc = dynamic_cast<const SiteContainer*>(&data);
     if (sc)
     {
       const Sequence& seq = sc->getSequence(node->getName());
@@ -157,8 +149,8 @@ void MarginalAncestralReconstruction::recursiveMarginalAncestralStates(
   else
   {
     ancestors[tree_->getNodeIndex(node)] = getAncestralStatesForNode(tree_->getNodeIndex(node));
-    vector<shared_ptr<PhyloNode> > vsons=tree_->getSons(node);
-  
+    vector<shared_ptr<PhyloNode> > vsons = tree_->getSons(node);
+
     for (size_t i = 0; i < vsons.size(); i++)
     {
       recursiveMarginalAncestralStates(vsons[i], ancestors, data);
@@ -178,4 +170,3 @@ AlignedSequenceContainer* MarginalAncestralReconstruction::getAncestralSequences
   }
   return asc;
 }
-
