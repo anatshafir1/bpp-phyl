@@ -1,49 +1,50 @@
 //
 // File: AbstractSubstitutionModel.cpp
-// Created by: Julien Dutheil
-// Created on: Tue May 27 10:31:49 2003
+// Authors:
+//   Julien Dutheil
+// Created: 2003-05-27 10:31:49
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
+#include <Bpp/Numeric/Matrix/EigenValue.h>
+#include <Bpp/Numeric/Matrix/MatrixTools.h>
+#include <Bpp/Numeric/NumConstants.h>
+#include <Bpp/Numeric/VectorTools.h>
+#include <Bpp/Text/TextTools.h>
 
 #include "AbstractSubstitutionModel.h"
-
-#include <Bpp/Text/TextTools.h>
-#include <Bpp/Numeric/VectorTools.h>
-#include <Bpp/Numeric/Matrix/MatrixTools.h>
-#include <Bpp/Numeric/Matrix/EigenValue.h>
-#include <Bpp/Numeric/NumConstants.h>
 
 // From SeqLib:
 #include <Bpp/Seq/Container/SequenceContainerTools.h>
@@ -66,15 +67,17 @@ AbstractTransitionModel::AbstractTransitionModel(const Alphabet* alpha, std::sha
 {
   if (computeFrequencies())
     for (auto& fr : freq_)
+    {
       fr = 1.0 / static_cast<double>(size_);
+    }
 }
 
 /******************************************************************************/
 
-  double AbstractTransitionModel::getRate() const
-  {
-    return rate_;
-  }
+double AbstractTransitionModel::getRate() const
+{
+  return rate_;
+}
 
 /******************************************************************************/
 
@@ -82,7 +85,7 @@ void AbstractTransitionModel::setRate(double rate)
 {
   if (rate <= 0)
     throw Exception("Bad value for rate: " + TextTools::toString(rate));
-  
+
   if (hasParameter("rate"))
     setParameterValue("rate", rate);
   else
@@ -105,7 +108,7 @@ double AbstractTransitionModel::getInitValue(size_t i, int state) const
 
   for (size_t j = 0; j < states.size(); j++)
   {
-     if (getAlphabetStateAsInt(i) == states[j])
+    if (getAlphabetStateAsInt(i) == states[j])
       return 1.;
   }
   return 0.;
@@ -113,23 +116,10 @@ double AbstractTransitionModel::getInitValue(size_t i, int state) const
 
 /******************************************************************************/
 
-void AbstractTransitionModel::setFreqFromData(const SequenceContainer& data, double pseudoCount)
+void AbstractTransitionModel::setFreqFromData(const SequencedValuesContainer& data, double pseudoCount)
 {
-  map<int, int> counts;
-  SequenceContainerTools::getCounts(data, counts);
   map<int, double> freqs;
-
-  double t = 0;
-  for (auto& ci : counts)
-    t+=ci.second;
-
-  t+= pseudoCount*(double)counts.size();
-  
-  for (int i = 0; i < static_cast<int>(size_); i++)
-  {
-    freqs[i] = (static_cast<double>(counts[i]) + pseudoCount) / t;
-  }
-
+  SequenceContainerTools::getFrequencies(data, freqs, pseudoCount);
   // Re-compute generator and eigen values:
   setFreq(freqs);
 }
@@ -138,14 +128,14 @@ void AbstractTransitionModel::setFreqFromData(const SequenceContainer& data, dou
 
 void AbstractTransitionModel::setFreq(map<int, double>& freqs)
 {
-  for (size_t i = 0; i < size_; ++i)
+  for (auto i : freqs)
   {
-    freq_[i] = freqs[static_cast<int>(i)];
+    freq_[(size_t)i.first] = i.second;
   }
+
   // Re-compute generator and eigen values:
   updateMatrices();
 }
-
 
 
 /******************************************************************************/
@@ -166,51 +156,51 @@ AbstractSubstitutionModel::AbstractSubstitutionModel(const Alphabet* alpha, std:
   leftEigenVectors_(size_, size_),
   vPowGen_(),
   tmpMat_(size_, size_)
-{
-}
+{}
 
 
 /******************************************************************************/
 
 void AbstractSubstitutionModel::updateMatrices()
 {
-
   // Compute eigen values and vectors:
   if (enableEigenDecomposition())
   {
     // Look for null lines (such as stop lines)
     // ie null diagonal elements
 
-    size_t nbStop=0;
+    size_t nbStop = 0;
     size_t salph = getNumberOfStates();
     vector<bool> vnull(salph); // vector of the indices of lines with
                                // only zeros
 
     for (size_t i = 0; i < salph; i++)
     {
-      bool flag=(abs(generator_(i, i)) < NumConstants::TINY());
+      bool flag = (abs(generator_(i, i)) < NumConstants::TINY());
 
       if (flag)
         for (size_t j = 0; j < salph; j++)
+        {
           if (abs(generator_(j, i)) >= NumConstants::TINY())
           {
-            flag=false;
+            flag = false;
             break;
           }
+        }
 
       if (flag)
       {
         nbStop++;
-        vnull[i]=true;
+        vnull[i] = true;
       }
       else
-        vnull[i]=false;
+        vnull[i] = false;
     }
-        
+
     if (nbStop != 0)
     {
-      size_t salphok=salph - nbStop;
-      
+      size_t salphok = salph - nbStop;
+
       RowMatrix<double> gk(salphok, salphok);
       size_t gi = 0, gj = 0;
 
@@ -300,61 +290,63 @@ void AbstractSubstitutionModel::updateMatrices()
           }
         }
       }
-      
+
       // looking for the vector of 0 eigenvalues
 
       vector<size_t> vNullEv;
-      double fact=0.1;
-      while (vNullEv.size()==0 && fact<1000)
+      double fact = 0.1;
+      while (vNullEv.size() == 0 && fact < 1000)
       {
-        fact*=10;
-        
-        for (size_t i = 0; i< salph - nbStop; i++)
-          if ((abs(eigenValues_[i]) < fact*NumConstants::SMALL()) && (abs(iEigenValues_[i]) < NumConstants::SMALL()))
-            vNullEv.push_back(i);
-      }
-      
+        fact *= 10;
 
-      // pb to find unique null eigenvalue      
-      isNonSingular_=(vNullEv.size()==1);
-      
+        for (size_t i = 0; i < salph - nbStop; i++)
+        {
+          if ((abs(eigenValues_[i]) < fact * NumConstants::SMALL()) && (abs(iEigenValues_[i]) < NumConstants::SMALL()))
+            vNullEv.push_back(i);
+        }
+      }
+
+
+      // pb to find unique null eigenvalue
+      isNonSingular_ = (vNullEv.size() == 1);
+
       size_t nulleigen;
-      
+
       double val;
       if (!isNonSingular_)
       {
-        //look or check which non-stop right eigen vector elements are
-        //equal.
+        // look or check which non-stop right eigen vector elements are
+        // equal.
         for (auto cnull : vNullEv)
         {
           size_t i = 0;
           while (vnull[i])
             i++;
-          
+
           val = rightEigenVectors_(i, cnull);
           i++;
-          
+
           while (i < salph)
           {
             if (!vnull[i])
             {
-              if (abs((rightEigenVectors_(i, cnull) - val)/val) > NumConstants::SMALL())
+              if (abs((rightEigenVectors_(i, cnull) - val) / val) > NumConstants::SMALL())
                 break;
             }
             i++;
           }
-          
+
           if (i >= salph)
           {
             isNonSingular_ = true;
-            nulleigen=cnull;
+            nulleigen = cnull;
             break;
           }
         }
       }
       else
-        nulleigen=vNullEv[0];
-      
+        nulleigen = vNullEv[0];
+
       if (isNonSingular_)
       {
         eigenValues_[nulleigen] = 0; // to avoid approximation errors on long long branches
@@ -363,9 +355,11 @@ void AbstractSubstitutionModel::updateMatrices()
         if (computeFrequencies())
         {
           for (size_t i = 0; i < salph; i++)
+          {
             freq_[i] = leftEigenVectors_(nulleigen, i);
-        
-          double x = VectorTools::sum(freq_);        
+          }
+
+          double x = VectorTools::sum(freq_);
           freq_ /= x;
         }
       }
@@ -397,7 +391,7 @@ void AbstractSubstitutionModel::updateMatrices()
       if (vPowGen_.size() == 0)
         vPowGen_.resize(30);
 
-      
+
       if (computeFrequencies())
       {
         MatrixTools::getId(salph, tmpMat_);    // to compute the equilibrium frequency  (Q+Id)^256
@@ -405,7 +399,9 @@ void AbstractSubstitutionModel::updateMatrices()
         MatrixTools::pow(tmpMat_, 256, vPowGen_[0]);
 
         for (size_t i = 0; i < salph; i++)
+        {
           freq_[i] = vPowGen_[0](0, i);
+        }
       }
 
       MatrixTools::getId(salph, vPowGen_[0]);
@@ -413,11 +409,10 @@ void AbstractSubstitutionModel::updateMatrices()
 
     // normalization
     normalize();
-    
+
     if (!isNonSingular_)
       MatrixTools::Taylor(generator_, 30, vPowGen_);
   }
-
 }
 
 
@@ -480,9 +475,10 @@ const Matrix<double>& AbstractSubstitutionModel::getPij_t(double t) const
     }
     for (size_t i = 1; i < vPowGen_.size(); i++)
     {
-      s *= v / static_cast<double>(i);
+      s *= v / static_cast<double>(i);   // v^n/n!
       MatrixTools::add(pijt_, s, vPowGen_[i]);
     }
+    
     while (m > 0)  // recover the 2^m
     {
       MatrixTools::mult(pijt_, pijt_, tmpMat_);
@@ -490,7 +486,25 @@ const Matrix<double>& AbstractSubstitutionModel::getPij_t(double t) const
       m--;
     }
   }
+
 //  MatrixTools::print(pijt_);
+
+  // Check to avoid numerical issues
+  // if (t<= NumConstants::SMALL())
+  for (size_t i = 0; i < size_; i++)
+  {
+    for (size_t j = 0; j < size_; j++)
+    {
+      if (pijt_(i, j) < 0.)
+      {
+        if (std::abs(pijt_(i, j)) > NumConstants::SMALL())
+        {
+          throw Exception("There is an issue in the computation of transition matrix of " + getName() + " : pijt_(" + to_string(i) + "," + to_string(j) + ", " + to_string(t) + ")=" + to_string(pijt_(i, j)));
+        }
+        pijt_(i, j) = 0.;
+      }
+    }
+  }
   return pijt_;
 }
 
@@ -668,9 +682,9 @@ void AbstractSubstitutionModel::setDiagonal()
 {
   for (size_t i = 0; i < size_; i++)
   {
-    double lambda=0;
-    Vdouble& row=generator_.getRow(i);
-    
+    double lambda = 0;
+    Vdouble& row = generator_.getRow(i);
+
     for (size_t j = 0; j < size_; j++)
     {
       if (j != i)
@@ -683,10 +697,10 @@ void AbstractSubstitutionModel::setDiagonal()
 
 /******************************************************************************/
 
-void AbstractSubstitutionModel::normalize() 
+void AbstractSubstitutionModel::normalize()
 {
   if (isScalable_)
-    setScale(1/getScale());
+    setScale(1 / getScale());
 }
 
 /******************************************************************************/
@@ -698,9 +712,8 @@ void AbstractReversibleSubstitutionModel::updateMatrices()
   // Normalization:
   setDiagonal();
   normalize();
-  
+
   AbstractSubstitutionModel::updateMatrices();
 }
 
 /******************************************************************************/
-

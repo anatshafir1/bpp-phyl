@@ -5,11 +5,11 @@
 #   Francois Gindraud (2017)
 # Created: 20/08/2009
 
-cmake_minimum_required (VERSION 2.8.11)
-project (bpp-phyl CXX)
+cmake_minimum_required (VERSION 3.0) #3.0 needed for Eigen inclusion to work
+project (bpp-phyl3 CXX)
 
 # Compile options
-set (CMAKE_CXX_FLAGS "-std=c++11 -Wall -Weffc++ -Wshadow -Wconversion")
+set (CMAKE_CXX_FLAGS "-std=c++14 -Wall -Wshadow -Wconversion")
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
@@ -24,8 +24,17 @@ IF(NOT NO_DEP_CHECK)
 ENDIF(NOT NO_DEP_CHECK)
 
 IF(NO_DEP_CHECK)
-  MESSAGE("-- Dependencies checking disabled. Only distribution can be built.")
+	MESSAGE(STATUS "Dependencies checking disabled. Only distribution can be built.")
 ELSE(NO_DEP_CHECK)
+
+#### Optional Debug
+
+option(USE_DEBUG "Enter Debug Mode" OFF)
+
+IF (USE_DEBUG)
+  MESSAGE("-- Enter Debug mode")
+  add_compile_options(-DDEBUG)
+ENDIF()
 
 # Libtool-like version number
 # CURRENT:REVISION:AGE => file.so.(C-A).A.R
@@ -35,9 +44,19 @@ ELSE(NO_DEP_CHECK)
 #           library implements.
 # In other words, the library implements all the interface numbers in the
 # range from number current - age to current.
-SET(${PROJECT_NAME}_VERSION_CURRENT "12")
+SET(${PROJECT_NAME}_VERSION_CURRENT "1")
 SET(${PROJECT_NAME}_VERSION_REVISION "0")
 SET(${PROJECT_NAME}_VERSION_AGE "0")
+
+#static linkage?
+IF(NOT BUILD_STATIC)
+	SET(BUILD_STATIC FALSE CACHE BOOL
+	  "Compile and install static libraries."
+      FORCE)
+ENDIF()
+IF(BUILD_STATIC)
+  MESSAGE(STATUS "Static libraries requested.")
+ENDIF()
 
 # Effective version number computation
 MATH(EXPR ${PROJECT_NAME}_VERSION_MAJOR "${${PROJECT_NAME}_VERSION_CURRENT} - ${${PROJECT_NAME}_VERSION_AGE}")
@@ -53,7 +72,8 @@ if (CMAKE_INSTALL_PREFIX)
 endif (CMAKE_INSTALL_PREFIX)
 
 include (GNUInstallDirs)
-find_package (bpp-seq 12.0.0 REQUIRED)
+find_package (bpp-core3 1.0.0 REQUIRED)
+find_package (bpp-seq3 1.0.0 REQUIRED)
 
 # CMake package
 set (cmake-package-location ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
@@ -72,6 +92,9 @@ install (FILES ${CMAKE_CURRENT_BINARY_DIR}/package.cmake DESTINATION ${cmake-pac
   RENAME ${PROJECT_NAME}-config.cmake)
 install (FILES ${CMAKE_CURRENT_BINARY_DIR}/package-version.cmake DESTINATION ${cmake-package-location}
   RENAME ${PROJECT_NAME}-config-version.cmake)
+
+# Use eigen
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 # Define the libraries
 add_subdirectory (src)
@@ -93,12 +116,12 @@ ENDIF (DOXYGEN_FOUND)
 ENDIF(NO_DEP_CHECK)
 
 # Packager
-SET(CPACK_PACKAGE_NAME "libbpp-phyl")
+SET(CPACK_PACKAGE_NAME "libbpp-phyl3")
 SET(CPACK_PACKAGE_VENDOR "Bio++ Development Team")
-SET(CPACK_PACKAGE_VERSION "2.4.1")
-SET(CPACK_PACKAGE_VERSION_MAJOR "2")
-SET(CPACK_PACKAGE_VERSION_MINOR "4")
-SET(CPACK_PACKAGE_VERSION_PATCH "1")
+SET(CPACK_PACKAGE_VERSION "3.0.0")
+SET(CPACK_PACKAGE_VERSION_MAJOR "3")
+SET(CPACK_PACKAGE_VERSION_MINOR "0")
+SET(CPACK_PACKAGE_VERSION_PATCH "0")
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "The Bio++ Phylogenetics library")
 SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING.txt")
 SET(CPACK_RESOURCE_FILE_AUTHORS "${CMAKE_SOURCE_DIR}/AUTHORS.txt")
@@ -134,6 +157,7 @@ SET(CTEST_UPDATE_TYPE git)
 SET(UPDATE_COMMAND "git")
 SET(UPDATE_OPTIONS "")
 
+# Tests
 enable_testing ()
 include (CTest)
 if (BUILD_TESTING)

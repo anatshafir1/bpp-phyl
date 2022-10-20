@@ -39,7 +39,7 @@ knowledge of the CeCILL license and that you accept its terms.
 
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
 #include <Bpp/Seq/Io/Phylip.h>
-#include <Bpp/Phyl/Tree.h>
+#include <Bpp/Phyl/Tree/Tree.h>
 #include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Parsimony/DRTreeParsimonyScore.h>
 #include <iostream>
@@ -51,8 +51,9 @@ int main() {
   try {
     Newick treeReader;
     unique_ptr<Tree> tree(treeReader.readTree("example1.mp.dnd"));
+
     Phylip alnReader(false, false);
-    unique_ptr<SiteContainer> sites(alnReader.readAlignment("example1.ph", &AlphabetTools::DNA_ALPHABET));
+    unique_ptr<SiteContainer> sites(dynamic_cast<SiteContainer*>(alnReader.readAlignment("example1.ph", &AlphabetTools::DNA_ALPHABET)));
 
     DRTreeParsimonyScore pars(*tree, *sites, true, true);
   

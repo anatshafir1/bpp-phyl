@@ -39,14 +39,18 @@ knowledge of the CeCILL license and that you accept its terms.
 
 #include <Bpp/Numeric/Matrix/MatrixTools.h>
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
-#include <Bpp/Phyl/TreeTemplate.h>
+#include <Bpp/Seq/Container/SiteContainerTools.h>
+
+#include <Bpp/Seq/Io/BppOAlignmentWriterFormat.h>
+#include <Bpp/Phyl/Io/Newick.h>
 #include <Bpp/Phyl/Model/Nucleotide/T92.h>
 #include <Bpp/Phyl/Model/FrequencySet/NucleotideFrequencySet.h>
 #include <Bpp/Phyl/Model/RateDistribution/ConstantRateDistribution.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
-#include <Bpp/Phyl/Model/SubstitutionModelSetTools.h>
-#include <Bpp/Phyl/Simulation/HomogeneousSequenceSimulator.h>
-#include <Bpp/Phyl/Likelihood/RNonHomogeneousTreeLikelihood.h>
+#include <Bpp/Phyl/Simulation/SimpleSubstitutionProcessSiteSimulator.h>
+#include <Bpp/Phyl/Simulation/GivenDataSubstitutionProcessSequenceSimulator.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+#include <Bpp/Phyl/Likelihood/PhyloLikelihoods/SingleProcessPhyloLikelihood.h>
 #include <Bpp/Phyl/OptimizationTools.h>
 #include <iostream>
 
@@ -54,28 +58,30 @@ using namespace bpp;
 using namespace std;
 
 int main() {
-  TreeTemplate<Node>* tree = TreeTemplateTools::parenthesisToTree("((A:0.01, B:0.02):0.03,C:0.01,D:0.1);");
-  vector<string> seqNames= tree->getLeavesNames();
-  vector<int> ids = tree->getNodesId();
+
+  Newick reader;
+  auto phyloTree = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree("((A:0.01, B:0.02):0.03,C:0.01,D:0.1);", false, "", false, false));
+
+  vector<string> seqNames= phyloTree->getAllLeavesNames();
   //-------------
 
   NucleicAlphabet* alphabet = new DNA();
-  SubstitutionModel* model = new T92(alphabet, 3.);
-  FrequencySet* rootFreqs = new GCFrequencySet(alphabet);
-  std::map<std::string, std::vector<Vint> > globalParameterNames;
-  globalParameterNames["T92.kappa"]={};
-  map<string, string> alias;
+  auto model = std::make_shared<T92>(alphabet, 3.);
+  auto rdist = std::make_shared<ConstantRateDistribution>();
+  auto rootFreqs = std::make_shared<GCFrequencySet>(alphabet);
+  std::vector<std::string> globalParameterNames({"T92.kappa"});
 
-  SubstitutionModelSet* modelSet = SubstitutionModelSetTools::createNonHomogeneousModelSet(model, rootFreqs, tree, alias, globalParameterNames);
-  DiscreteDistribution* rdist = new ConstantRateDistribution();
+  auto process=NonHomogeneousSubstitutionProcess::createNonHomogeneousSubstitutionProcess(model, rdist, phyloTree, rootFreqs, globalParameterNames);
+
   vector<double> thetas;
-  for (unsigned int i = 0; i < modelSet->getNumberOfModels(); ++i) {
+  for (unsigned int i = 0; i < process->getNumberOfModels(); ++i) {
     double theta = RandomTools::giveRandomNumberBetweenZeroAndEntry(0.99) + 0.005;
-    cout << "Theta" << i << " set to " << theta << endl; 
-    modelSet->setParameterValue("T92.theta_" + TextTools::toString(i + 1), theta);
+    cout << "Theta" << i+1 << " set to " << theta << endl; 
+    process->setParameterValue("T92.theta_" + TextTools::toString(i + 1), theta);
     thetas.push_back(theta);
   }
-  NonHomogeneousSequenceSimulator simulator(modelSet, rdist, tree);
+
+  SimpleSubstitutionProcessSiteSimulator simulator(*process);
 
   unsigned int n = 100000;
   OutputStream* profiler  = new StlOutputStream(new ofstream("profile.txt", ios::out));
@@ -93,23 +99,26 @@ int main() {
     sites.addSite(*site, false);
   }
 
+  cout << "fit model" << endl;
+  
   //Now fit model:
-  SubstitutionModelSet* modelSet2 = modelSet->clone();
-  RNonHomogeneousTreeLikelihood tl(*tree, sites, modelSet2, rdist);
-  tl.initialize();
+  Context context;
+  auto l = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, *process);
+  SingleProcessPhyloLikelihood llh(context, l);
 
   OptimizationTools::optimizeNumericalParameters2(
-      &tl, tl.getParameters(), 0,
+      llh, llh.getParameters(), 0,
       0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
+
+  process->matchParametersValues(llh.getParameters());
 
   //Now compare estimated values to real ones:
   for (size_t i = 0; i < thetas.size(); ++i) {
-    cout << thetas[i] << "\t" << modelSet2->getModel(i)->getParameter("theta").getValue() << endl;
-    double diff = abs(thetas[i] - modelSet2->getModel(i)->getParameter("theta").getValue());
+    cout << thetas[i] << "\t" << process->getModel(i+1)->getParameter("theta").getValue() << endl;
+    double diff = abs(thetas[i] - process->getModel(i+1)->getParameter("theta").getValue());
     if (diff > 0.1)
       return 1;
   }
-  delete modelSet2;
 
   //Now try detailed simulations:
 
@@ -118,36 +127,59 @@ int main() {
   //Generate data set:
   VectorSiteContainer sites2(seqNames, alphabet);
   for (unsigned int i = 0; i < n; ++i) {
-    RASiteSimulationResult* result = simulator.dSimulateSite();
-    unique_ptr<Site> site(result->getSite(*simulator.getSubstitutionModelSet()->getModel(0)));
+    auto result = simulator.dSimulateSite();
+    unique_ptr<Site> site(result->getSite(dynamic_cast<const TransitionModel&>(*simulator.getSubstitutionProcess()->getModel(1))));
     site->setPosition(static_cast<int>(i));
     sites2.addSite(*site, false);
     delete result;
   }
 
   //Now fit model:
-  SubstitutionModelSet* modelSet3 = modelSet->clone();
-  RNonHomogeneousTreeLikelihood tl2(*tree, sites2, modelSet3, rdist);
-  tl2.initialize();
+  auto process2 = std::shared_ptr<SubstitutionProcess>(process->clone());
+  auto l2 = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites2, *process2);
+  SingleProcessPhyloLikelihood llh2(context, l2);
 
   OptimizationTools::optimizeNumericalParameters2(
-      &tl2, tl2.getParameters(), 0,
-      0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
+    llh2, llh2.getParameters(), 0,
+    0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
+
+  process2->matchParametersValues(llh2.getParameters());
 
   //Now compare estimated values to real ones:
   for (size_t i = 0; i < thetas.size(); ++i) {
-    cout << thetas[i] << "\t" << modelSet3->getModel(i)->getParameter("theta").getValue() << endl;
-    double diff = abs(thetas[i] - modelSet3->getModel(i)->getParameter("theta").getValue());
+    cout << thetas[i] << "\t" << process2->getModel(i+1)->getParameter("theta").getValue() << endl;
+    double diff = abs(thetas[i] - process2->getModel(i+1)->getParameter("theta").getValue());
     if (diff > 0.1)
+    {
+      cout << "difference too large" << endl;
       return 1;
+    }
   }
-  delete modelSet3;
+
+  cout << "Estimates fine." << endl;
 
   //-------------
-  delete tree;
-  delete alphabet;
-  delete modelSet;
-  delete rdist;
 
+  
+  GivenDataSubstitutionProcessSequenceSimulator gdps(llh2.getLikelihoodCalculationSingleProcess());
+  
+  auto vec2=gdps.simulate();
+
+  BppOAlignmentWriterFormat bppoWriter(1);
+  unique_ptr<OAlignment> oAln(bppoWriter.read("Fasta"));
+
+  oAln->writeAlignment("seq1.fasta", sites2, true);
+  oAln->writeAlignment("seq2.fasta", *vec2, true);
+  // compare
+
+  for (const auto& name: seqNames)
+  {
+    const auto& seq1 = sites2.getSequence(name);
+    const auto& seq2 = vec2->getSequence(name);
+
+    cerr << name << ":" << SiteContainerTools::computeSimilarity(seq1, seq2) << endl;
+  }
+  
+  delete alphabet;
   return 0;
 }

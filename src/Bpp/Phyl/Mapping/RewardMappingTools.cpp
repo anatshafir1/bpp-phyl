@@ -1,339 +1,269 @@
 //
 // File: RewardMappingTools.cpp
-// Created by: Laurent Guéguen
-// Created on: vendredi 29 mars 2013, à 15h 01
+// Authors:
+//   Laurent GuÃÂ©guen
+// Created: vendredi 29 mars 2013, ÃÂ  15h 01
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004, 2005, 2006)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004, 2005, 2006)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#include "RewardMappingTools.h"
-#include "../Likelihood/DRTreeLikelihoodTools.h"
-#include "../Likelihood/MarginalAncestralStateReconstruction.h"
-
-#include <Bpp/Text/TextTools.h>
 #include <Bpp/App/ApplicationTools.h>
-#include <Bpp/Numeric/Matrix/MatrixTools.h>
 #include <Bpp/Numeric/DataTable.h>
+#include <Bpp/Numeric/Matrix/MatrixTools.h>
+#include <Bpp/Text/TextTools.h>
+
+#include "../Likelihood/DataFlow/ForwardLikelihoodTree.h"
+#include "../Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h"
+#include "RewardMappingTools.h"
 
 using namespace bpp;
+using namespace numeric;
 
 // From the STL:
 #include <iomanip>
 
 using namespace std;
 
+
 /******************************************************************************/
 
 ProbabilisticRewardMapping* RewardMappingTools::computeRewardVectors(
-  const DRTreeLikelihood& drtl,
-  const vector<int>& nodeIds,
+  LikelihoodCalculationSingleProcess& rltc,
+  const vector<uint>& edgeIds,
   Reward& reward,
+  short unresolvedOption,
   bool verbose)
 {
   // Preamble:
-  if (!drtl.isInitialized())
-    throw Exception("RewardMappingTools::computeRewardVectors(). Likelihood object is not initialized.");
+  if (!rltc.isInitialized())
+    throw Exception("RewardMappingTools::computeSubstitutionVectors(). Likelihood object is not initialized.");
 
-  // A few variables we'll need:
+  const SubstitutionProcess& sp = rltc.getSubstitutionProcess();
 
-  const TreeTemplate<Node> tree(drtl.getTree());
-  const SiteContainer*    sequences = drtl.getData();
-  const DiscreteDistribution* rDist = drtl.getRateDistribution();
+  if (edgeIds.size() == 0)
+    return new ProbabilisticRewardMapping(*sp.getParametrizablePhyloTree(),
+                                          rltc.getRootArrayPositions(),
+                                          rltc.getNumberOfDistinctSites());
 
-  size_t nbSites         = sequences->getNumberOfSites();
-  size_t nbDistinctSites = drtl.getLikelihoodData()->getNumberOfDistinctSites();
-  size_t nbStates        = sequences->getAlphabet()->getSize();
-  size_t nbClasses       = rDist->getNumberOfCategories();
-  vector<const Node*> nodes    = tree.getNodes();
-  const vector<size_t>* rootPatternLinks
-    = &drtl.getLikelihoodData()->getRootArrayPositions();
-  nodes.pop_back(); // Remove root node.
-  size_t nbNodes         = nodes.size();
+  auto processTree = rltc.getTreeNode(0);
 
-  // We create a new ProbabilisticRewardMapping object:
-  ProbabilisticRewardMapping* rewards = new ProbabilisticRewardMapping(tree, &reward, nbSites);
+  /* First, set substitution rewards */
 
-  // Store likelihood for each rate for each site:
-  VVVdouble lik;
-  drtl.computeLikelihoodAtNode(tree.getRootId(), lik);
-  Vdouble Lr(nbDistinctSites, 0);
-  Vdouble rcProbs = rDist->getProbabilities();
-  Vdouble rcRates = rDist->getCategories();
-  for (size_t i = 0; i < nbDistinctSites; i++)
+  std::map<const SubstitutionModel*, std::shared_ptr<Reward> > mModReward;
+
+  for (auto speciesId :edgeIds)
   {
-    VVdouble* lik_i = &lik[i];
-    for (size_t c = 0; c < nbClasses; c++)
+    const auto& dagIndexes = rltc.getEdgesIds(speciesId, 0);
+
+    for (auto id:dagIndexes)
     {
-      Vdouble* lik_i_c = &(*lik_i)[c];
-      double rc = rDist->getProbability(c);
-      for (size_t s = 0; s < nbStates; s++)
+      const auto& edge = processTree->getEdge(id);
+      if (edge->getBrLen()) // if edge with model on it
       {
-        Lr[i] += (*lik_i_c)[s] * rc;
+        auto model = edge->getModel();
+
+        auto nMod = edge->getNMod();
+
+        auto tm = dynamic_cast<const TransitionModel*>(model->getTargetValue());
+
+        const SubstitutionModel* sm(0);
+
+        if (nMod == 0)
+        {
+          sm = dynamic_cast<const SubstitutionModel*>(tm);
+
+          if (sm == NULL)
+            throw Exception("SubstitutionMappingTools::computeCounts : SubstitutionVectors possible only for SubstitutionModels, not in branch " + TextTools::toString(speciesId) + ". Got model " + tm->getName());
+        }
+        else
+        {
+          size_t nmod = nMod->getTargetValue();
+
+          auto ttm = dynamic_cast<const MixedTransitionModel*>(tm);
+          if (ttm == NULL)
+            throw Exception("SubstitutionMappingTools::computeCounts : Expecting Mixed model in branch " + TextTools::toString(speciesId) + ". Got model " + tm->getName());
+
+          sm = dynamic_cast<const SubstitutionModel*>(ttm->getNModel(nmod));
+
+          if (sm == NULL)
+            throw Exception("SubstitutionMappingTools::computeCounts : Expecting Substitution model for submodel " + TextTools::toString(nmod) + " of mixed model " + tm->getName() + " in branch " + TextTools::toString(speciesId));
+        }
+
+        if (mModReward.find(sm) == mModReward.end())
+        {
+          mModReward[sm] = std::shared_ptr<Reward>(reward.clone());
+          mModReward[sm]->setSubstitutionModel(sm);
+        }
       }
     }
   }
 
-  // Compute the reward for each class and each branch in the tree:
-  if (verbose)
-    ApplicationTools::displayTask("Compute joint node-pairs likelihood", true);
+  auto ppt = sp.getParametrizablePhyloTree();
 
-  for (size_t l = 0; l < nbNodes; ++l)
+  // A few variables we'll need:
+
+  size_t nbDistinctSites = rltc.getNumberOfDistinctSites();
+  size_t nbClasses       = sp.getNumberOfClasses();
+  size_t nbNodes         = edgeIds.size();
+
+  const auto& rootPatternLinks = rltc.getRootArrayPositions();
+
+  // We create a new ProbabilisticRewardMapping object:
+  unique_ptr<ProbabilisticRewardMapping> rewards(new ProbabilisticRewardMapping(*ppt, rootPatternLinks, nbDistinctSites));
+
+  // Compute the reward for each class and each branch in the tree:
+
+  // Get the DAG of probabilities of the edges
+  ProbabilityDAG probaDAG(rltc.getForwardLikelihoodTree(0));
+
+  if (verbose)
+    ApplicationTools::displayTask("Compute rewards", true);
+
+  unique_ptr<ProbabilisticRewardMapping::mapTree::EdgeIterator> brIt = rewards->allEdgesIterator();
+
+  Eigen::MatrixXd rpxy;
+
+  size_t nn = 0;
+  for ( ; !brIt->end(); brIt->next())
   {
-    // For each node,
-    const Node* currentNode = nodes[l];
-    if (nodeIds.size() > 0 && !VectorTools::contains(nodeIds, currentNode->getId()))
+    if (verbose)
+      ApplicationTools::displayGauge(nn++, nbNodes - 1);
+
+    shared_ptr<PhyloBranchReward> br = **brIt;
+
+    // For each branch
+    uint speciesId = rewards->getEdgeIndex(br);
+
+    if (edgeIds.size() > 0 && !VectorTools::contains(edgeIds, (int)speciesId))
       continue;
 
-    const Node* father = currentNode->getFather();
+    RowLik rewardsForCurrentNode(RowLik::Zero(int(nbDistinctSites)));
 
-    double d = currentNode->getDistanceToFather();
-
-    if (verbose)
-      ApplicationTools::displayGauge(l, nbNodes - 1);
-    Vdouble rewardsForCurrentNode(nbDistinctSites);
-
-    // Now we've got to compute likelihoods in a smart manner... ;)
-    VVVdouble likelihoodsFatherConstantPart(nbDistinctSites);
-    for (size_t i = 0; i < nbDistinctSites; i++)
+    for (size_t ncl = 0; ncl < nbClasses; ncl++)
     {
-      VVdouble* likelihoodsFatherConstantPart_i = &likelihoodsFatherConstantPart[i];
-      likelihoodsFatherConstantPart_i->resize(nbClasses);
-      for (size_t c = 0; c < nbClasses; c++)
-      {
-        Vdouble* likelihoodsFatherConstantPart_i_c = &(*likelihoodsFatherConstantPart_i)[c];
-        likelihoodsFatherConstantPart_i_c->resize(nbStates);
-        double rc = rDist->getProbability(c);
-        for (size_t s = 0; s < nbStates; s++)
-        {
-          // (* likelihoodsFatherConstantPart_i_c)[s] = rc * model->freq(s);
-          // freq is already accounted in the array
-          (*likelihoodsFatherConstantPart_i_c)[s] = rc;
-        }
-      }
-    }
+      processTree = rltc.getTreeNode(ncl);
 
-    // First, what will remain constant:
-    size_t nbSons =  father->getNumberOfSons();
-    for (size_t n = 0; n < nbSons; n++)
-    {
-      const Node* currentSon = father->getSon(n);
-      if (currentSon->getId() != currentNode->getId())
-      {
-        const VVVdouble* likelihoodsFather_son = &drtl.getLikelihoodData()->getLikelihoodArray(father->getId(), currentSon->getId());
+      double pr = sp.getProbabilityForModel(ncl);
 
-        // Now iterate over all site partitions:
-        unique_ptr<TreeLikelihood::ConstBranchModelIterator> mit(drtl.getNewBranchModelIterator(currentSon->getId()));
-        VVVdouble pxy;
-        bool first;
-        while (mit->hasNext())
-        {
-          TreeLikelihood::ConstBranchModelDescription* bmd = mit->next();
-          unique_ptr<TreeLikelihood::SiteIterator> sit(bmd->getNewSiteIterator());
-          first = true;
-          while (sit->hasNext())
-          {
-            size_t i = sit->next();
-            // We retrieve the transition probabilities for this site partition:
-            if (first)
-            {
-              pxy = drtl.getTransitionProbabilitiesPerRateClass(currentSon->getId(), i);
-              first = false;
-            }
-            const VVdouble* likelihoodsFather_son_i = &(*likelihoodsFather_son)[i];
-            VVdouble* likelihoodsFatherConstantPart_i = &likelihoodsFatherConstantPart[i];
-            for (size_t c = 0; c < nbClasses; c++)
-            {
-              const Vdouble* likelihoodsFather_son_i_c = &(*likelihoodsFather_son_i)[c];
-              Vdouble* likelihoodsFatherConstantPart_i_c = &(*likelihoodsFatherConstantPart_i)[c];
-              VVdouble* pxy_c = &pxy[c];
-              for (size_t x = 0; x < nbStates; x++)
-              {
-                Vdouble* pxy_c_x = &(*pxy_c)[x];
-                double likelihood = 0.;
-                for (size_t y = 0; y < nbStates; y++)
-                {
-                  likelihood += (*pxy_c_x)[y] * (*likelihoodsFather_son_i_c)[y];
-                }
-                (*likelihoodsFatherConstantPart_i_c)[x] *= likelihood;
-              }
-            }
-          }
-        }
-      }
-    }
-    if (father->hasFather())
-    {
-      const Node* currentSon = father->getFather();
-      const VVVdouble* likelihoodsFather_son = &drtl.getLikelihoodData()->getLikelihoodArray(father->getId(), currentSon->getId());
-      // Now iterate over all site partitions:
-      unique_ptr<TreeLikelihood::ConstBranchModelIterator> mit(drtl.getNewBranchModelIterator(father->getId()));
-      VVVdouble pxy;
-      bool first;
-      while (mit->hasNext())
-      {
-        TreeLikelihood::ConstBranchModelDescription* bmd = mit->next();
-        unique_ptr<TreeLikelihood::SiteIterator> sit(bmd->getNewSiteIterator());
-        first = true;
-        while (sit->hasNext())
-        {
-          size_t i = sit->next();
-          // We retrieve the transition probabilities for this site partition:
-          if (first)
-          {
-            pxy = drtl.getTransitionProbabilitiesPerRateClass(father->getId(), i);
-            first = false;
-          }
-          const VVdouble* likelihoodsFather_son_i = &(*likelihoodsFather_son)[i];
-          VVdouble* likelihoodsFatherConstantPart_i = &likelihoodsFatherConstantPart[i];
-          for (size_t c = 0; c < nbClasses; c++)
-          {
-            const Vdouble* likelihoodsFather_son_i_c = &(*likelihoodsFather_son_i)[c];
-            Vdouble* likelihoodsFatherConstantPart_i_c = &(*likelihoodsFatherConstantPart_i)[c];
-            VVdouble* pxy_c = &pxy[c];
-            for (size_t x = 0; x < nbStates; x++)
-            {
-              double likelihood = 0.;
-              for (size_t y = 0; y < nbStates; y++)
-              {
-                Vdouble* pxy_c_x = &(*pxy_c)[y];
-                likelihood += (*pxy_c_x)[x] * (*likelihoodsFather_son_i_c)[y];
-              }
-              (*likelihoodsFatherConstantPart_i_c)[x] *= likelihood;
-            }
-          }
-        }
-      }
-    }
-    else
-    {
-      // Account for root frequencies:
-      for (size_t i = 0; i < nbDistinctSites; i++)
-      {
-        vector<double> freqs = drtl.getRootFrequencies(i);
-        VVdouble* likelihoodsFatherConstantPart_i = &likelihoodsFatherConstantPart[i];
-        for (size_t c = 0; c < nbClasses; c++)
-        {
-          Vdouble* likelihoodsFatherConstantPart_i_c = &(*likelihoodsFatherConstantPart_i)[c];
-          for (size_t x = 0; x < nbStates; x++)
-          {
-            (*likelihoodsFatherConstantPart_i_c)[x] *= freqs[x];
-          }
-        }
-      }
-    }
+      RowLik rewardsForCurrentClass(RowLik::Zero(Eigen::Index(nbDistinctSites)));
 
-    // Then, we deal with the node of interest.
-    // We first average upon 'y' to save computations, and then upon 'x'.
-    // ('y' is the state at 'node' and 'x' the state at 'father'.)
+      const auto& dagIndexes = rltc.getEdgesIds(speciesId, ncl);
 
-    // Iterate over all site partitions:
-    const VVVdouble* likelihoodsFather_node = &(drtl.getLikelihoodData()->getLikelihoodArray(father->getId(), currentNode->getId()));
-    unique_ptr<TreeLikelihood::ConstBranchModelIterator> mit(drtl.getNewBranchModelIterator(currentNode->getId()));
-    VVVdouble pxy;
-    bool first;
-    while (mit->hasNext())
-    {
-      TreeLikelihood::ConstBranchModelDescription* bmd = mit->next();
-      reward.setSubstitutionModel(bmd->getSubstitutionModel());
-      // compute all nxy first:
-      VVVdouble nxy(nbClasses);
-      for (size_t c = 0; c < nbClasses; ++c)
+      // Sum on all dag edges for this speciesId
+      for (auto id:dagIndexes)
       {
-        VVdouble* nxy_c = &nxy[c];
-        double rc = rcRates[c];
-        Matrix<double>* nij = reward.getAllRewards(d * rc);
-        nxy_c->resize(nbStates);
-        for (size_t x = 0; x < nbStates; ++x)
+        auto edge = processTree->getEdge(id);
+
+        auto tm = dynamic_cast<const TransitionModel*>(edge->getModel()->getTargetValue());
+
+        auto nMod = edge->getNMod();
+
+        const SubstitutionModel* sm(0);
+
+        if (nMod == 0)
+          sm = dynamic_cast<const SubstitutionModel*>(tm);
+        else
         {
-          Vdouble* nxy_c_x = &(*nxy_c)[x];
-          nxy_c_x->resize(nbStates);
-          for (size_t y = 0; y < nbStates; ++y)
-          {
-            (*nxy_c_x)[y] = (*nij)(x, y);
-          }
+          size_t nmod = nMod->getTargetValue();
+
+          auto ttm = dynamic_cast<const MixedTransitionModel*>(tm);
+          sm = dynamic_cast<const SubstitutionModel*>(ttm->getNModel(nmod));
         }
-        delete nij;
+
+        auto subReward = mModReward[sm];
+
+        const auto& likelihoodsTopEdge = rltc.getBackwardLikelihoodsAtEdgeForClass(id, ncl)->getTargetValue();
+
+        auto sonid = rltc.getForwardLikelihoodTree(ncl)->getSon(id);
+        auto fatid = rltc.getForwardLikelihoodTree(ncl)->getFatherOfEdge(id);
+
+        const auto& likelihoodsBotEdge = rltc.getForwardLikelihoodsAtNodeForClass(sonid, ncl)->getTargetValue();
+
+        // compute all nxy * pxy first:
+
+        const Eigen::MatrixXd& pxy = edge->getTransitionMatrix()->accessValueConst();
+        const auto& likelihoodsFather = rltc.getLikelihoodsAtNodeForClass(fatid, ncl)->getTargetValue();
+
+
+        subReward->storeAllRewards(edge->getBrLen()->getValue(), rpxy);
+
+        rpxy.array() *= pxy.array();
+
+        // Now loop over sites:
+
+        auto rew = rpxy * likelihoodsBotEdge;
+
+        auto bb = (cwise(likelihoodsTopEdge) * cwise(rew)).colwise().sum();
+
+        
+        Eigen::VectorXd ff(likelihoodsBotEdge.cols());
+        switch(unresolvedOption){
+        case SubstitutionMappingTools::UNRESOLVED_ZERO:
+        case SubstitutionMappingTools::UNRESOLVED_AVERAGE:
+            
+          // Nullify counts where sum likelihoods > 1 : ie unknown
+          for (auto i=0;i<ff.size();i++)
+          {
+            const auto& s=likelihoodsBotEdge.col(i).sum();
+            if (s>=2.)
+              ff[i]=(unresolvedOption==SubstitutionMappingTools::UNRESOLVED_ZERO)?0.:1./convert(s);
+            else
+              ff[i]=1;
+          }
+          
+          // Normalizes by likelihood on this node
+
+          bb *= ff.array();
+        default:
+          ;
+        }
+
+        // Normalizes by likelihood on this node
+        auto cc = bb / cwise(likelihoodsFather);
+
+        // adds, with branch ponderation  ( * edge / edge * father) probs
+        cwise(rewardsForCurrentClass) += cc * probaDAG.getProbaAtNode(fatid);
       }
 
-      // Now loop over sites:
-      unique_ptr<TreeLikelihood::SiteIterator> sit(bmd->getNewSiteIterator());
-      first = true;
-      while (sit->hasNext())
-      {
-        size_t i = sit->next();
-        // We retrieve the transition probabilities and substitution counts for this site partition:
-        if (first)
-        {
-          pxy = drtl.getTransitionProbabilitiesPerRateClass(currentNode->getId(), i);
-          first = false;
-        }
-        const VVdouble* likelihoodsFather_node_i = &(*likelihoodsFather_node)[i];
-        VVdouble* likelihoodsFatherConstantPart_i = &likelihoodsFatherConstantPart[i];
-        for (size_t c = 0; c < nbClasses; ++c)
-        {
-          const Vdouble* likelihoodsFather_node_i_c = &(*likelihoodsFather_node_i)[c];
-          Vdouble* likelihoodsFatherConstantPart_i_c = &(*likelihoodsFatherConstantPart_i)[c];
-          const VVdouble* pxy_c = &pxy[c];
-          VVdouble* nxy_c = &nxy[c];
-          for (size_t x = 0; x < nbStates; ++x)
-          {
-            double* likelihoodsFatherConstantPart_i_c_x = &(*likelihoodsFatherConstantPart_i_c)[x];
-            const Vdouble* pxy_c_x = &(*pxy_c)[x];
-            for (size_t y = 0; y < nbStates; ++y)
-            {
-              double likelihood_cxy = (*likelihoodsFatherConstantPart_i_c_x)
-                                      * (*pxy_c_x)[y]
-                                      * (*likelihoodsFather_node_i_c)[y];
-
-              // Now the vector computation:
-              rewardsForCurrentNode[i] += likelihood_cxy * (*nxy_c)[x][y];
-              //                       <------------>   <--------------->
-              // Posterior probability         |                 |
-              // for site i and rate class c * |                 |
-              // likelihood for this site------+                 |
-              //                                                 |
-              // Reward function for site i and rate class c------+
-            }
-          }
-        }
-      }
+      rewardsForCurrentNode += rewardsForCurrentClass * pr;
     }
 
     // Now we just have to copy the substitutions into the result vector:
-    for (size_t i = 0; i < nbSites; ++i)
-      (*rewards)(l, i) = rewardsForCurrentNode[(*rootPatternLinks)[i]] / Lr[(*rootPatternLinks)[i]];
-
+    for (size_t i = 0; i < nbDistinctSites; ++i)
+    {
+      (*br)(i) = convert(rewardsForCurrentNode(Eigen::Index(i)));
+    }
   }
   if (verbose)
   {
@@ -341,14 +271,14 @@ ProbabilisticRewardMapping* RewardMappingTools::computeRewardVectors(
       *ApplicationTools::message << " ";
     ApplicationTools::displayTaskDone();
   }
-  return rewards;
+  return rewards.release();
 }
 
 /**************************************************************************************************/
 
 void RewardMappingTools::writeToStream(
   const ProbabilisticRewardMapping& rewards,
-  const SiteContainer& sites,
+  const AlignedValuesContainer& sites,
   ostream& out)
 {
   if (!out)
@@ -357,17 +287,23 @@ void RewardMappingTools::writeToStream(
   out << "\tMean";
   for (size_t i = 0; i < rewards.getNumberOfSites(); i++)
   {
-    out << "\tSite" << sites.getSite(i).getPosition();
+    out << "\tSite" << sites.getSymbolListSite(i).getPosition();
   }
   out << endl;
 
-  for (size_t j = 0; j < rewards.getNumberOfBranches(); j++)
+  unique_ptr<ProbabilisticRewardMapping::mapTree::EdgeIterator> brIt = rewards.allEdgesIterator();
+
+  for ( ; !brIt->end(); brIt->next())
   {
-    out << rewards.getNode(j)->getId() << "\t" << rewards.getNode(j)->getDistanceToFather();
+    const shared_ptr<PhyloBranchReward> br = **brIt;
+
+    out << rewards.getEdgeIndex(br) << "\t" << br->getLength();
+
     for (size_t i = 0; i < rewards.getNumberOfSites(); i++)
     {
-      out << "\t" << rewards(j, i);
+      out << "\t" << br->getSiteReward(rewards.getSiteIndex(i));
     }
+
     out << endl;
   }
 }
@@ -378,23 +314,27 @@ void RewardMappingTools::readFromStream(istream& in, ProbabilisticRewardMapping&
 {
   try
   {
-    DataTable* data = DataTable::read(in, "\t", true, -1);
+    auto data = DataTable::read(in, "\t", true, -1);
     vector<string> ids = data->getColumn(0);
     data->deleteColumn(0); // Remove ids
     data->deleteColumn(0); // Remove means
     // Now parse the table:
     size_t nbSites = data->getNumberOfColumns();
     rewards.setNumberOfSites(nbSites);
-    size_t nbBranches = data->getNumberOfRows();
-    for (size_t i = 0; i < nbBranches; i++)
+
+    unique_ptr<ProbabilisticRewardMapping::mapTree::EdgeIterator> brIt = rewards.allEdgesIterator();
+
+    for ( ; !brIt->end(); brIt->next())
     {
-      int id = TextTools::toInt(ids[i]);
-      size_t br = rewards.getNodeIndex(id);
+      const shared_ptr<PhyloBranchReward> br = **brIt;
+
+      uint brid = rewards.getEdgeIndex(br);
       for (size_t j = 0; j < nbSites; j++)
       {
-        rewards(br, j) = TextTools::toDouble((*data)(i, j));
+        (*br)(j) = TextTools::toDouble((*data)(brid, j));
       }
     }
+
     // Parse the header:
     for (size_t i = 0; i < nbSites; i++)
     {
@@ -407,7 +347,6 @@ void RewardMappingTools::readFromStream(istream& in, ProbabilisticRewardMapping&
       rewards.setSitePosition(i, site);
     }
 
-    delete data;
   }
   catch (Exception& e)
   {
@@ -417,26 +356,31 @@ void RewardMappingTools::readFromStream(istream& in, ProbabilisticRewardMapping&
 
 /**************************************************************************************************/
 
-double RewardMappingTools::computeSumForBranch(const RewardMapping& smap, size_t branchIndex)
+double RewardMappingTools::computeSumForBranch(const ProbabilisticRewardMapping& smap, size_t branchIndex)
 {
   size_t nbSites = smap.getNumberOfSites();
   double v = 0;
+  shared_ptr<PhyloBranchReward> br = smap.getEdge((uint)branchIndex);
+
   for (size_t i = 0; i < nbSites; ++i)
   {
-    v += smap(branchIndex, i);
+    v += br->getSiteReward(smap.getSiteIndex(i));
   }
   return v;
 }
 
 /**************************************************************************************************/
 
-double RewardMappingTools::computeSumForSite(const RewardMapping& smap, size_t siteIndex)
+double RewardMappingTools::computeSumForSite(const ProbabilisticRewardMapping& smap, size_t site)
 {
-  size_t nbBranches = smap.getNumberOfBranches();
   double v = 0;
-  for (size_t i = 0; i < nbBranches; ++i)
+  unique_ptr<ProbabilisticRewardMapping::mapTree::EdgeIterator> brIt = smap.allEdgesIterator();
+
+  size_t siteIndex = smap.getSiteIndex(site);
+
+  for ( ; !brIt->end(); brIt->next())
   {
-    v += smap(i, siteIndex);
+    v += (**brIt)->getSiteReward(siteIndex);
   }
   return v;
 }

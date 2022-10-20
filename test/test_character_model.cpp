@@ -56,8 +56,8 @@ knowledge of the CeCILL license and that you accept its terms.
 
 // From bpp-phyl
 #include <Bpp/Phyl/Model/TwoParameterBinarySubstitutionModel.h>
-#include <Bpp/Phyl/TreeTemplate.h>
-#include <Bpp/Phyl/TreeTemplateTools.h>
+#include <Bpp/Phyl/Tree/TreeTemplate.h>
+#include <Bpp/Phyl/Tree/TreeTemplateTools.h>
 
 // from std
 #include <string>

@@ -1,46 +1,47 @@
 //
 // File: MutationProcess.cpp
-// Created by: Julien Dutheil
-// Created on: Wed Mar 12 16:11:44 2003
+// Authors:
+//   Julien Dutheil
+// Created: 2003-03-12 16:11:44
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004)
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
+#include <Bpp/Numeric/Random/RandomTools.h>
+#include <Bpp/Text/TextTools.h>
 
 #include "MutationProcess.h"
-
-#include <Bpp/Text/TextTools.h>
-#include <Bpp/Numeric/Random/RandomTools.h>
 
 using namespace bpp;
 using namespace std;
@@ -52,7 +53,8 @@ size_t AbstractMutationProcess::mutate(size_t state) const
   double alea = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
   for (size_t j = 0; j < size_; j++)
   {
-    if (alea < repartition_[state][j]) return j;
+    if (alea < repartition_[state][j])
+      return j;
   }
   throw Exception("AbstractMutationProcess::mutate. Repartition function is incomplete for state " + TextTools::toString(state));
 }
@@ -106,7 +108,7 @@ MutationPath AbstractMutationProcess::detailedEvolve(size_t initialState, double
   MutationPath mp(model_->getAlphabet(), initialState, time);
   double t = 0;
   size_t currentState = initialState;
-    
+
   t += getTimeBeforeNextMutationEvent(currentState);
   while (t < time)
   {
@@ -114,8 +116,57 @@ MutationPath AbstractMutationProcess::detailedEvolve(size_t initialState, double
     mp.addEvent(currentState, t);
     t += getTimeBeforeNextMutationEvent(currentState);
   }
+
   return mp;
 }
+
+/******************************************************************************/
+
+MutationPath AbstractMutationProcess::detailedEvolve(size_t initialState, size_t finalState, double time) const
+{
+  size_t maxIterNum = 1000; // max nb of tries
+  MutationPath mp(model_->getAlphabet(), initialState, time);
+
+  for (size_t i = 0; i < maxIterNum; ++i)
+  {
+    mp.clear();
+
+    double t = 0;
+
+    // if the father's state is not the same as the son's state -> use the correction corresponding to equation (11) in the paper
+    if (initialState != finalState)
+    {   // sample timeTillChange conditional on it being smaller than time
+      double u = RandomTools::giveRandomNumberBetweenZeroAndEntry(1.0);
+      double waitingTimeParam = model_->Qij(initialState, initialState); // get the parameter for the exponential distribution to draw the waiting time
+      double tmp = u * (1.0 - exp(time * waitingTimeParam));
+      t =  log(1.0 - tmp) / waitingTimeParam;
+    }
+    else
+    {
+      t = getTimeBeforeNextMutationEvent(initialState); // draw the time until a transition from exponential distribution with the rate of leaving fatherState
+    }
+
+    size_t currentState = initialState;
+    while (t < time)  // a jump occured but not passed the whole time
+    {
+      currentState = mutate(currentState);
+      mp.addEvent(currentState, t);      // add the current state and time to branch history
+      t += getTimeBeforeNextMutationEvent(currentState);        // draw the time until a transition from exponential distribution with the rate of leaving currentState from initial state curState based on the relative tranistion rates distribution
+    }
+    //   // the last jump passed the length of the branch -> finish the simulation and check if it's sucessfull (i.e, mapping is finished at the son's state)
+    if (currentState != finalState) // if the simulation failed, try again
+    {
+      continue;
+    }
+    else
+      return mp;
+  }
+
+  // Emergency case when none simul reached finalState
+  mp.addEvent(finalState, time);
+  return mp;
+}
+
 
 /******************************************************************************/
 
@@ -130,16 +181,17 @@ SimpleMutationProcess::SimpleMutationProcess(const SubstitutionModel* model) :
   RowMatrix<double> Q = model->getGenerator();
   for (size_t i = 0; i < size_; i++)
   {
-    repartition_[i] = Vdouble(size_,0);
-    if (abs(Q(i,i))> NumConstants::TINY())
+    repartition_[i] = Vdouble(size_, 0);
+    if (abs(Q(i, i)) > NumConstants::TINY())
     {
       double cum = 0;
       double sum_Q = 0;
       for (size_t j = 0; j < size_; j++)
       {
-        if (j != i) sum_Q += Q(i, j);
+        if (j != i)
+          sum_Q += Q(i, j);
       }
-      
+
       for (size_t j = 0; j < size_; j++)
       {
         if (j != i)
@@ -147,12 +199,13 @@ SimpleMutationProcess::SimpleMutationProcess(const SubstitutionModel* model) :
           cum += model->Qij(i, j) / sum_Q;
           repartition_[i][j] = cum;
         }
-        else repartition_[i][j] = -1;
+        else
+          repartition_[i][j] = -1;
         // Forbiden value: does not correspond to a change.
       }
     }
   }
-  
+
   // Note that I use cumulative probabilities in repartition_ (hence the name).
   // These cumulative probabilities are useful for the 'mutate(...)' function.
 }
@@ -173,7 +226,8 @@ size_t SimpleMutationProcess::evolve(size_t initialState, double time) const
   double rand = RandomTools::giveRandomNumberBetweenZeroAndEntry(1);
   for (size_t i = 0; i < size_; i++)
   {
-    if (rand < pijt[i]) return i;
+    if (rand < pijt[i])
+      return i;
   }
   throw Exception("SimpleSimulationProcess::evolve(intialState, time): error all pijt do not sum to one (total sum = " + TextTools::toString(pijt[size_ - 1]) + ").");
 }
@@ -203,4 +257,3 @@ SelfMutationProcess::SelfMutationProcess(size_t alphabetSize) :
 SelfMutationProcess::~SelfMutationProcess() {}
 
 /******************************************************************************/
-

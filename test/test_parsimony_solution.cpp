@@ -38,8 +38,8 @@ knowledge of the CeCILL license and that you accept its terms.
 */
 
 #include <Bpp/Seq/Alphabet/AlphabetTools.h>
-#include <Bpp/Phyl/Tree.h>
-#include <Bpp/Phyl/TreeTemplate.h>
+#include <Bpp/Phyl/Tree/Tree.h>
+#include <Bpp/Phyl/Tree/TreeTemplate.h>
 #include <Bpp/Phyl/Parsimony/DRTreeParsimonyScore.h>
 #include <iostream>
 
@@ -82,12 +82,13 @@ int main() {
         // make sure the score is 3
         if (mpData->getScore() != 3)
         {
-            cerr << "Error! The compated maximum parsminoy score is incorrect" << endl;
+            cerr << "Error! The compacted maximum parsimony score is incorrect" << endl;
             return 1;
         }
 
         // make sure the solution is: (((((((S1{0},S2{1})N2{0},S3{0})N4{0},S4{1})N6{1},S5{1})N8{1},S6{1})N10{1},S7{0})N12{0},S8{0})N14{0}
-        mpData->computeSolution();
+        
+//        mpData->computeScores(); // Should be called at construction 
         Tree* solution = mpData->getTree().clone();
         giveNamesToInternalNodes(solution); // give internal names to nodes in post-order
         map<string,int> nodeToState;
@@ -112,7 +113,8 @@ int main() {
         for (size_t i=0; i<nodes.size(); ++i)
         {
             nodeName = nodes[i]->getName();
-            nodeState = mpData->getNodeState(nodes[i]);
+            throw Exception("test_parsimony_solution: missing method getNodeState");
+            // nodeState = (int) mpData->getNodeState(nodes[i]);
             if (nodeState != nodeToState[nodeName])
             {
                 cerr << "Error! assignment of state in node " << nodeName << " is " << nodeState << " instead of " << nodeToState[nodeName] << endl;

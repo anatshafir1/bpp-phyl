@@ -1,45 +1,46 @@
 //
 // File: LaplaceSubstitutionCount.cpp
-// Created by: Julien Dutheil
-// Created on: Wed Apr 5 11:21 2006
+// Authors:
+//   Julien Dutheil
+// Created: 2006-04-05 11:21:00
 //
 
 /*
-   Copyright or © or Copr. Bio++ Development Team, (November 16, 2004, 2005, 2006)
-
-   This software is a computer program whose purpose is to provide classes
-   for phylogenetic data analysis.
-
-   This software is governed by the CeCILL  license under French law and
-   abiding by the rules of distribution of free software.  You can  use,
-   modify and/ or redistribute the software under the terms of the CeCILL
-   license as circulated by CEA, CNRS and INRIA at the following URL
-   "http://www.cecill.info".
-
-   As a counterpart to the access to the source code and  rights to copy,
-   modify and redistribute granted by the license, users are provided only
-   with a limited warranty  and the software's author,  the holder of the
-   economic rights,  and the successive licensors  have only  limited
-   liability.
-
-   In this respect, the user's attention is drawn to the risks associated
-   with loading,  using,  modifying and/or developing or reproducing the
-   software by the user in light of its specific status of free software,
-   that may mean  that it is complicated to manipulate,  and  that  also
-   therefore means  that it is reserved for developers  and  experienced
-   professionals having in-depth computer knowledge. Users are therefore
-   encouraged to load and test the software's suitability as regards their
-   requirements in conditions enabling the security of their systems and/or
-   data to be ensured and,  more generally, to use and operate it in the
-   same conditions as regards security.
-
-   The fact that you are presently reading this means that you have had
-   knowledge of the CeCILL license and that you accept its terms.
- */
-
-#include "LaplaceSubstitutionCount.h"
+  Copyright or ÃÂ© or Copr. Bio++ Development Team, (November 16, 2004, 2005, 2006)
+  
+  This software is a computer program whose purpose is to provide classes
+  for phylogenetic data analysis.
+  
+  This software is governed by the CeCILL license under French law and
+  abiding by the rules of distribution of free software. You can use,
+  modify and/ or redistribute the software under the terms of the CeCILL
+  license as circulated by CEA, CNRS and INRIA at the following URL
+  "http://www.cecill.info".
+  
+  As a counterpart to the access to the source code and rights to copy,
+  modify and redistribute granted by the license, users are provided only
+  with a limited warranty and the software's author, the holder of the
+  economic rights, and the successive licensors have only limited
+  liability.
+  
+  In this respect, the user's attention is drawn to the risks associated
+  with loading, using, modifying and/or developing or reproducing the
+  software by the user in light of its specific status of free software,
+  that may mean that it is complicated to manipulate, and that also
+  therefore means that it is reserved for developers and experienced
+  professionals having in-depth computer knowledge. Users are therefore
+  encouraged to load and test the software's suitability as regards their
+  requirements in conditions enabling the security of their systems and/or
+  data to be ensured and, more generally, to use and operate it in the
+  same conditions as regards security.
+  
+  The fact that you are presently reading this means that you have had
+  knowledge of the CeCILL license and that you accept its terms.
+*/
 
 #include <Bpp/Numeric/Matrix/MatrixTools.h>
+
+#include "LaplaceSubstitutionCount.h"
 
 using namespace bpp;
 
@@ -94,10 +95,13 @@ void LaplaceSubstitutionCount::computeCounts(double length) const
 
 double LaplaceSubstitutionCount::getNumberOfSubstitutions(size_t initialState, size_t finalState, double length, size_t type) const
 {
+  if (!model_)
+    throw Exception("LaplaceSubstitutionCount::getNumberOfSubstitutions: model not defined.");
+
   if (length == currentLength_)
     return m_(initialState, finalState);
   if (length < 0.000001)
-    return initialState == finalState ? 0. : 1.;  // Limit case!
+    return initialState == finalState ? 0. : 1.;                                                    // Limit case!
   // Else we need to recompute M:
   computeCounts(length);
 
@@ -109,6 +113,9 @@ double LaplaceSubstitutionCount::getNumberOfSubstitutions(size_t initialState, s
 
 Matrix<double>* LaplaceSubstitutionCount::getAllNumbersOfSubstitutions(double length, size_t type) const
 {
+  if (!model_)
+    throw Exception("LaplaceSubstitutionCount::getAllNumbersOfSubstitutions: model not defined.");
+
   if (length == currentLength_)
     return new RowMatrix<double>(m_);
   if (length < 0.000001) // Limit case!
@@ -135,14 +142,57 @@ Matrix<double>* LaplaceSubstitutionCount::getAllNumbersOfSubstitutions(double le
 
 /******************************************************************************/
 
-void LaplaceSubstitutionCount::setSubstitutionModel(const SubstitutionModel* model)
+void LaplaceSubstitutionCount::storeAllNumbersOfSubstitutions(double length, size_t type, Eigen::MatrixXd& mat) const
 {
-  model_ = model;
-  size_t n = model->getAlphabet()->getSize();
-  m_.resize(n, n);
-  // Recompute counts:
-  computeCounts(currentLength_);
+  if (!model_)
+    throw Exception("LaplaceSubstitutionCount::storeAllNumbersOfSubstitutions: model not defined.");
+
+  auto s = Eigen::Index(model_->getAlphabet()->getSize());
+  if (length == currentLength_)
+    mat = Eigen::MatrixXd::Zero(s, s);
+
+  if (length < 0.000001) // Limit case!
+  {
+    for (auto i = 0; i < s; i++)
+    {
+      for (auto j = 0; j < s; j++)
+      {
+        mat(i, j) = i == j ? 0. : 1.;
+      }
+    }
+  }
+  else
+  {
+    // Else we need to recompute M:
+    computeCounts(length);
+  }
+
+  currentLength_ = length;
+
+  mat.resize(s, s);
+
+  for (auto i = 0; i < s; i++)
+  {
+    for (auto j = 0; j < s; j++)
+    {
+      mat(i, j) = std::isnan(m_(size_t(i), size_t(j))) ? 0 : m_(size_t(i), size_t(j));
+    }
+  }
 }
 
 /******************************************************************************/
 
+void LaplaceSubstitutionCount::setSubstitutionModel(const SubstitutionModel* model)
+{
+  model_ = model;
+  if (!model)
+    return;
+
+  size_t n = model->getAlphabet()->getSize();
+  m_.resize(n, n);
+  // Recompute counts:
+  if (currentLength_ > 0)
+    computeCounts(currentLength_);
+}
+
+/******************************************************************************/
