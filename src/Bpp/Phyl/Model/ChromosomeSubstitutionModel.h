@@ -16,7 +16,7 @@
 
 #define lowerBoundOfRateParam 0.0
 #define lowerBoundOfExpParam -3.0
-#define lowerBoundBaseNumber 3
+#define lowerBoundBaseNumber 6
 #define upperBoundOfRateParam 100.0
 #define upperBoundLinearRateParam 5.0
 #define upperBoundExpParam 4.6

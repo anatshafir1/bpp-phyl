@@ -457,8 +457,8 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
 
         }
     }
-    if (minRange > 3){
-        for (unsigned int i = 3; i < minRange; i++){
+    if (minRange > static_cast<unsigned int>(lowerBoundBaseNumber)){
+        for (unsigned int i = static_cast<unsigned int>(lowerBoundBaseNumber); i < minRange; i++){
             baseNumCandidates.push_back(i);
         }
 
