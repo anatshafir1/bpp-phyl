@@ -89,32 +89,7 @@ void DRASRTreeLikelihoodData::initLikelihoods(const AlignedValuesContainer& site
     initLikelihoods(tree_->getRootNode(), *shrunkData_, model);
   }
 }
-/******************************************************************************/
-void DRASRTreeLikelihoodData::initLikelihoodsForAncestralReconstruction(const SiteContainer& sites, const TransitionModel& model, std::map<int, VVVdouble>* pxy, std::map<int, std::map<size_t, std::vector<size_t>>>* ancestors){
-  if (sites.getNumberOfSequences() == 1)
-    throw Exception("Error, only 1 sequence!");
-  if (sites.getNumberOfSequences() == 0)
-    throw Exception("Error, no sequence!");
-  if (sites.getAlphabet()->getAlphabetType()
-      != model.getAlphabet()->getAlphabetType())
-    throw AlphabetMismatchException("DRASDRTreeLikelihoodData::initLikelihoods. Data and model must have the same alphabet type.",
-                                    sites.getAlphabet(),
-                                    model.getAlphabet());
-  alphabet_ = sites.getAlphabet();
-  nbStates_ = model.getNumberOfStates();
-  nbSites_  = sites.getNumberOfSites();
-  if (shrunkData_)
-    delete shrunkData_;
-  SitePatterns* patterns;
 
-  patterns          = initLikelihoodsWithPatterns(tree_->getRootNode(), sites, model, pxy, ancestors);
-  shrunkData_       = patterns->getSites();
-  rootWeights_      = patterns->getWeights();
-  rootPatternLinks_ = patterns->getIndices();
-  nbDistinctSites_  = shrunkData_->getNumberOfSites();
-  
-  delete patterns;
-}
 
 /******************************************************************************/
 

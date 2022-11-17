@@ -16,414 +16,636 @@ using namespace bpp;
 #include <Bpp/Numeric/Random/RandomTools.h>
 
 using namespace std;
+/*****************************************************************************/
+// Functions *** *** *** **** *** *** *** *** **** *** *** *** *** **** ***
+/*****************************************************************************/
+double ConstantDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  return params[0]->getValue();
+}
 
-/******************************************************************************/
-ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
-  const ChromosomeAlphabet* alpha, 
-  double gain, 
-  double loss, 
-  double dupl, 
-  double demi,
-  double gainR,
-  double lossR,
-  int baseNum,
-  double baseNumR,
-  double duplR,
-  unsigned int chrRange, 
-  rootFreqType freqType,
-  rateChangeFunc rateChangeType):
-    AbstractParameterAliasable("Chromosome."),
-    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
-    gain_(gain),
-    loss_(loss),
-    dupl_(dupl),
-    demiploidy_(demi),
-    gainR_(gainR),
-    lossR_(lossR),
-    baseNum_(baseNum),
-    baseNumR_(baseNumR),
-    duplR_(duplR),
-    maxChrRange_(chrRange),
-    freqType_(freqType),
-    rateChangeFuncType_(rateChangeType),
-    ChrMinNum_(alpha->getMin()),
-    ChrMaxNum_(alpha->getMax()),
-    firstNormQ_(0),
-    pijtCalledFromDeriv_(false),
-    vPowExp_()
-{
-
-    updateParameters();
-    computeFrequencies(false);
-    isScalable_ = false;    //in ChromEvol the matrix should be not normalized
-    updateMatrices();
+/**************************************************************************************/
+double LinearDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  double func_res = params[0]->getValue() + ((double)(state-1)*params[1]->getValue());
+  if (func_res < 0){
+    return 0;
+  }
+  return func_res;
 
 }
+/**************************************************************************************/
+double LinearDependencyFunction::getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+  if (index == 0){
+    return parsimonyBound;
+  }else if (index == 1){
+    return params[0]-(params[0]*(maxChrNum+minChrNum)/2) + parsimonyBound;
+  }
+  throw Exception("LinearDependencyFunction::getParsimonyBound(): No such index!");
+}
+/**************************************************************************************/
+void LinearDependencyFunction::updateBounds(ParameterList& params, std::vector<string> paramsNames, size_t index, double* lowerBound, double* upperBound, int maxChrNum){
+  if (index == 0){
+    *lowerBound = std::max(lowerBoundOfRateParam, -params.getParameter(paramsNames[1]).getValue()*(maxChrNum-1));
+    *upperBound = upperBoundOfRateParam;
+    
+  }else if (index == 1){
+    *lowerBound = -params.getParameter(paramsNames[0]).getValue()/(maxChrNum-1);
+    *upperBound = upperBoundLinearRateParam;       
+  }else{
+    throw Exception("LinearDependencyFunction::updateBounds(): index out of bounds!!");
+    
+  }
+  std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>(params.getParameter(paramsNames[index]).getConstraint());
+  interval->setLowerBound(*lowerBound, interval->strictLowerBound());
+}
+/**************************************************************************************/
+void LinearDependencyFunction::updateBounds(Function* f, const std::string &paramName, double &lowerBound, double &upperBound){
+  std::shared_ptr<IntervalConstraint> interval = dynamic_pointer_cast<IntervalConstraint>((&(f->getParameter(paramName)))->getConstraint());
+  interval->setLowerBound(lowerBound, interval->strictLowerBound());
+
+}
+/**************************************************************************************/
+void LinearDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  if (index == 0){
+    *lowerBound = lowerBoundOfRateParam;
+    *upperBound = upperBoundOfRateParam;
+    
+  }else if (index == 1){
+    *lowerBound = -paramValues[0]/(maxChrNumber-1);
+    *upperBound = upperBoundLinearRateParam;       
+  }else{
+    throw Exception("LinearDependencyFunction::updateBounds(): index out of bounds!!");
+    
+  }
+}
+/**************************************************************************************/
+void LinearDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  if (index == 0){
+    *lowerBound = -upperBoundLinearRateParam*(maxChrNumber - 1);
+    *upperBound = upperBoundOfRateParam;
+  }else if (index == 1){
+    *lowerBound = -upperBoundOfRateParam/(maxChrNumber -1);
+    *upperBound = upperBoundLinearRateParam;
+  }else{
+    throw Exception("LinearDependencyFunction::getAbsoluteBounds(): index out of bounds!!");
+  }
+}
+/**************************************************************************************/
+double LinearBDDependencyFunction::getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+  if (index != 0){
+    throw Exception("LinearDependencyFunction::getParsimonyBound(): index out of bounds!!");
+  }
+  return (parsimonyBound * 2)/(minChrNum + maxChrNum);
+}
+
+/**************************************************************************************/
+double LinearBDDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  return params[0]->getValue() * (double)state;
+}
+/**************************************************************************************/
+double ExponentailDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  return params[0]->getValue() * std::exp((double)(state-1)*params[1]->getValue());
+}
+/**************************************************************************************/
+
+void ExponentailDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  getAbsoluteBounds(index, lowerBound, upperBound, maxChrNumber);
+
+}
+/**************************************************************************************/
+void ExponentailDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  if (index > 1){
+    throw Exception("ExponentailDependencyFunction::getAbsoluteBounds(): Too many parameters!!!");
+  }
+  if (index == 0){
+    *lowerBound = lowerBoundOfRateParam;
+    *upperBound = upperBoundOfRateParam;
+
+  }else if (index == 1){
+    *lowerBound = lowerBoundOfExpParam;
+    *upperBound = upperBoundExpParam/(maxChrNumber-1);
+
+  }
+ 
+}
+/**************************************************************************************/
+double ExponentailDependencyFunction::getParsimonyBound(std::vector<double> params, double parsimonyBound, size_t index, int minChrNum, int maxChrNum){
+  if (index == 0){
+    return parsimonyBound;
+  }else if (index == 1){
+    return (std::log(parsimonyBound) + std::log(params[0]));
+  }else{
+    throw Exception("ExponentailDependencyFunction::getParsimonyBound(): ERROR! such parameter does not exist!");
+  }
+}
+/**************************************************************************************/
+double PolynomialDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  return (params[0]->getValue()) * pow((double)(state) + params[1]->getValue(), params[2]->getValue());
+
+}
+/**************************************************************************************/
+
+void PolynomialDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  getAbsoluteBounds(index, lowerBound, upperBound, maxChrNumber);
+
+}
+void PolynomialDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  if (index == 0){
+      *lowerBound = 0;
+      *upperBound = upperBoundOfRateParam;
+
+  }else if (index == 1){
+    *lowerBound = -domainMin_;
+    *upperBound = upperBoundOfRateParam;
+  }else if(index == 2){
+    *lowerBound = lowerBoundOfExpParam;
+    *upperBound = upperBoundExpParam;
+
+  }else{
+    throw Exception("PolynomialDependencyFunction::getAbsoluteBounds: index out of bounds!!");
+    
+  }
+
+}
+double LognormalDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  auto rangeFactor = params[0]->getValue();
+  double scalingFactor = (double)domainMax_/logNormalDomainFactor;
+  double transformedState = (double)state/scalingFactor;
+  auto mu = params[1]->getValue();
+  auto sigma = params[2]->getValue();
+  double pi = 2 * acos(0.0);
+  auto eq_part_1 = 1/((double)(transformedState)*sigma*sqrt(2 * pi));
+  auto eq_part_2 = std::exp(-(pow(log(transformedState)-mu, 2)/(2*pow(sigma, 2))));
+  return rangeFactor *eq_part_1 * eq_part_2;
+
+}
+/**************************************************************************************/
+void LognormalDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  getAbsoluteBounds(index, lowerBound, upperBound, maxChrNumber);
+
+}
+/*************************************************************************************/
+void LognormalDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  *lowerBound = lowerBoundOfRateParam;
+  if (index == 0){  // for the range parameter   
+    *upperBound = upperBoundOfRateParam;
+  }else if (index == 1){ // mu
+    *upperBound = upperBoundLinearRateParam;
+  }else if (index == 2){  // sigma
+    *upperBound = upperBoundLinearRateParam*2;
+
+  }else{
+    throw Exception("LognormalDependencyFunction::getAbsoluteBounds(): index out of bounds!!");
+    
+  }
+}
+
+/**************************************************************************************/
+double RevSigmoidDependencyFunction::getRate(std::vector<Parameter*> params, size_t state) const{
+  // p1 is the range parameter
+  auto p1 = params[0]->getValue();
+  // p2 is the exponent multiplier parameter
+  auto p2 = params[1]->getValue();
+  // p3 is the shift parameter (should manipulate the cut of the reverse sigmoid tail)
+  auto p3 = params[2]->getValue();
+  // f(x) = p1* (e^-p2(x-p3)/(1+(e^-p2(x-p3))))
+  auto x = static_cast<double>(state);
+  return p1*(std::exp(-p2*(x-p3))/(1+(std::exp(-p2*(x-p3)))));
+
+}
+/**************************************************************************************/
+void RevSigmoidDependencyFunction::getAbsoluteBounds(size_t index, double* lowerBound, double* upperBound, int maxChrNumber){
+  
+  if (index == 0){  // for the range parameter   
+    *lowerBound = lowerBoundOfRateParam;
+    *upperBound = upperBoundOfRateParam;
+  }else if (index == 1){ // for the exponent parameter
+    *lowerBound = lowerBoundOfRateParam;
+    *upperBound = revSigmoidExpRateParam;
+  }else if (index == 2){  // the shift parameter
+    *lowerBound = lowerBoundOfRateParam;
+    *upperBound = (double)(domainMax_-domainMin_+1);
+
+  }else{
+    throw Exception("RevSigmoidDependencyFunction::getAbsoluteBounds(): index out of bounds!!");
+    
+  }
+}
+/*****************************************************************************/
+void RevSigmoidDependencyFunction::getBoundsForInitialParams(size_t index, vector<double> paramValues, double* lowerBound, double* upperBound, int maxChrNumber){
+  getAbsoluteBounds(index, lowerBound, upperBound, maxChrNumber);
+
+}
+
+
+/*****************************************************************************/
+// CompositeParameter *** *** *** **** *** *** *** *** **** *** *** *** *** 
 /******************************************************************************/
-ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const ChromosomeAlphabet* alpha, 
-  vector<double> modelParams,
-  unsigned int chrRange,
+double compositeParameter::getRate(size_t state) const{
+  return func_->getRate(params_, state);
+} 
+/******************************************************************************/
+ChromosomeNumberDependencyFunction* compositeParameter::setDependencyFunction(ChromosomeNumberDependencyFunction::FunctionType funcType){
+  switch (funcType)
+  {
+  case ChromosomeNumberDependencyFunction::CONSTANT:
+    return new ConstantDependencyFunction();
+  case ChromosomeNumberDependencyFunction::LINEAR:
+    return new LinearDependencyFunction();
+  case ChromosomeNumberDependencyFunction::EXP:
+    return new ExponentailDependencyFunction();
+  case ChromosomeNumberDependencyFunction::LINEAR_BD:
+    return new LinearBDDependencyFunction();
+  case ChromosomeNumberDependencyFunction::LOGNORMAL:
+    return new LognormalDependencyFunction();
+  case ChromosomeNumberDependencyFunction::POLYNOMIAL:
+    return new PolynomialDependencyFunction();
+  case ChromosomeNumberDependencyFunction::REVERSE_SIGMOID:
+    return new RevSigmoidDependencyFunction();
+  default:
+    throw Exception("compositeParameter::getDependencyFunction(): No such function!!");
+  }
+}
+
+/****************************************************************************/
+std::vector<double> compositeParameter::getParameterValues() const{
+  std::vector<double> values;
+  for (size_t i = 0; i < getSize(); i++){
+    values.push_back(params_[i]->getValue());
+  }
+  return values;
+ 
+}
+/*****************************************************************************/
+std::vector<std::string> compositeParameter::getRelatedParameterNames(ParameterList &params, std::string pattern){
+  std::vector<std::string> paramNames = params.getParameterNames();
+  std::vector<std::string> matchingNames;
+  for (size_t i = 0; i < paramNames.size(); i++){
+    std::string fullParamName = paramNames[i];
+    if (fullParamName.find(pattern) != string::npos){
+      matchingNames.push_back(fullParamName);
+    }
+  }
+  return matchingNames;
+}
+
+/*****************************************************************************/
+// Chromosome model ///////////////////////////////////////////////////////////
+/******************************************************************************/
+ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(
+  const IntegerAlphabet* alpha, 
+  std::vector<double> gain, 
+  std::vector<double> loss, 
+  std::vector<double> dupl, 
+  std::vector<double> demi,
+  int baseNum,
+  std::vector<double> baseNumR,
+  unsigned int chrRange, 
   rootFreqType freqType,
-  rateChangeFunc rateChangeType):
+  std::vector<int> rateChangeType,
+  bool simulated):
     AbstractParameterAliasable("Chromosome."),
-    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, alpha->getMin(), alpha->getMax(), false)), "Chromosome."),
+    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, false)), "Chromosome."),
     gain_(0),
     loss_(0),
     dupl_(0),
     demiploidy_(0),
-    gainR_(0),
-    lossR_(0),
-    baseNum_(0),
+    baseNum_(baseNum),
     baseNumR_(0),
-    duplR_(0),
     maxChrRange_(chrRange),
     freqType_(freqType),
-    rateChangeFuncType_(rateChangeType),
     ChrMinNum_(alpha->getMin()),
     ChrMaxNum_(alpha->getMax()),
     firstNormQ_(0),
     pijtCalledFromDeriv_(false),
+    gainFunc_(),
+    lossFunc_(),
+    duplFunc_(),
+    demiFunc_(),
+    baseNumRFunc_(),
+    simulated_(simulated),
     vPowExp_()
-  {
-    //initialize model parameters
-    for (size_t i = 0; i < modelParams.size(); i++){
-      switch(i){
-        case BASENUM:
-          baseNum_ = (int)modelParams[i];
-          break;
-        case BASENUMR:
-          baseNumR_ = modelParams[i];
-          break;
-        case DUPL:
-          dupl_ = modelParams[i];
-          break;
-        case LOSS:
-          loss_ = modelParams[i];
-          break;
-        case GAIN:
-          gain_ = modelParams[i];
-          break;
-        case DEMIDUPL:
-          demiploidy_ = modelParams[i];
-          break;
-        case LOSSR:
-          lossR_ = modelParams[i];
-          break;
-        case GAINR:
-          gainR_ = modelParams[i];
-          break;
-        case DUPLR:
-          duplR_ = modelParams[i];
-          break;
-        default:
-          throw Exception("ChromsomeSubstitutionModel::ChromsomeSubstitutionModel(): Invalid rate type!");
-          break;
-
+    
+{
+    size_t startNonComposite = getNumberOfNonCompositeParams();
+    for (size_t i = startNonComposite; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
+      switch (i)
+      {
+      case ChromosomeSubstitutionModel::GAIN:
+        gainFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+        break;
+      case ChromosomeSubstitutionModel::LOSS:
+        lossFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+        break;
+      case ChromosomeSubstitutionModel::DUPL:
+        duplFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+        break;
+      case ChromosomeSubstitutionModel::DEMIDUPL:
+        demiFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+        break;
+      case ChromosomeSubstitutionModel::BASENUMR:
+        baseNumRFunc_ =  static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+        break;
+      default:
+        throw Exception("ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(): No such parameter!");
+        break;
       }
+
     }
 
-    updateParameters();
+    updateParameters(gain, loss, dupl, demi, baseNumR);
     computeFrequencies(false);
     isScalable_ = false;    //in ChromEvol the matrix should be not normalized
     updateMatrices();
 
+}
+/******************************************************************************/
+ChromosomeSubstitutionModel::ChromosomeSubstitutionModel(const IntegerAlphabet* alpha, 
+  std::map<int, vector<double>> mapOfParamValues,
+  int baseNum,
+  unsigned int chrRange, 
+  rootFreqType freqType,
+  vector<int> rateChangeType,
+  bool simulated):
+    AbstractParameterAliasable("Chromosome."),
+    AbstractSubstitutionModel(alpha, std::shared_ptr<const StateMap>(new CanonicalStateMap(alpha, false)), "Chromosome."),
+    gain_(0),
+    loss_(0),
+    dupl_(0),
+    demiploidy_(0),
+    baseNum_(baseNum),
+    baseNumR_(0),
+    maxChrRange_(chrRange),
+    freqType_(freqType),
+    ChrMinNum_(alpha->getMin()),
+    ChrMaxNum_(alpha->getMax()),
+    firstNormQ_(0),
+    pijtCalledFromDeriv_(false),
+    gainFunc_(),
+    lossFunc_(),
+    duplFunc_(),
+    demiFunc_(),
+    baseNumRFunc_(),
+    simulated_(simulated),
+    vPowExp_()
+    
+{
+  size_t startNonComposite = getNumberOfNonCompositeParams();
+  for (size_t i = startNonComposite; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
+    switch (i)
+    {
+    case ChromosomeSubstitutionModel::GAIN:
+      gainFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+      break;
+    case ChromosomeSubstitutionModel::LOSS:
+      lossFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+      break;
+    case ChromosomeSubstitutionModel::DUPL:
+      duplFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+      break;
+    case ChromosomeSubstitutionModel::DEMIDUPL:
+      demiFunc_ = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+      break;
+    case ChromosomeSubstitutionModel::BASENUMR:
+      baseNumRFunc_ =  static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startNonComposite]);
+      break;
+    default:
+      throw Exception("ChromosomeSubstitutionModel :: ChromosomeSubstitutionModel(): No such parameter!");
+      break;
+    }
+
   }
+
+  updateParameters(mapOfParamValues[static_cast<int>(ChromosomeSubstitutionModel::GAIN)], 
+    mapOfParamValues[static_cast<int>(ChromosomeSubstitutionModel::LOSS)], 
+    mapOfParamValues[static_cast<int>(ChromosomeSubstitutionModel::DUPL)],
+    mapOfParamValues[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)],
+    mapOfParamValues[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)]);
+  computeFrequencies(false);
+  isScalable_ = false;    //in ChromEvol the matrix should be not normalized
+  updateMatrices();
+
+
+}
+
+
 /******************************************************************************/
 ChromosomeSubstitutionModel* ChromosomeSubstitutionModel::initRandomModel(
-  const ChromosomeAlphabet* alpha,
-  vector<double> initParams,
+  const IntegerAlphabet* alpha,
+  int &baseNumber,
+  map<int, vector<double>> initParams,
   unsigned int chrRange,
   rootFreqType rootFrequenciesType,
-  rateChangeFunc rateChangeType,
-  vector<unsigned int>& fixedParams,
+  vector<int> rateChangeType,
+  vector<int>& fixedParams,
   double parsimonyBound)
 {
-  //double gain, loss, dupl, demiDupl, gainR, lossR, baseNumR, duplR;
-  //int baseNum;
+  std::map<int, vector<double>> mapRandomParams;
+  int newBaseNumber = baseNumber;
+  size_t startCompositeParams = getNumberOfNonCompositeParams();
 
-  vector<double> randomParams;
-  randomParams.reserve(NUM_OF_CHR_PARAMS);
-  map<int, double> setOfFixedParameters;
-  getSetOfFixedParameters(initParams, fixedParams, setOfFixedParameters);
-  double upperBound = upperBoundOfRateParam;
-  double upperBoundLinear = upperBoundLinearRateParam;
-  double upperBoundExp = upperBoundExpParam/(alpha->getMax()-1);
-  if (parsimonyBound > 0){
-    upperBound = std::min(upperBoundOfRateParam, parsimonyBound);
-    upperBoundLinear = std::min(upperBoundLinearRateParam, parsimonyBound);
-    upperBoundExp = std::min(upperBoundExpParam/(alpha->getMax()-1), parsimonyBound);
+  for (int i = 0; i < ChromosomeSubstitutionModel::paramType::NUM_OF_CHR_PARAMS; i++){
+    if (std::find(fixedParams.begin(), fixedParams.end(), i) != fixedParams.end()){
+      if (static_cast<ChromosomeSubstitutionModel::paramType>(i) != ChromosomeSubstitutionModel::BASENUM){
+        mapRandomParams[i] = initParams[i];
+
+      }
+    }else{
+      vector<double> paramValues;
+      double lowerBound;
+      double upperBound;
+      if (static_cast<ChromosomeSubstitutionModel::paramType>(i) == ChromosomeSubstitutionModel::BASENUM){
+        if (baseNumber == IgnoreParam){
+          continue;
+        }
+        lowerBound = lowerBoundBaseNumber;
+        upperBound = std::max((int)chrRange, lowerBoundBaseNumber+1);
+        newBaseNumber = static_cast<int>(lowerBound + RandomTools::giveIntRandomNumberBetweenZeroAndEntry((int)(upperBound-lowerBound)));
+        continue;
+
+      }else{
+        //int compositeParamType = compositeParameter::getCompositeRateType(i);
+        if (initParams[i].size() != 0){
+          ChromosomeNumberDependencyFunction::FunctionType funcType = static_cast<ChromosomeNumberDependencyFunction::FunctionType>(rateChangeType[i-startCompositeParams]);
+          ChromosomeNumberDependencyFunction* functionOp = compositeParameter::setDependencyFunction(funcType);
+          functionOp->setDomainsIfNeeded(alpha->getMin(), alpha->getMax());
+
+          auto numOfParameters = functionOp->getNumOfParameters();
+          for (size_t j = 0; j < numOfParameters; j++){
+            functionOp->getBoundsForInitialParams(j, paramValues, &lowerBound, &upperBound, alpha->getMax());
+            double upperBoundCandidate = functionOp->getParsimonyBound(paramValues, parsimonyBound, j, alpha->getMin(), alpha->getMax());
+            //compositeParameter::getBoundsForInitialParams(func, j, paramValues, &lowerBound, &upperBound, alpha->getMax(), true);
+            if (parsimonyBound > 0){
+              if (upperBoundCandidate >= lowerBound){
+                upperBound = std::min(upperBound, upperBoundCandidate);
+              }         
+            }
+            double randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBound, upperBound);
+            paramValues.push_back(randomValue);
+
+          }
+          delete functionOp;
+          
+        }
+      }
+      mapRandomParams[i] = paramValues;
+
+    }
   }
-  for (size_t i = 0; i < initParams.size(); i ++){
-    getRandomParameter(static_cast<paramType>(i), initParams[i], randomParams, upperBound, upperBoundLinear, upperBoundExp, rateChangeType, alpha->getMax(), chrRange, setOfFixedParameters);
-  }
-  ChromosomeSubstitutionModel* model = new ChromosomeSubstitutionModel(alpha, randomParams, chrRange, rootFrequenciesType, rateChangeType);
+
+  ChromosomeSubstitutionModel* model = new ChromosomeSubstitutionModel(alpha, mapRandomParams, newBaseNumber, chrRange, rootFrequenciesType, rateChangeType);//, useExtendedFloat);
   return model;
 
 }
 /******************************************************************************/
-void ChromosomeSubstitutionModel::getRandomParameter(paramType type, double initParamValue, vector<double>& randomParams, double upperBound, double upperBoundLinear, double upperBoundExp, rateChangeFunc rateFunc, int maxChrNum, unsigned int chrRange, map<int, double>& setOfFixedParameters){
-  // there is an assumption that the rate change parameters are sampled after the const ones, since they are dependent on them
-  double randomValue = initParamValue;
-  if (type == BASENUM){
-    int lowerBoundBaseNum = lowerBoundBaseNumber;
-    int upperBoundBaseNum = std::max((int)chrRange, lowerBoundBaseNumber+1);
-    if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(BASENUM) == 0)){
-      randomValue = lowerBoundBaseNum + RandomTools::giveIntRandomNumberBetweenZeroAndEntry(upperBoundBaseNum-lowerBoundBaseNum);
-    }
 
+std::vector<Parameter*> ChromosomeSubstitutionModel::createCompositeParameter(ChromosomeNumberDependencyFunction::FunctionType &func, std::string paramName, vector<double> &vectorOfValues){
+  std::vector<Parameter*> params;
+  if (func == ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
+    return params;
   }
-  else if (type == BASENUMR){ //|| (type == DUPL)) || ((type == GAIN) || (type == LOSS))){
-    if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(BASENUMR) == 0)){
-      randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
+  for (size_t i = 0; i < vectorOfValues.size(); i++){
+    auto paramValue = vectorOfValues[i];
+    if (paramValue == IgnoreParam){
+      throw Exception("ChromosomeSubstitutionModel::createCompositeParameter(): Function is not supposed to be defined as a legal function name if the parameter should be ignored!");
     }
-  }
-  else if (type == DEMIDUPL){
-    if ((initParamValue != IgnoreParam) && (initParamValue != DemiEqualDupl)){
-      if (setOfFixedParameters.count(type) == 0){
-        randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
-      }      
-    }
-  }else{
-    paramType typeOfPairedRate;
-    switch (type)
-    {
-      case GAIN:
-        typeOfPairedRate = GAINR;
-        break;
-      case LOSS:
-        typeOfPairedRate = LOSSR;
-        break;
-      case DUPL:
-        typeOfPairedRate = DUPLR;
-        break;
-      case GAINR:
-        typeOfPairedRate = GAIN;
-        break;
-      case LOSSR:
-        typeOfPairedRate = LOSS;
-        break;
-      case DUPLR:
-        typeOfPairedRate = DUPL;
-        break;
-
-      default:
-        throw Exception("ChromosomeSubstitutionModel::getRandomParameter(): Invalid rate type!");
-        break;
-    }
-    if (((type == GAIN) || (type == LOSS)) || (type == DUPL)){
-      double lowerBound = lowerBoundOfRateParam;
-      if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(type) == 0)){
-        if ((setOfFixedParameters.count(typeOfPairedRate) > 0) && (setOfFixedParameters[typeOfPairedRate] != IgnoreParam)){
-          if ( rateFunc == LINEAR){
-            lowerBound = std::max(lowerBoundOfRateParam, -setOfFixedParameters[typeOfPairedRate]*(maxChrNum-1));
-          }        
-        }
-        randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBound, upperBound);
-      }
-    }else{
-      if ((initParamValue != IgnoreParam) && (setOfFixedParameters.count(type) == 0)){
-        if (randomParams[typeOfPairedRate] != IgnoreParam){
-          if (rateFunc == LINEAR){
-            double lowerBoundForRate = -randomParams[typeOfPairedRate]/(maxChrNum-1);
-            randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundForRate, upperBoundLinear);
-          }else{
-            randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfExpParam, upperBoundExp);      
-          }
-        }else{
-          randomValue = RandomTools::giveRandomNumberBetweenTwoPoints(lowerBoundOfRateParam, upperBound);
-        }
-      }
+    double lowerBound;
+    double upperBound;
+    ChromosomeNumberDependencyFunction* functionOp =  compositeParameter::setDependencyFunction(func);
+    functionOp->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
+    functionOp->getAbsoluteBounds(i, &lowerBound, &upperBound, ChrMaxNum_);
+    if ((simulated_) && (lowerBound > paramValue)){
+      lowerBound = paramValue - EPSILON;
 
     }
+    delete functionOp;
 
-
-  }
-  randomParams.push_back(randomValue);
-
-}
-/******************************************************************************/
-void ChromosomeSubstitutionModel::getSetOfFixedParameters(vector<double>& initParams, vector<unsigned int>& fixedParams, map<int, double>& setOfFixedParams){
-  //map<paramType, double> setOfFixedParams;
-  size_t index = 0;
-  for (size_t i = 0; i < NUM_OF_CHR_PARAMS; i++){
-    if (initParams[i] == IgnoreParam){
-      continue;
-    }
-    if (fixedParams[index]){
-      setOfFixedParams[(int)i] = initParams[i];
-    }
-    index++;
-        
-  }
-  return;
-
-}
-
-/******************************************************************************/
-void ChromosomeSubstitutionModel::updateParameters(){
-    std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundOfRateParam, false, true);
-    if ((baseNum_ != IgnoreParam) && (baseNumR_ != IgnoreParam)){
-      updateBaseNumParameters(interval); 
-    }
-    updateConstRateParameter(dupl_, duplR_, "Chromosome.dupl", interval);
-    updateConstRateParameter(loss_, lossR_, "Chromosome.loss", interval);
-    updateConstRateParameter(gain_, gainR_, "Chromosome.gain", interval);
- 
-    if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-      updateLinearParameters();
-    }else if (rateChangeFuncType_ == rateChangeFunc::EXP){
-      updateExpParameters();
-    }
-    if ((demiploidy_ != IgnoreParam) & (demiploidy_!= DemiEqualDupl)){
-      addParameter_(new Parameter("Chromosome.demi", demiploidy_, interval));
-          
-    }
-
-}
-/******************************************************************************/
-void ChromosomeSubstitutionModel::updateConstRateParameter(double paramValueConst, double paramValueChange, string parameterName, std::shared_ptr<IntervalConstraint> interval)
-{
-  if (paramValueConst != IgnoreParam){
-    if (paramValueChange == IgnoreParam){
-      addParameter_(new Parameter(parameterName, paramValueConst, interval));
-    }else{
-      double lowerBound = lowerBoundOfRateParam;
-      if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-        lowerBound = std::max(lowerBoundOfRateParam, -paramValueChange*(getMax()-1));       
-      }
-      std::shared_ptr<IntervalConstraint> intervalForCompositeRate = make_shared<IntervalConstraint>(lowerBound, upperBoundOfRateParam, false, true);
-      addParameter_(new Parameter(parameterName, paramValueConst, intervalForCompositeRate));
-    }
-      
-  }
-
-}
-/******************************************************************************/
-void ChromosomeSubstitutionModel::updateExpParameters(){
-  std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBoundOfExpParam, upperBoundExpParam/(getMax()-1), false, true);
-  if (lossR_ != IgnoreParam){
-    if (loss_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.lossR", lossR_, interval));
-    }else{
-      std::shared_ptr<IntervalConstraint> intervalNoConstRateLoss = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundExpParam/(getMax()-1), false, true);
-      addParameter_(new Parameter("Chromosome.lossR", lossR_, intervalNoConstRateLoss));
-    }
-
-  }
-  if (gainR_ != IgnoreParam){
-    if (gain_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.gainR", gainR_, interval));
-    }else{
-      std::shared_ptr<IntervalConstraint> intervalNoConstRateGain = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundExpParam/(getMax()-1), false, true);
-      addParameter_(new Parameter("Chromosome.gainR", gainR_, intervalNoConstRateGain));
-    }
-    
-  }
-  if (duplR_ != IgnoreParam){
-    if (dupl_ != IgnoreParam){
-      addParameter_(new Parameter("Chromosome.duplR", duplR_, interval));
-      
-    }else{
-      std::shared_ptr<IntervalConstraint> intervalNoConstRateDupl = make_shared<IntervalConstraint>(lowerBoundOfRateParam, upperBoundExpParam/(getMax()-1), false, true);
-      addParameter_(new Parameter("Chromosome.duplR", duplR_, intervalNoConstRateDupl));
-
-    }
-    
-  }
-}
-/******************************************************************************/
-void ChromosomeSubstitutionModel::updateLinearChangeParameter(double constParam, double linearParam, string paramName){
-  double lowerBound, upperBound;
-  if (linearParam != IgnoreParam){
-    if (constParam != IgnoreParam){
-      lowerBound = -(constParam/(getMax()-1));
-      upperBound = upperBoundLinearRateParam;
-    }else{
-      lowerBound = lowerBoundOfRateParam;
-      upperBound = upperBoundOfRateParam;
+    // in simulations it sometimes happens when the upper bound is lower than the value itself,
+    // because the max number in the simulating function is much larger. In these cases it is important to
+    // change the upper bound, such that it will be  >= parameter value
+    if (simulated_ && upperBound <= paramValue){
+      upperBound = paramValue + EPSILON;
     }
     std::shared_ptr<IntervalConstraint> interval = make_shared<IntervalConstraint>(lowerBound, upperBound, false, true);
-    addParameter_(new Parameter(paramName, linearParam, interval));
+    Parameter* param = new Parameter("Chromosome."+ paramName + std::to_string(i), paramValue, interval);
+    params.push_back(param);
+    //addParameter_(param);
+  }
+  return params;
 
+
+}
+/******************************************************************************/
+void ChromosomeSubstitutionModel::addCompositeParameter(std::vector<Parameter*> parameters){
+  for (size_t i = 0; i < parameters.size(); i++){
+    addParameter_(parameters[i]);
+  }
+}
+
+/******************************************************************************/
+void ChromosomeSubstitutionModel::updateParameters(vector<double> &gain, vector<double> &loss, vector<double> &dupl, vector<double> &demi, vector<double> &baseNumR){
+  if (baseNum_ != IgnoreParam){
+    std::shared_ptr<IntervalConstraint> interval_baseNum = make_shared<IntervalConstraint>(lowerBoundBaseNumber, (int)maxChrRange_, true, true);
+    addParameter_(new Parameter("Chromosome.baseNum", baseNum_, interval_baseNum));
+    
+  }
+  std::vector<size_t> numOfParamsVector;
+  auto baseNumParams = createCompositeParameter(baseNumRFunc_, "baseNumR", baseNumR);
+  numOfParamsVector.push_back(baseNumParams.size());
+
+  auto duplParams = createCompositeParameter(duplFunc_, "dupl", dupl);
+  numOfParamsVector.push_back(duplParams.size());
+
+  auto lossParams = createCompositeParameter(lossFunc_, "loss", loss);
+  numOfParamsVector.push_back(lossParams.size());
+
+  auto gainParams = createCompositeParameter(gainFunc_, "gain", gain);
+  numOfParamsVector.push_back(gainParams.size());
+  
+  auto demiParams = createCompositeParameter(demiFunc_, "demi", demi);
+  //numOfParamsVector.push_back(demiParams.size());
+  size_t maxSize = *max_element(numOfParamsVector.begin(), numOfParamsVector.end());
+  for (size_t i = 0; i < maxSize; i++){
+    if (i < baseNumParams.size()){
+      addParameter_(baseNumParams[i]);
+    }
+    if (i < duplParams.size()){
+      addParameter_(duplParams[i]);
+    }
+
+    if (i < lossParams.size()){
+      addParameter_(lossParams[i]);
+    }
+    if (i < gainParams.size()){
+      addParameter_(gainParams[i]);
+    }
+
+  }
+  for (size_t i = 0; i < demiParams.size(); i++){
+    addParameter_(demiParams[i]);
+  }
+  if (gainFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
+    gain_ = new compositeParameter(gainFunc_, "gain", gainParams);
+    gain_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
+
+  }
+  if (lossFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
+    loss_ = new compositeParameter(lossFunc_, "loss", lossParams);
+    loss_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
+  }
+  if (duplFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
+    dupl_ = new compositeParameter(duplFunc_, "dupl", duplParams);
+    dupl_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
+  }
+  if (demiFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
+    demiploidy_ = new compositeParameter(demiFunc_, "demi", demiParams);
+    demiploidy_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
+  }
+  if (baseNumRFunc_ != ChromosomeNumberDependencyFunction::FunctionType::IGNORE){
+    baseNumR_ = new compositeParameter(baseNumRFunc_, "baseNumR", baseNumParams);
+    baseNumR_->func_->setDomainsIfNeeded(ChrMinNum_, ChrMaxNum_);
   }
 
 
 }
-/******************************************************************************/
-void ChromosomeSubstitutionModel::updateLinearParameters(){
-  updateLinearChangeParameter(loss_, lossR_, "Chromosome.lossR");
-  updateLinearChangeParameter(gain_, gainR_, "Chromosome.gainR");
-  updateLinearChangeParameter(dupl_, duplR_, "Chromosome.duplR");
 
-}
 /******************************************************************************/
-void ChromosomeSubstitutionModel::updateBaseNumParameters(std::shared_ptr<IntervalConstraint> interval){
-  std::shared_ptr<IntervalConstraint> interval_baseNum = make_shared<IntervalConstraint>(lowerBoundBaseNumber, (int)maxChrRange_, true, true);
-  addParameter_(new Parameter("Chromosome.baseNum", baseNum_, interval_baseNum));
-  addParameter_(new Parameter("Chromosome.baseNumR", baseNumR_, interval));
+void ChromosomeSubstitutionModel::getCompositeParametersValues(std::string paramName, compositeParameter* param){
+  for (size_t i = 0; i < param->getSize(); i++){   
+    getParameterValue(paramName + std::to_string(i)); //do I really need it?
 
+  }
 }
 /******************************************************************************/
 void ChromosomeSubstitutionModel::getParametersValues(){
-    if (gain_ != IgnoreParam){
-      gain_ = getParameterValue("gain");
+    if (gain_ != 0){
+      getCompositeParametersValues("gain", gain_);
     }
-    if (loss_ != IgnoreParam){
-      loss_ = getParameterValue("loss");
+    if (loss_ != 0){
+      getCompositeParametersValues("loss", loss_);
     }
-    if (dupl_ != IgnoreParam){
-      dupl_ = getParameterValue("dupl");
+    if (dupl_ != 0){
+      getCompositeParametersValues("dupl", dupl_);
     }
-    if ((demiploidy_ != IgnoreParam) && (demiploidy_ != DemiEqualDupl)){
-      demiploidy_ = getParameterValue("demi");
+    if (demiploidy_ != 0){// && (demiploidy_ != DemiEqualDupl)){
+      getCompositeParametersValues("demi", demiploidy_);
     }
-    // update intervals
-    setNewBoundsForLinearParameters(gain_, gainR_, "gain", "gainR");
-    setNewBoundsForLinearParameters(loss_, lossR_, "loss", "lossR");
-    setNewBoundsForLinearParameters(dupl_, duplR_, "dupl", "duplR");
+
 
     if(baseNum_ != IgnoreParam){
       baseNum_ = (int)getParameterValue("baseNum");
     }
-    if (baseNumR_ != IgnoreParam){
-      baseNumR_ = getParameterValue("baseNumR");
+    if (baseNumR_ != 0){
+      getCompositeParametersValues("baseNumR", baseNumR_);
     }  
+    //checkParametersBounds();
 }
 
-/******************************************************************************/
-void ChromosomeSubstitutionModel::setNewBoundsForLinearParameters(double &constRate, double &changeRate, string paramNameConst, string paramNameLinear){
-
-  if (changeRate != IgnoreParam){
-    changeRate = getParameterValue(paramNameLinear);
-    if ((rateChangeFuncType_ == rateChangeFunc::LINEAR) && (constRate != IgnoreParam)){
-
-      std::dynamic_pointer_cast<IntervalConstraint>(getParameter(paramNameLinear).getConstraint())->setLowerBound(-constRate/(getMax()-1), true);
-
-      std::dynamic_pointer_cast<IntervalConstraint>(getParameter(paramNameConst).getConstraint())->setLowerBound(std::max(lowerBoundOfRateParam, -changeRate * (getMax()-1)), true);
-        
-    }
-  }
-
-}
-/*******************************************************************************/
-void ChromosomeSubstitutionModel::setBoundsForEquivalentParameter(Parameter &param, string parameterName) const{
-  std::shared_ptr<IntervalConstraint> paramIntervals = dynamic_pointer_cast<IntervalConstraint>(param.getConstraint());
-  std::shared_ptr<IntervalConstraint> originalIntervals = dynamic_pointer_cast<IntervalConstraint>(getParameter(parameterName).getConstraint());
-  bool incLowerBound = originalIntervals->strictLowerBound();
-  bool incUpperBound = originalIntervals->strictUpperBound();
-
-  paramIntervals->setLowerBound(originalIntervals->getLowerBound(), incLowerBound);
-  paramIntervals->setUpperBound(originalIntervals->getUpperBound(), incUpperBound);
-  std::cout << "New bound is " << paramIntervals->getLowerBound() << endl;
-  //checkParametersBounds();
-  return;
-}
 /*******************************************************************************/
 void ChromosomeSubstitutionModel::checkParametersBounds() const{
   std::cout << "All bounds" <<endl;
   const ParameterList params = getParameters();
   for (size_t i = 0; i < params.size(); i++){
-    std::cout << params[i].getName() << " bound: "<< dynamic_pointer_cast<IntervalConstraint>(params[i].getConstraint())->getLowerBound() << endl;
+    std::cout << params[i].getName() << " bound: "<< dynamic_pointer_cast<IntervalConstraint>(params[i].getConstraint())->getLowerBound() <<  ", value: " << params[i].getValue() << std::endl;
 
   }
 }
@@ -468,32 +690,73 @@ void ChromosomeSubstitutionModel::updateMatrices(){
 
 }
 /*******************************************************************************/
-void ChromosomeSubstitutionModel::updateQWithDemiDupl(size_t i, size_t minChrNum, size_t maxChrNum){
-  double demiploidy;
-  if (demiploidy_ != IgnoreParam){
-    if (demiploidy_ == DemiEqualDupl){
-      demiploidy = dupl_;
-    }else{
-      demiploidy = demiploidy_;
-    }
+void ChromosomeSubstitutionModel::correctBaseNumForSimulation(int maxChrNumInferred){
+    //update generator matrix
+    size_t maxChrNum = (size_t)(getMax());
+    size_t minChrNum = (size_t)(getMin()); 
+ 
+    // updating Q matrix
+    for (size_t i = minChrNum; i < maxChrNum; i++){
+      if (baseNumR_->getRate(i) < 0){
+        throw Exception("ChromosomeSubstitutionModel::correctBaseNumForSimulation():Negative base number rate!");
+      }
+      for (size_t j = i + 1; j < maxChrNum + 1; j ++){
+        if (j == maxChrNum){
+          if (((j-i) <= maxChrRange_) && ((int)(j-i) > baseNum_)){
+            generator_(i-minChrNum, maxChrNum-minChrNum) -= baseNumR_->getRate(i);
+          }
 
+
+        }else{
+          if ((j-i) % baseNum_ == 0){
+            if (i > (size_t)maxChrNumInferred){
+              if (((j-i) <= maxChrRange_) && ((int)(j-i) > baseNum_)){
+                generator_(i - minChrNum, j - minChrNum) -= baseNumR_->getRate(i);
+              }
+            }else{
+              if (((int)j-maxChrNumInferred) >= baseNum_ ){
+                if ((j-i) <= maxChrRange_){
+                  if (((int)i != maxChrNumInferred) || ((int)j-maxChrNumInferred != baseNum_)){
+                    generator_(i - minChrNum, j - minChrNum) -= baseNumR_->getRate(i);
+
+                  }                 
+                }
+              }
+            }
+          } 
+        }
+      }
+    }
+    setDiagonal();  //sets Qii to -sigma(Qij)
+    updateEigenMatrices();
+    firstNormQ_ = getFirstNorm();
+
+}
+/*******************************************************************************/
+void ChromosomeSubstitutionModel::updateQWithDemiDupl(size_t i, size_t minChrNum, size_t maxChrNum){
+  //double demiploidy;
+  
+  if (demiploidy_ != 0){
+    if (demiploidy_->getRate(i) < 0){
+      throw Exception("ChromosomeSubstitutionModel::updateQWithDemiDupl(): Negative demiploidy rate!");
+    }
     if (i % 2 == 0 && (double)i * 1.5 <= (double)maxChrNum){
 
-      generator_(i-minChrNum, (size_t)((double)i * 1.5)-minChrNum) += demiploidy;
+      generator_(i-minChrNum, (size_t)((double)i * 1.5)-minChrNum) += demiploidy_->getRate(i);
 
                         
     }else if (i % 2 != 0 && (size_t)ceil((double)i*1.5) <= maxChrNum){
       if (i == 1){
-        generator_(i-minChrNum, (size_t)ceil((double)i * 1.5)-minChrNum) += demiploidy;
+        generator_(i-minChrNum, (size_t)ceil((double)i * 1.5)-minChrNum) += demiploidy_->getRate(i);
       }else{
-        generator_(i-minChrNum, (size_t)ceil((double)i * 1.5)-minChrNum) += demiploidy/2;
-        generator_(i-minChrNum, (size_t)floor((double)i * 1.5)-minChrNum) += demiploidy/2;
+        generator_(i-minChrNum, (size_t)ceil((double)i * 1.5)-minChrNum) += demiploidy_->getRate(i)/2;
+        generator_(i-minChrNum, (size_t)floor((double)i * 1.5)-minChrNum) += demiploidy_->getRate(i)/2;
 
       }
 
     }else{
       if (i != maxChrNum){
-        generator_(i-minChrNum, maxChrNum-minChrNum) += demiploidy;
+        generator_(i-minChrNum, maxChrNum-minChrNum) += demiploidy_->getRate(i);
       }
 
     }
@@ -501,59 +764,72 @@ void ChromosomeSubstitutionModel::updateQWithDemiDupl(size_t i, size_t minChrNum
   }
 }
 /*******************************************************************************/
-double ChromosomeSubstitutionModel::getRate (size_t state, double constRate, double changeRate) const{
-  if ((constRate == IgnoreParam) && (changeRate == IgnoreParam)){
-    return IgnoreParam;
-  }
-  double totalRate;
-  if (constRate == IgnoreParam){
-    // a birth-death-like model
-    totalRate = changeRate;
-  }else{
-    //const rate is not to be ignored
-    totalRate = constRate;
-  }
-  if (changeRate == IgnoreParam){
-    return totalRate; //only const rate
-  }else{
-    if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
-      totalRate += (changeRate* (double)(state-1));
-    }else if (rateChangeFuncType_ == rateChangeFunc::EXP){
-      totalRate *= (exp(changeRate* (double)(state-1)));
-    }
-  }
-  return totalRate;
-}
+// double ChromosomeSubstitutionModel::getRate (size_t state, double constRate, double changeRate) const{
+//   if ((constRate == IgnoreParam) && (changeRate == IgnoreParam)){
+//     return IgnoreParam;
+//   }
+//   double totalRate;
+//   if (constRate == IgnoreParam){
+//     // a birth-death-like model
+//     totalRate = changeRate;
+//   }else{
+//     //const rate is not to be ignored
+//     totalRate = constRate;
+//   }
+//   if (changeRate == IgnoreParam){
+//     return totalRate; //only const rate
+//   }else{
+//     if (rateChangeFuncType_ == rateChangeFunc::LINEAR){
+//       totalRate += (changeRate* (double)(state-1));
+//     }else if (rateChangeFuncType_ == rateChangeFunc::EXP){
+//       totalRate *= (exp(changeRate* (double)(state-1)));
+//     }
+//   }
+//   return totalRate;
+// }
 /*******************************************************************************/
 void ChromosomeSubstitutionModel::updateQWithGain(size_t i, size_t minChrNum){
-  if ((gain_ == IgnoreParam) && (gainR_ == IgnoreParam)){
+  if (gain_ == 0){
     return;
   }
-  generator_(i-minChrNum, i+1-minChrNum) += getRate(i, gain_, gainR_);
+  double gainRate = gain_->getRate(i);
+  if (gainRate < 0){
+    throw Exception ("ChromosomeSubstitutionModel::updateQWithGain(): negative gain rate!");
+  }
+  generator_(i-minChrNum, i+1-minChrNum) += gainRate;
 
 
 }
 /*******************************************************************************/
 void ChromosomeSubstitutionModel::updateQWithLoss(size_t i, size_t minChrNum){
   //generator_(i-minChrNum, i-1-minChrNum) = loss_ + (lossR_* i);
-  if ((loss_ == IgnoreParam) && (lossR_ == IgnoreParam)){
+  if (loss_ == 0){
     return;
   }
-  generator_(i-minChrNum, i-1-minChrNum) += getRate(i, loss_, lossR_);
+  double lossRate = loss_->getRate(i);
+  if (lossRate < 0){
+    throw Exception ("ChromosomeSubstitutionModel::updateQWithLoss(): negative loss rate!");
+  }
+  generator_(i-minChrNum, i-1-minChrNum) += lossRate;
 
 
 }
 /*******************************************************************************/
 void ChromosomeSubstitutionModel::updateQWithDupl(size_t i, size_t minChrNum, size_t maxChrNum){
-  if ((dupl_ == IgnoreParam) && (duplR_ == IgnoreParam)){
+  if (dupl_ == 0){
     return;
   }
   // if the transition is not to maxChr
+  double duplRate = dupl_->getRate(i);
+  if (duplRate < 0){
+    throw Exception("ChromosomeSubstitutionModel::updateQWithDupl(): Negative dupl rate!");
+  }
+
   if (maxChrNum == 0){
-    generator_(i-minChrNum, (2 * i)-minChrNum) += getRate(i, dupl_, duplR_);
+    generator_(i-minChrNum, (2 * i)-minChrNum) += duplRate;
 
   }else{
-     generator_(i-minChrNum, maxChrNum-minChrNum) += getRate(i, dupl_, duplR_);
+     generator_(i-minChrNum, maxChrNum-minChrNum) += duplRate;
 
   }
 }
@@ -561,15 +837,18 @@ void ChromosomeSubstitutionModel::updateQWithDupl(size_t i, size_t minChrNum, si
 
 /********************************************************************************/
 void ChromosomeSubstitutionModel::updateQWithBaseNumParameters(size_t currChrNum, size_t minChrNum, size_t maxChrNum){
+  if ( baseNumR_->getRate(currChrNum) < 0){
+    throw Exception("ChromosomeSubstitutionModel::updateQWithBaseNumParameters():Negative base number rate!");
+  }
   for (size_t j = currChrNum + 1; j < maxChrNum + 1; j ++){
     if (j == maxChrNum){
       if ((j-currChrNum) <= maxChrRange_){
-        generator_(currChrNum-minChrNum, maxChrNum-minChrNum) += baseNumR_;
+        generator_(currChrNum-minChrNum, maxChrNum-minChrNum) += baseNumR_->getRate(currChrNum);
       }
     }else{
       if ((j-currChrNum) % baseNum_ == 0){
         if ((j-currChrNum) <= maxChrRange_){
-          generator_(currChrNum - minChrNum, j - minChrNum) += baseNumR_;
+          generator_(currChrNum - minChrNum, j - minChrNum) += baseNumR_->getRate(currChrNum);
         }
       }
     }
@@ -773,34 +1052,45 @@ void ChromosomeSubstitutionModel::updateEigenMatrices()
       isDiagonalizable_ = false;
     }
 
-    //if (!isNonSingular_)
-    //{
-/*       double min = generator_(0, 0);
-      for (size_t i = 1; i < salph; i++)
-      {
-        if (min > generator_(i, i))
-          min = generator_(i, i);
-      } */
-
-      //setScale(-1 / min);
-
-    if (vPowExp_.size() == 0)
+    if (vPowExp_.size() == 0){
       vPowExp_.resize(30);
-
-      
-
+    }
     MatrixTools::getId(salph, vPowExp_[0]);
-    //}
-
-    // normalization
-    //normalize();
-    
-    //if (!isNonSingular_)
     MatrixTools::Taylor(generator_, 30, vPowExp_);
+
   }
 
 }
-
+/******************************************************************************/
+void ChromosomeSubstitutionModel::calculatePijtUsingEigenValues(double t) const{
+  if (isDiagonalizable_){
+    MatrixTools::mult<double>(rightEigenVectors_, VectorTools::exp(eigenValues_ * (rate_ * t)), leftEigenVectors_, pijt_);
+  }else{
+    std::vector<double> vdia(size_);
+    std::vector<double> vup(size_ - 1);
+    std::vector<double> vlo(size_ - 1);
+    double c = 0, s = 0;
+    double l = rate_ * t;
+    for (size_t i = 0; i < size_; i++){
+      vdia[i] = std::exp(eigenValues_[i] * l);
+      if (iEigenValues_[i] != 0){
+        s = std::sin(iEigenValues_[i] * l);
+        c = std::cos(iEigenValues_[i] * l);
+        vup[i] = vdia[i] * s;
+        vlo[i] = -vup[i];
+        vdia[i] *= c;
+        vdia[i + 1] = vdia[i]; // trick to avoid computation
+        i++;
+      }else{
+        if (i < size_ - 1){
+          vup[i] = 0;
+          vlo[i] = 0;
+        }
+      }
+    }
+    MatrixTools::mult<double>(rightEigenVectors_, vdia, vup, vlo, leftEigenVectors_, pijt_);
+  }
+}
 
 
 /******************************************************************************/
@@ -813,41 +1103,8 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t(double t) const
   }
   else if (isNonSingular_)
   {
-    if (isDiagonalizable_)
-    {
-      MatrixTools::mult<double>(rightEigenVectors_, VectorTools::exp(eigenValues_ * (rate_ * t)), leftEigenVectors_, pijt_);
-    }
-    else
-    {
-      std::vector<double> vdia(size_);
-      std::vector<double> vup(size_ - 1);
-      std::vector<double> vlo(size_ - 1);
-      double c = 0, s = 0;
-      double l = rate_ * t;
-      for (size_t i = 0; i < size_; i++)
-      {
-        vdia[i] = std::exp(eigenValues_[i] * l);
-        if (iEigenValues_[i] != 0)
-        {
-          s = std::sin(iEigenValues_[i] * l);
-          c = std::cos(iEigenValues_[i] * l);
-          vup[i] = vdia[i] * s;
-          vlo[i] = -vup[i];
-          vdia[i] *= c;
-          vdia[i + 1] = vdia[i]; // trick to avoid computation
-          i++;
-        }
-        else
-        {
-          if (i < size_ - 1)
-          {
-            vup[i] = 0;
-            vlo[i] = 0;
-          }
-        }
-      }
-      MatrixTools::mult<double>(rightEigenVectors_, vdia, vup, vlo, leftEigenVectors_, pijt_);
-    }
+    calculatePijtUsingEigenValues(t);
+    
   }
   else
   {
@@ -905,6 +1162,7 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t(double t) const
       for (size_t j = 0; j < size_; j++){
         if (pijt_(i,j) < 0){
           pijt_(i,j) = NumConstants::VERY_TINY(); // trying to do it exactly as in ChromEvol. Maybe the "nan" problem will be solved
+          //pijt_(i,j) = 0;
         }
         else if (pijt_(i, j) > 1){
           pijt_(i,j) = 1.0;
@@ -944,6 +1202,7 @@ bool ChromosomeSubstitutionModel::checkIfReachedConvergence(const Matrix<double>
     }
     return true;
 }
+
 /******************************************************************************/
 void ChromosomeSubstitutionModel::calculateExp_Qt(size_t pow, double s, size_t m, double v) const{
   MatrixTools::getId(size_, pijt_);
@@ -970,17 +1229,10 @@ const Matrix<double>& ChromosomeSubstitutionModel::getdPij_dt  (double d) const{
   pijt = getPij_t(d);
   MatrixTools::mult(pijt, generator_, dpijt_);
   MatrixTools::scale(dpijt_, rate_);
-    //pijt_calculated_ = true;
-  //}else{
-    //mult(pijt_, generator_, dpijt_);
-  //}
-  
-  // dp(t) = p(t)*rate_*Q
   pijtCalledFromDeriv_ = false;
   return dpijt_;
 
 }
-
 
 /******************************************************************************/
 const Matrix<double>& ChromosomeSubstitutionModel::getd2Pij_dt2(double d) const{
@@ -991,14 +1243,10 @@ const Matrix<double>& ChromosomeSubstitutionModel::getd2Pij_dt2(double d) const{
   
   MatrixTools::mult(vPowExp_[2], pijt, d2pijt_);
   MatrixTools::scale(d2pijt_, rate_ * rate_);
-    //pijt_calculated_ = true;
-  //}else{
-    //mult(vPowGen_[2], pijt_, d2pijt_);
-  //}
-  // ddp(t) = Q^2 * p(t)*rate_^2
   pijtCalledFromDeriv_ = false;
   return d2pijt_;
 }
+
 /******************************************************************************/
 const Matrix<double>& ChromosomeSubstitutionModel::getPij_t_func2(double d) const{
   RowMatrix<double> pijt_temp;
@@ -1069,22 +1317,15 @@ void ChromosomeSubstitutionModel::calculateExp_Qt(size_t pow, double* s, double 
     for (size_t i = 1; i <= pow; i++){
       *s *= v / static_cast<double>(i);// the initial value of v is rt/(2^m)
       MatrixTools::add(pijt_, *s, vPowExp_[i]);
+      
     }
 
   }else{
     *s *= v / static_cast<double>(pow);
     MatrixTools::add(pijt_, *s, vPowExp_[pow]);
-
+ 
   }
   
-
-/*   while (m > 0)  // recover the 2^m
-  {
-    MatrixTools::mult(pijt_, pijt_, tmpMat_);
-    MatrixTools::copy(tmpMat_, pijt_);
-
-    m--;
-  } */
 
 }
 /******************************************************************************/
@@ -1130,52 +1371,100 @@ const Matrix<double>& ChromosomeSubstitutionModel::getPij_t_func4(double d) cons
 
 }
 /*********************************************************************************/
-double ChromosomeSubstitutionModel::getInitValue(size_t i, int state) const
-{
-  if (i >= size_)
-    throw IndexOutOfBoundsException("ChromosomeSubstitutionModel::getInitValue", i, 0, size_ - 1);
-  if (state < 0 || !alphabet_->isIntInAlphabet(state))
-    throw BadIntException(state, "ChromosomeSubstitutionModel::getInitValue. Character " + alphabet_->intToChar(state) + " is not allowed in model.");
-  vector<int> states = alphabet_->getAlias(state);
-  for (size_t j = 0; j < states.size(); j++)
+// double ChromosomeSubstitutionModel::getInitValue(size_t i, int state) const
+// {
+//   if (i >= size_)
+//     throw IndexOutOfBoundsException("ChromosomeSubstitutionModel::getInitValue", i, 0, size_ - 1);
+//   if (state < 0 || !alphabet_->isIntInAlphabet(state))
+//     throw BadIntException(state, "ChromosomeSubstitutionModel::getInitValue. Character " + alphabet_->intToChar(state) + " is not allowed in model.");
+//   vector<int> states = alphabet_->getAlias(state);
+//   for (size_t j = 0; j < states.size(); j++)
+//   {
+//      if (getAlphabetStateAsInt(i) == states[j]){
+//        if (dynamic_cast<const IntegerAlphabet*>(alphabet_)){
+//          const IntegerAlphabet* alpha = dynamic_cast<const IntegerAlphabet*>(alphabet_);
+//          // it is a composite state
+//          if (state > alpha->getMax() + 1){
+//            return alpha->getProbabilityForState(state, states[j]);
+
+//          }else{
+//            return 1.0;
+//          }
+
+//        }else{
+//          return 1.;
+//        }
+
+//      }
+//   }
+//   return 0.;
+// }
+
+const Matrix<double>& ChromosomeSubstitutionModel::getPijt_test(double t) const {
+  RowMatrix<double> pijt_temp;
+  MatrixTools::getId(size_, pijt_temp);
+  double s = 1.0;
+  double v = rate_ * t;
+  double norm = v * firstNormQ_;
+  size_t m = 0;
+  bool converged = false;
+  //while (v > 0.5)    // exp(r*t*A)=(exp(r*t/(2^m) A))^(2^m)
+  while (norm > 0.5)
   {
-     if (getAlphabetStateAsInt(i) == states[j]){
-       if (dynamic_cast<const ChromosomeAlphabet*>(alphabet_)){
-         const ChromosomeAlphabet* alpha = dynamic_cast<const ChromosomeAlphabet*>(alphabet_);
-         // it is a composite state
-         if (state > alpha->getMax() + 1){
-           return alpha->getProbabilityForState(state, states[j]);
-
-         }else{
-           return 1.0;
-         }
-
-       }else{
-         return 1.;
-       }
-
-     }
+    m += 1;
+    v /= 2;
+    norm /= 2;
   }
-  return 0.;
+  for (size_t iternum = 2; iternum <  vPowExp_.size(); iternum++){
+    calculateExp_Qt(iternum, &s, v);
+
+    if (iternum > 2){
+      converged = checkIfReachedConvergence(pijt_, pijt_temp);
+      if (converged){
+        break;
+      }
+    }
+    MatrixTools::copy(pijt_, pijt_temp);
+    if (iternum > 250){
+      //std :: cout << "ERROR: Pijt did not reach convergence for t = "<< t <<"!"<<endl;
+      throw Exception("ChromosomeSubstitutionModel: Taylor series did not reach convergence!");
+      break;
+    }
+    if (iternum == vPowExp_.size()-1 && !converged){  //need to add more powers to the matrix
+      RowMatrix<double> new_pow;
+      //new_pow.resize(size_, size_);
+      MatrixTools :: mult(vPowExp_[vPowExp_.size()-1], generator_, new_pow);
+      vPowExp_.push_back(new_pow);
+
+    }
+
+  }
+  while (m > 0){  // recover the 2^m
+      
+    MatrixTools::mult(pijt_, pijt_, tmpMat_);
+    MatrixTools::copy(tmpMat_, pijt_);
+
+    m--;
+  }
+  //just for test/////////////////////
+  // bool correct = true;
+  if (!pijtCalledFromDeriv_){
+    for (size_t i = 0; i < size_; i++){
+      for (size_t j = 0; j < size_; j++){
+        if (pijt_(i,j) < 0){
+          pijt_(i,j) = NumConstants::VERY_TINY(); // trying to do it exactly as in ChromEvol. Maybe the "nan" problem will be solved
+          //pijt_(i,j) = 0;
+        }
+        else if (pijt_(i, j) > 1){
+          pijt_(i,j) = 1.0;
+        }
+
+      }
+    }
+
+  }
+  return pijt_;
+
 }
 
-/* size_t ChromosomeSubstitutionModel::getMaxChrNum(const Alphabet* alpha){
-  //Alphabet* new_alpha = alpha->clone();
-  //AbstractAlphabet* chr_alpha = dynamic_cast <AbstractAlphabet*>(new_alpha);
-  
-  size_t number_of_alpha_states = alpha->getNumberOfStates();
-  AlphabetState state = alpha->getStateAt(number_of_alpha_states-1);
-  size_t max_state_num = state.getNum();
-  return max_state_num;
-
-} */
 /******************************************************************************/
-/* 
-size_t ChromosomeSubstitutionModel::getMinChrNum(const Alphabet* alpha){
-  //Alphabet* new_alpha = alpha->clone();
-  //AbstractAlphabet* chr_alpha = dynamic_cast <AbstractAlphabet*>(new_alpha);
-  AlphabetState state = alpha->getStateAt(1);
-  size_t min_state_num = state.getNum();
-  return min_state_num;
-
-} */

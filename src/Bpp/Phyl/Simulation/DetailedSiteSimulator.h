@@ -104,6 +104,7 @@ public:
     statemap_        = ssr.statemap_;
     return *this;
   }
+    virtual size_t getRootAncestralState() const { return ancestralStates_[0]; }
 
   virtual ~SiteSimulationResult() {}
 

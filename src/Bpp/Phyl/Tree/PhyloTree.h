@@ -184,6 +184,12 @@ public:
    */
   
   void addSubTree(std::shared_ptr<PhyloNode> phyloNode, const Node& node);
+      
+  /**
+    * @brief Calculate the sum of branches of the phylotree.
+  */
+
+  double getTotalLength() const;
 };
 }
 

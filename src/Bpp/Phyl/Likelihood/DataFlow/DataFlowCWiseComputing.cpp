@@ -167,6 +167,16 @@ template class MatrixProduct<Eigen::RowVectorXd, Eigen::RowVectorXd, Eigen::Matr
 template class MatrixProduct<MatrixLik, Eigen::MatrixXd, MatrixLik>;
 template class MatrixProduct<MatrixLik, Transposed<Eigen::MatrixXd>, MatrixLik>;
 
+template class MatrixMaxProduct<ExtendedFloatRowVectorXd, Eigen::RowVectorXd, ExtendedFloatMatrixXd>;
+template class MatrixMaxProduct<Eigen::RowVectorXd, Eigen::RowVectorXd, Eigen::MatrixXd>;
+template class MatrixMaxProduct<MatrixLik, Eigen::MatrixXd, MatrixLik>;
+template class MatrixMaxProduct<MatrixLik, Transposed<Eigen::MatrixXd>, MatrixLik>;
+
+template class MatrixArgMaxProduct<ExtendedFloatRowVectorXd, Eigen::RowVectorXd, ExtendedFloatMatrixXd>;
+template class MatrixArgMaxProduct<Eigen::RowVectorXd, Eigen::RowVectorXd, Eigen::MatrixXd>;
+template class MatrixArgMaxProduct<MatrixLik, Eigen::MatrixXd, MatrixLik>;
+template class MatrixArgMaxProduct<MatrixLik, Transposed<Eigen::MatrixXd>, MatrixLik>;
+
 template class ShiftDelta<double>;
 template class ShiftDelta<VectorLik>;
 template class ShiftDelta<RowLik>;

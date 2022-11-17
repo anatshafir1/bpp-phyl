@@ -36,21 +36,23 @@
   The fact that you are presently reading this means that you have had
   knowledge of the CeCILL license and that you accept its terms.
 */
-#ifndef _COMPUTECHROMOSOMETRANSITIONSEXP_H_
-#define _COMPUTECHROMOSOMETRANSITIONSEXP_H_
+#ifndef BPP_PHYL_MAPPING_COMPUTECHROMOSOMETRANSITIONSEXP_H
+#define BPP_PHYL_MAPPING_COMPUTECHROMOSOMETRANSITIONSEXP_H
 
 
 #include "Bpp/Phyl/Model/ChromosomeSubstitutionModel.h"
-#include "Bpp/Phyl/Likelihood/DRNonHomogeneousTreeLikelihood.h"
-#include "Bpp/Phyl/Mapping/ComputeChangesExpectations.h"
-#include "Bpp/Phyl/Likelihood/MarginalNonRevAncestralStateReconstruction.h"
+#include "Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h"
+#include "Bpp/Phyl/Tree/PhyloTree.h"
+#include "Bpp/Phyl/Tree/PhyloTreeTools.h"
+#include "Bpp/Phyl/App/ChromEvolOptions.h"
+#include "Bpp/Phyl/Mapping/StochasticMapping.h"
 
 #include <Bpp/Exceptions.h>
 #include <Bpp/Numeric/Random/RandomTools.h>
 #include <Bpp/Numeric/VectorTools.h>
 
 // From Seqlib:
-#include <Bpp/Seq/Alphabet/ChromosomeAlphabet.h>
+#include <Bpp/Seq/Alphabet/IntegerAlphabet.h>
 #include <vector>
 #include <map>
 #include <utility>
@@ -69,44 +71,78 @@ namespace bpp
     class ComputeChromosomeTransitionsExp{
         // a class used to calculate the expectation of transitions per each type of 
         // transtion along the tree or per branch
+        typedef pair<uint, PhyloBranch> Branch;
         private:
-            map<int, map<size_t, VVdouble>> jointProbabilitiesFatherSon_;
-            const TreeTemplate<Node>* tree_;
-            const ChromosomeSubstitutionModel* model_;
-            const ChromosomeAlphabet* alphabet_;
-            vector<double> waitingTimes_;
-            VVdouble jumpProbs_;  // probability to transit from state i to state j Qij/sum{Qij}
-            vector<Node> branchOrder_;
-            map <int, map<pair<int, int>, int>> ancestralTerminalsCounts_;  // for each node Id, map <<firstState, LastState>, occurence>
-            map <int, map <pair<int, int>, Vdouble>> branchTransitionsExp_; //for each node, for each possible pair of terminals-> Vdouble: the index is the type of transition. The double is the expectation
-            map <int, map <int, double>> expNumOfChangesPerBranch_;   // node -> jump type (gain, loss, dupl, demi-dupl, baseNum, maxChr) -> expecation
-            map <int, double> expNumOfChanges_;    //node->expectation per branch induced by the node
+            // stores the joint probabilities of father and son for each branch.
+            // key = node (the son of the branch). Value is a matrix represented by 
+            // vector of double vectors. The first dimension refers to the son, and the second
+            // to the father
+            map<uint, map<size_t, VVdouble>> jointProbabilitiesFatherSon_;
+
+            const PhyloTree* tree_;
+            const NonHomogeneousSubstitutionProcess* model_;
+            const IntegerAlphabet* alphabet_;
+            // The branches on which the chromsome number changes are simulated
+            vector<vector<Branch>> branchOrder_;
+
+            // A map which stores for each node the simulated ancestral terminals, such that
+            // each pair of ancestral terminals also serves as a key, where the value is a pair,
+            // where the first element is the number of occurences of a given pair of ancestral terminals,
+            // and the second element is a vector of expectations per each type of transition (the index represents a type).
+            map <uint, map <pair<int, int>, std::pair<int, Vdouble>>> branchTransitionsExp_;
+
+            // A map which stores for each node a map where the key is the type of chnage, and the value is the expectation of this type of change taking
+            // into account all the encountered terminals. 
+            map <uint, map <int, double>> expNumOfChangesPerBranch_;
+
+            // A map where the key is a node id, and the value is the exected number of changes over all types and ancestral terminals.
+            map <uint, double> expNumOfChanges_;
+
             int jumpTypeMethod_;    // which function to use for type classification- 0 if deterministic, 1 if probabilistic
-            map <pair<int, int>, map<int, double>> stateJumpTypeProb_; // key = jump states i->j. value = map of change type and probability
-            double isNeededHeuristics(int nodeId, map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals); // check if we need to run heuristics (in case there are not enough transitions)
-            double getCumulativeProbability(int nodeId, vector <pair<int, int>>* terminalsToAccount = 0);
-            vector <int> setVectorOfInitStatesForHeuristics(map <int, vector<pair<int,int>>>& unAccountedNodesAndTerminals) const; // get the init states for which we have to rerun the simulation
-            //string getNodeName(const TreeTemplate<Node>* tree, int nodeId);
-            void updateNumNonAccountedBranches(map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, const string FilePath);
-            void updateBranchLengths(int initState, int iteration, map <int, double>* ratesPerState);
-            void getPosteriorAndExpForNonAccountedFor(map <int, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
-            void computeExpPerTypeHeuristics(map <int, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
-            bool isMaxStateValid(int prevState) const;
+
+            // A map where the key represents the transitions from state i to j, and the value is a map,
+            // where the key is the type of transition, and the value is the probability that the given transition corresponds to that
+            // type of transition.
+            map <pair<int, int>, map<int, double>> stateJumpTypeProb_;
+
+            /***********************************/
+            // Internal functions
+            /**********************************/ 
+
+            // After the standard procedure of expextations computations, check if there any branches with not enough simulated chnages
+            // i.e., the accounted ancestral terminals cover at least 95% of the possible ancestral pairs.
+            // The function updates the already accounted ancestral terminals, so that they will be not taken into 
+            // consideration in the second round of simulations.
+            // Returns the probability covered by the accounted for ancestral terminals.
+            double isNeededHeuristics(uint nodeId, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals);
+
+            // Returns the cumulative probability of the accounted changes, and updates terminalsToAccount with the accounted for ancestral terminals if provided.
+            double getCumulativeProbability(uint nodeId, vector <pair<int, int>>* terminalsToAccount = 0);
+            
+             
+            void updateNumNonAccountedBranches(map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals, int iteration, size_t modelIndex, const string FilePath);
+            void updateBranchLengths(int initState, int iteration, size_t modelIndex, map <int, double>* ratesPerState);
+            void getPosteriorAndExpForNonAccountedFor(map <uint, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
+            void computeExpPerTypeHeuristics(map <uint, vector<pair<int, int>>>& nonAccountedForBranchesFromFirstRun);
+            bool isMaxStateValid(int prevState, std::shared_ptr<const ChromosomeSubstitutionModel> model) const;
             
         public:
-            ComputeChromosomeTransitionsExp(DRNonHomogeneousTreeLikelihood* lik, map<int, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
-            :jointProbabilitiesFatherSon_(jointProbabilitiesFatherSon), tree_(dynamic_cast<const TreeTemplate<Node>*>(&(lik->getTree()))), model_(dynamic_cast <const ChromosomeSubstitutionModel*>(lik->getSubstitutionModelSet()->getModel(0))), alphabet_(dynamic_cast <const ChromosomeAlphabet*>(lik->getAlphabet())),
-            waitingTimes_(), jumpProbs_(), branchOrder_(), ancestralTerminalsCounts_(), branchTransitionsExp_(), expNumOfChangesPerBranch_(), expNumOfChanges_(), jumpTypeMethod_(method), stateJumpTypeProb_(){}
+            ComputeChromosomeTransitionsExp(const std::shared_ptr<NonHomogeneousSubstitutionProcess> model,  const PhyloTree* tree, const IntegerAlphabet* alphabet, map<uint, map<size_t, VVdouble>>& jointProbabilitiesFatherSon, int method = 0)
+            :jointProbabilitiesFatherSon_(jointProbabilitiesFatherSon), tree_(tree), model_(model.get()), alphabet_(alphabet),
+            //waitingTimes_(), jumpProbs_(), 
+            branchOrder_(), 
+            //ancestralTerminalsCounts_(), 
+            branchTransitionsExp_(), expNumOfChangesPerBranch_(), expNumOfChanges_(), jumpTypeMethod_(method), stateJumpTypeProb_(){}
 
             ComputeChromosomeTransitionsExp(const ComputeChromosomeTransitionsExp& exp):
                 jointProbabilitiesFatherSon_(exp.jointProbabilitiesFatherSon_),
                 tree_ (exp.tree_),
                 model_ (exp.model_),
                 alphabet_(exp.alphabet_),
-                waitingTimes_(exp.waitingTimes_),
-                jumpProbs_(exp.jumpProbs_),
+                //waitingTimes_(exp.waitingTimes_),
+                //jumpProbs_(exp.jumpProbs_),
                 branchOrder_(exp.branchOrder_),
-                ancestralTerminalsCounts_(exp.ancestralTerminalsCounts_),
+                //ancestralTerminalsCounts_(exp.ancestralTerminalsCounts_),
                 branchTransitionsExp_(exp.branchTransitionsExp_),
                 expNumOfChangesPerBranch_ (exp.expNumOfChangesPerBranch_),
                 expNumOfChanges_ (exp.expNumOfChanges_),
@@ -119,10 +155,10 @@ namespace bpp
                 tree_ = exp.tree_;
                 model_ = exp.model_;
                 alphabet_ = exp.alphabet_;
-                waitingTimes_ = exp.waitingTimes_;
-                jumpProbs_ = exp.jumpProbs_;
+                //waitingTimes_ = exp.waitingTimes_;
+                //jumpProbs_ = exp.jumpProbs_;
                 branchOrder_ = exp.branchOrder_;
-                ancestralTerminalsCounts_ = exp.ancestralTerminalsCounts_;
+                //ancestralTerminalsCounts_ = exp.ancestralTerminalsCounts_;
                 branchTransitionsExp_ = exp.branchTransitionsExp_;
                 expNumOfChangesPerBranch_ = exp.expNumOfChangesPerBranch_;
                 expNumOfChanges_ = exp.expNumOfChanges_;
@@ -133,29 +169,48 @@ namespace bpp
             ComputeChromosomeTransitionsExp* clone() const { return new ComputeChromosomeTransitionsExp(*this); }
             virtual ~ComputeChromosomeTransitionsExp(){};
             void init();
-            void computeExpectationOfChangePerBranch(int nodeId, VVdouble &jointProbFatherNode, int transitionType);
-            ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransition(int startState, int endState);
+            void computeExpectationOfChangePerBranch(uint nodeId, VVdouble &jointProbFatherNode, int transitionType);
+            //ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransition(int startState, int endState);
             //more sophisticated function: if there is an overlap between different transition types-> the chosen state is sampled according to probabilities
-            ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransitionWithProb(int startState, int endState);
-            //void computeBaseNumExpectation(int nodeId, int jumpStateStart, VVdouble jointProbFatherNode);
-            //void computeDemiDuplExpectation(int nodeId, int jumpStateStart, VVdouble jointProbFatherNode);
+            //ChromosomeSubstitutionModel::typeOfTransition getTypeOfTransitionWithProb(int startState, int endState);
+
 
             void computeExpectationPerType();
             void printResults(const string path = "none");
-            TreeTemplate<Node>* getResultTree();
-            // from previous used class
-            void runIteration(int state, map <int, vector<pair<int,int>>>* unAccountedNodesAndTerminals = 0);
+            PhyloTree* getResultTree();
+            // // from previous used class
+            void runIteration(int state, size_t modelIndex, map <uint, vector<pair<int,int>>>* unAccountedNodesAndTerminals = 0);
             void computeExpectationAndPosterior();
             void runSimulations(int numOfSimulations);
-            static bool compareBranches(Node& node1, Node& node2);//sorting function to sort the branches in ascending order of length
-            int getRandomState(int currentState);
-            double getExpectation(int nodeId, int startAncestral, int endAncestral, int typeOfChange);
-            void updateMapOfJumps(int startState, int endState);
-            void updateExpectationsPerBranch(int nodeId, pair<int, int> ancestralTerminals, pair<int, int> jumpStates);
+            static bool compareBranches(Branch& edge1, Branch& edge2);//sorting function to sort the branches in ascending order of length
+            int getRandomState(int currentState, std::shared_ptr<const ChromosomeSubstitutionModel> model);
+            double getExpectation(uint nodeId, int startAncestral, int endAncestral, int typeOfChange);
+            void updateMapOfJumps(int startState, int endState, std::shared_ptr<const ChromosomeSubstitutionModel> model);
+            void updateExpectationsPerBranch(uint nodeId, pair<int, int> ancestralTerminals, pair<int, int> jumpStates);
             void runHeuristics(const string FilePath = "none");
+            static std::map<int, double> getTypeForEachTransitionPerNode(std::shared_ptr<const ChromosomeSubstitutionModel> chrModel, std::map<pair<size_t, size_t>, double> &transitionsPerNode, uint nodeId);
+
+            //*** *** ***
+            // Temporarily include function for dealing with chromosome number model related stochastic mapping
+            // as inferred from the StochasticMapping class. these functions are needed mainly to test the method
+            //*** *** ***
+
+            // get model index for each node (i.e., the model of the father, because this is the model which applies on the son branch)
+            static std::map<uint, size_t> getModelForEachBranch(PhyloTree &tree, const NonHomogeneousSubstitutionProcess &models);
+            static void getModeForSons(PhyloTree &tree, uint fatherId, uint sonId, const NonHomogeneousSubstitutionProcess* NonHomoModel,  std::map<uint, size_t> &modelPerNode);
+
+            // find the expectations of each transition type
+            static std::map<int, double> getExpectationsPerType(const NonHomogeneousSubstitutionProcess* NonHomoProcess, PhyloTree &tree, std::map<uint, std::map<pair<size_t, size_t>, double>> &expectationsPerNode);
+            static bool getProbabilitiesPerType(vector<double> &probabilities, int startState, int endState, std::shared_ptr<const ChromosomeSubstitutionModel> model);
+            
+
+
+            
+            
+            
             
 
 
     };
 }
-#endif // _COMPUTECHROMOSOMETRANSITIONSEXP_H_
+#endif // BPP_PHYL_MAPPING_COMPUTECHROMOSOMETRANSITIONSEXP_H

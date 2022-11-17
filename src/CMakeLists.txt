@@ -8,6 +8,8 @@
 # File list
 set (CPP_FILES
   Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
+  Bpp/Phyl/App/ChromEvolOptions.cpp
+  Bpp/Phyl/App/ChromosomeNumberMng.cpp
   Bpp/Phyl/Legacy/App/PhylogeneticsApplicationTools.cpp
   Bpp/Phyl/App/BppPhylogeneticsApplication.cpp
   Bpp/Phyl/Distance/AbstractAgglomerativeDistanceMethod.cpp
@@ -54,7 +56,7 @@ set (CPP_FILES
   Bpp/Phyl/Legacy/Likelihood/DRNonHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Legacy/Likelihood/DRTreeLikelihoodTools.cpp
   Bpp/Phyl/Legacy/Likelihood/GlobalClockTreeLikelihoodFunctionWrapper.cpp
-  Bpp/Phyl/Legacy/Likelihood/JointLikelihoodFunction.cpp
+  # Bpp/Phyl/Legacy/Likelihood/JointLikelihoodFunction.cpp
   Bpp/Phyl/Legacy/Likelihood/MarginalAncestralStateReconstruction.cpp
   Bpp/Phyl/Legacy/Likelihood/NNIHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Legacy/Likelihood/PairedSiteLikelihoods.cpp
@@ -67,6 +69,7 @@ set (CPP_FILES
   Bpp/Phyl/Legacy/Likelihood/RNonHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Legacy/Likelihood/TreeLikelihoodTools.cpp
   Bpp/Phyl/Likelihood/DataFlow/BackwardLikelihoodTree.cpp
+  Bpp/Phyl/Likelihood/ChromosomeNumberOptimizer.cpp
   Bpp/Phyl/Likelihood/DataFlow/CollectionNodes.cpp
   Bpp/Phyl/Likelihood/DataFlow/DataFlow.cpp
   Bpp/Phyl/Likelihood/DataFlow/DataFlowNumeric.cpp
@@ -77,6 +80,8 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/DataFlow/ExtendedFloat.cpp
   Bpp/Phyl/Likelihood/DataFlow/FrequencySet.cpp
   Bpp/Phyl/Likelihood/DataFlow/LikelihoodCalculationSingleProcess.cpp
+  Bpp/Phyl/Likelihood/DataFlow/FwLikMLAncestralReconstruction.cpp
+  Bpp/Phyl/Likelihood/JointMLAncestralReconstruction.cpp
   Bpp/Phyl/Likelihood/DataFlow/Model.cpp
   Bpp/Phyl/Likelihood/DataFlow/Parameter.cpp
   Bpp/Phyl/Likelihood/DataFlow/Parametrizable.cpp
@@ -118,6 +123,8 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/PhyloLikelihoods/HmmProcessPhyloLikelihood.cpp
   Bpp/Phyl/Likelihood/PhyloLikelihoods/AutoCorrelationProcessPhyloLikelihood.cpp
   Bpp/Phyl/Likelihood/MarginalAncestralReconstruction.cpp
+  Bpp/Phyl/Likelihood/UndirectedGraph.cpp
+  Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.cpp
   Bpp/Phyl/Mapping/DecompositionMethods.cpp
   Bpp/Phyl/Mapping/DecompositionReward.cpp
   Bpp/Phyl/Mapping/DecompositionSubstitutionCount.cpp

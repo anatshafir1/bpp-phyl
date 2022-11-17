@@ -805,6 +805,13 @@ public:
     return ExtendedFloatEigen<R, 1, EigenType>(float_part().col(col), exponent_part());
   }
 
+  ExtendedFloatEigen<R, 1, EigenType> col(Eigen::Index col)
+  {
+    return ExtendedFloatEigen<R, 1, EigenType>(float_part().col(col), exponent_part());
+  }
+
+
+
   template<typename M = MatType>
   typename std::enable_if<std::is_same<M, EFMatrix<R, C> >::value, ExtendedFloatRow<R, C, EigenType > >::type
   row(Eigen::Index pos)
@@ -963,6 +970,111 @@ inline ExtendedFloatArray<R, C> pow (const ExtendedFloatArray<R, C>& obj, int ex
   r.normalize ();
   return r;
 }
+// inline static ExtendedFloatMatrixXd maxProduct(const ExtendedFloatMatrixXd& matA, const ExtendedFloatMatrixXd& matB){
+//   size_t nrows = (size_t)(matA.rows());
+//   size_t ncols = (size_t)(matB.cols());
+//   if (matA.cols() == 1){
+//     nrows = 1;
+//   }
+//   ExtendedFloatMatrixXd mat = ExtendedFloatMatrixXd::Zero(matA.rows(), matB.cols());
+//   for (size_t i = 0; i < nrows; i++){
+//     for (size_t j = 0; j < ncols; j++){
+//       if (nrows == 1){
+//         auto rowArr = matA.float_part().col(i).transpose().array();
+//         auto colArr = matB.float_part().col(j).transpose().array();
+//         auto product = rowArr * colArr;
+//         auto maxRes = product.maxCoeff();
+//         mat.float_part()(i, j) = maxRes;
+//       }else{
+//         auto rowArr = matA.float_part().row(i).array();
+//         auto colArr = matB.float_part().col(j).transpose().array();
+//         auto product = rowArr * colArr;
+//         auto maxRes = product.maxCoeff();
+//         mat.float_part()(i, j) = maxRes;
+//       }     
+
+
+//     }
+//   }
+//   mat.exponent_part() = matA.exponent_part() + matB.exponent_part();
+//   mat.normalize();
+//   return mat;
+
+// }
+
+// //  typename std::enable_if<std::is_same<T, Self>::value || std::is_same<T, ExtendedFloat>::value, Self>::type
+
+// template<typename U, typename V>
+// typename std::enable_if<std::is_same<U, ExtendedFloatMatrixXd>::value && std::is_same<V, ExtendedFloatMatrixXd>::value>::type
+// inline static getArgMaxProduct (const U& matA, const V& matB)
+// {
+//   size_t nrows = (size_t)(matA.rows());
+//   size_t ncols = (size_t)(matB.cols());
+//   if (matA.cols() == 1){
+//     nrows = 1;
+//   }
+//   ExtendedFloatMatrixXd result = ExtendedFloatMatrixXd::Zero(matA.rows(), matB.cols());
+//   //result.set_exponent_part(0);
+//   for (size_t i = 0; i < nrows; i++){
+//     for (size_t j = 0; j < ncols; j++){
+//       size_t pos;
+//       if (nrows == 1){
+//           auto y1 = bpp::numeric::cwise(matA.col(i).transpose());
+//           //std::cerr << "y1 = " << y1 << std::endl;
+//           auto y2 = bpp::numeric::cwise(matB.col(j).transpose());
+//           //std::cerr << "y2 = " << y2 << std::endl;
+//           auto prod = y1 * y2;
+//           prod.maxCoeff(&pos);   
+//           result.float_part()(i, j)= (double) pos;  
+//         }else{
+//           auto y1 = bpp::numeric::cwise(matA.row(i));
+//           //std::cerr << "y1 = " << y1 << std::endl;
+//           auto y2 = bpp::numeric::cwise(matB.col(j).transpose());
+//           //std::cerr << "y2 = " << y2 << std::endl;
+//           auto prod = y1 * y2;
+//           prod.maxCoeff(&pos);   
+//           result..float_part()(i, j) = (double) pos; 
+          
+//         }   
+
+//       }
+//     }
+//     return result;
+// }
+
+// template<typename U, typename V>
+// typename std::enable_if<std::is_same<U, Eigen::MatrixXd>::value && std::is_same<V, Eigen::MatrixXd>::value>::type
+// inline static getArgMaxProduct (const U& matA, const V& matB){
+//   size_t nrows = (size_t)(matA.rows());
+//   size_t ncols = (size_t)(matB.cols());
+//   if (matA.cols() == 1){
+//     nrows = 1;
+//   }
+//   Eigen::MatrixXd result = Eigen::MatrixXd::Zero(matA.rows(), matB.cols());
+//   for (size_t i = 0; i < nrows; i++){
+//     for (size_t j = 0; j < ncols; j++){
+//       size_t pos;
+//       if (nrows == 1){
+//         auto y1 = matA.col(i).transpose().array();
+//         auto y2 = (matB.col(j)).transpose().array();
+//         auto prod = y1 * y2;
+//         prod.maxCoeff(&pos);
+//       }else{
+//         auto y1 = (matA.row(i)).array();
+//         auto y2 = (matB.col(j)).transpose().array();
+//         auto prod = y1 * y2;
+//         prod.maxCoeff(&pos);
+
+//       }
+
+      
+//       result (i, j) = (double) pos;      
+
+//     }
+//   }
+//   return result;
+// }
+
 
 
 template<int R, int C, template< int R2 = R,  int C2 = C> class MatType, typename T>

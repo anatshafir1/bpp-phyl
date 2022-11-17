@@ -176,6 +176,11 @@ public:
    * If the original StateMap alread had a state for gaps, a new one will be appended.
    */
   CanonicalStateMap(const StateMap& sm, bool includeGaps);
+  // /**
+  //   * @brief this contructor should be used for ChromosomeAlphabet or possibly for IntegerAlphabet
+  //   */
+
+  // CanonicalStateMap(const Alphabet* alphabet, int min, int max, bool includeGaps);
 
   virtual CanonicalStateMap* clone() const { return new CanonicalStateMap(*this); }
 
