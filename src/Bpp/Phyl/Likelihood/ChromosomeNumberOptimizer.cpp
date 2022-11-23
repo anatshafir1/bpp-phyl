@@ -437,12 +437,10 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
                 continue;
             }
             unsigned int chrRange = (unsigned int)(std::abs(chrNum1 - chrNum2));
-            if (chrRange == 0 || chrRange == 1){
+            if (chrRange < lowerBoundBaseNumber){
                 continue;
             }
-            else if (chrRange == 2){
-                continue;
-            }
+
             if (!std::count(baseNumCandidates.begin(), baseNumCandidates.end(), chrRange)){
                 if (minRange == 0){
                     minRange = chrRange;
@@ -457,8 +455,8 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
 
         }
     }
-    if (minRange > static_cast<unsigned int>(lowerBoundBaseNumber)){
-        for (unsigned int i = static_cast<unsigned int>(lowerBoundBaseNumber); i < minRange; i++){
+    if (minRange > lowerBoundBaseNumber){
+        for (unsigned int i = lowerBoundBaseNumber; i < minRange; i++){
             baseNumCandidates.push_back(i);
         }
 

@@ -792,8 +792,17 @@ void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOpt
     const string outStMappingPath = ChromEvolOptions::resultsPathDir_+"//"+ "stochastic_mapping.txt";
     // print all the results associated with stochastic mapping
     printStochasticMappingResults(stm, dwellingTimesPerState, numOfOccurencesPerTransition, ratesPerTransition, expectationsTotal, outStMappingPath);
+    size_t numOfMapping = stm->getNumberOfMappings();
+    const std::shared_ptr<PhyloTree> stmTree = stm->getTree();
+    auto &mappings = stm->getMappings();
+    auto &ancestralStates = stm->getAncestralStates();
 
-    // delete
+    for (size_t i = 0; i < numOfMapping; i++){
+        const string outPathPerMapping =  ChromEvolOptions::resultsPathDir_+"//"+ "evoPathMapping_" + std::to_string(i) + ".txt";
+        printStochasticMappingEvolutionaryPath(stmTree, mappings, ancestralStates, i, outPathPerMapping);
+    }
+
+    // delete 
     auto sequenceData = likObjectOpt->getData();
     auto process = &(likObjectOpt->getSubstitutionProcess());
     delete process;
@@ -801,6 +810,50 @@ void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOpt
     delete stm;
     
 
+
+}
+/**************************************************************************************/
+void ChromosomeNumberMng::printStochasticMappingEvolutionaryPath(std::shared_ptr<PhyloTree> stmTree, const std::map<uint, std::vector<MutationPath>> &mappings, const std::map<uint, std::vector<size_t>> &ancestralStates, size_t mappingIndex, const string &outPathPerMapping){
+    ofstream outFile;
+    outFile.open(outPathPerMapping);
+    size_t totalNumTransitions = 0;
+    vector<shared_ptr<PhyloNode> > nodes = stmTree->getAllNodes();
+    size_t nbNodes = nodes.size();
+    for (size_t n = 0; n < nbNodes; n++){
+        uint nodeId = stmTree->getNodeIndex(nodes[n]);
+        if (stmTree->getRootIndex() == nodeId){
+            outFile << "N-" + std::to_string(nodeId) << endl;
+            size_t rootState = ancestralStates.at(nodeId)[mappingIndex];
+            outFile <<"\tThe root state is: "<< ((int)(rootState + alphabet_->getMin())) <<endl;
+        }else{
+            if (stmTree->isLeaf(nodeId)){
+                outFile << stmTree->getNode(nodeId)->getName() << endl;
+            }else{
+                outFile << "N-" + std::to_string(nodeId) <<endl;
+
+            }
+            MutationPath mutPath = mappings.at(nodeId)[mappingIndex];
+            vector<size_t> states = mutPath.getStates();
+            vector<double> times = mutPath.getTimes();
+            totalNumTransitions += static_cast<int>(times.size());
+
+            auto edgeIndex =  stmTree->getIncomingEdges(nodeId)[0]; 
+            auto fatherIndex = stmTree->getFatherOfEdge(edgeIndex);
+            outFile << "Father is: " << "N-" << fatherIndex << std::endl;
+            size_t fatherState = ancestralStates.at(fatherIndex)[mappingIndex] + alphabet_->getMin();    
+            for (size_t i = 0; i < states.size(); i++){
+                outFile << "from state: "<< fatherState  <<"\tt = "<<times[i] << " to state = "<< ((int)(states[i]) + alphabet_->getMin()) << endl;
+                fatherState = ((int)(states[i]) + alphabet_->getMin());
+            }
+            outFile <<"# Number of transitions per branch: "<< times.size() <<endl;   
+            
+        }
+        
+        outFile <<"*************************************"<<endl;
+        
+    }
+    outFile <<"Total number of transitions is: "<< totalNumTransitions << endl;
+    outFile.close();
 
 }
 /**************************************************************************************/
