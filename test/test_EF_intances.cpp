@@ -164,26 +164,145 @@ std::map<std::string, std::map<string, double>> extract_alphabet_states(string &
 }
 
 int main() {
-    string path = "/home/anat/Docs/Sida/counts_f.fasta";
-    string outFileName = "/home/anat/Docs/Sida/counts_p.pasta";
-    int min;
-    int max;
-    auto map_species_states = extract_alphabet_states(path, min, max);
-    auto it = map_species_states.begin();
-    while (it != map_species_states.end()){
-        std::cout << "species: " << it->first << std::endl;
-        auto &map_states_probs = map_species_states[it->first];
-        auto it_probs = map_states_probs.begin();
-        while (it_probs != map_states_probs.end()){
-            std::cout << "\t" << it_probs->first << " " << map_states_probs[it_probs->first] << std::endl;
-            it_probs ++;
+    Eigen::MatrixXd Pijt = Eigen::MatrixXd::Ones(3,3);
+    Pijt(0,0) = 0.2;
+    Pijt(0,1) = 0.3;
+    Pijt(0,2) = 0.5;
+    Pijt(1,0) = 0.1;
+    Pijt(1,1) = 0.8;
+    Pijt(1,2) = 0.1;
+    Pijt(2,0) = 0.35;
+    Pijt(2,1) = 0.6;
+    Pijt(2,2) = 0.05;
+
+    MatrixLik Ln;// = MatrixLik::Ones(2,3);
+
+    ExtendedFloat ef1 = ExtendedFloat{0.25,0};
+    ef1.normalize();
+
+    ExtendedFloat ef2 = ExtendedFloat{1.2e-30,0};
+    ef2.normalize();
+    ef2 *= ef2;
+    ExtendedFloat ef4 = ExtendedFloat{1.2e-300,0};
+    ef4.normalize();
+    ef2 *= ef4;
+    std::cout << ef2 << std::endl;
+    ExtendedFloat ef3 = ExtendedFloat{0.05,0};
+    ef3.normalize();
+    std::vector<ExtendedFloat> vec = {ef1, ef2, ef3, ExtendedFloat{0,0}};
+    ExtendedFloatVectorXd v;
+    copyBppToEigen (vec, v);
+    std::cout <<"Mid res:" << v <<std::endl;
+    std::cout << "printed element " << v(0);
+    std::vector<ExtendedFloatVectorXd> vector_v;
+    vector_v.push_back(v);
+    copyBppToEigen (vector_v, Ln);
+    size_t nrows = Pijt.rows();
+    size_t ncols = Ln.cols();
+      // if (x0.cols() == 1){
+      //   nrows = 1;
+      // }
+    vector<ExtendedFloatVectorXd> result;
+    for (size_t i = 0; i < nrows; i++){
+        vector <ExtendedFloat> row_col_res;
+        for (size_t j = 0; j < ncols; j++){
+            auto y1 = Pijt.row(i).array();
+            auto y2 = cwise(Ln.col(j));
+            auto product = y1*y2;
+            auto max = product.maxCoeff();
+            row_col_res.push_back(max);
         }
-        it++;
+        ExtendedFloatVectorXd res;
+        copyBppToEigen(row_col_res, res);
+        result.push_back(res);
+
     }
-    std::cout << "****" << std::endl;
-    std::cout << "min is: " << min << std::endl;
-    std::cout << "max is: " << max << std::endl;
-    create_pasta_file(outFileName, min, max, map_species_states);
+    MatrixLik matLik = MatrixLik::Zero(nrows, ncols);
+    copyBppToEigen(result, matLik);
+
+
+
+
+      //     if (nrows == 1){
+      //       auto y1 = x0.col(i).transpose().array();
+      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto prod = y1 * y2;
+      //       result (i, j) = prod.maxCoeff();
+      //     }else{
+      //       auto y1 = x0.row(i).array();
+      //       auto y2 = (x1.col(j).transpose()).array();
+      //       auto prod = y1 * y2;
+      //       result (i, j) = prod.maxCoeff();
+      //     }
+
+      //   }
+      // }
+
+
+    //Ln.normalize();
+
+
+
+    // Ln = mat_double.unaryExpr ([](double d) {
+    //     ExtendedFloat ef{d, 0};
+    //     return d;
+    // });
+    // Ln = mat_int.NullaryExpr([&Ln](int i){
+    //     Ln()
+    // })
+    // Ln = Ln.binaryExpr(mat_int),
+    //         ([](ExtendedFloat d, int i){
+    //             return ExtendedFloat{d.get_float_part(), i};});
+
+
+    
+    // Ln = Pijt.unaryExpr ([](double d) {
+    //       ExtendedFloat ef{d};
+    //       ef.normalize ();
+    //       return d;
+    //     });
+
+    // ef3.normalize();
+    // Eigen::Matrix<ExtendedFloat, 1, Eigen::Dynamic> temp;
+    // temp = Ln.unaryExpr ([](ExtendedFloat d) {
+    //     //   ExtendedFloat ef{d};
+    //     //   ef.normalize ();
+    //       return d;
+    //     });
+
+
+
+
+    std::cout << "Pijt:" << std::endl;
+    std::cout << Pijt << std::endl;
+
+    std::cout << "Ln: " <<  Ln << std::endl;
+    std::cout << "Max result: " << std::endl;
+    std::cout << matLik << std::endl;
+
+    // string path = "/home/anat/Docs/Sida/counts_f.fasta";
+    // string outFileName = "/home/anat/Docs/Sida/counts_p.pasta";
+    // int min;
+    // int max;
+    // auto map_species_states = extract_alphabet_states(path, min, max);
+    // auto it = map_species_states.begin();
+    // while (it != map_species_states.end()){
+    //     std::cout << "species: " << it->first << std::endl;
+    //     auto &map_states_probs = map_species_states[it->first];
+    //     auto it_probs = map_states_probs.begin();
+    //     while (it_probs != map_states_probs.end()){
+    //         std::cout << "\t" << it_probs->first << " " << map_states_probs[it_probs->first] << std::endl;
+    //         it_probs ++;
+    //     }
+    //     it++;
+    // }
+    // std::cout << "****" << std::endl;
+    // std::cout << "min is: " << min << std::endl;
+    // std::cout << "max is: " << max << std::endl;
+    // create_pasta_file(outFileName, min, max, map_species_states);
+
+
+
     // vector<uint> nodes = {1,2,5,7,8,6,9,7,7,9,11,10};
     // vector <uint> vectorOfNodesM2 = {7,5,5,6,12};
     // set<uint> setNodes(nodes.begin(), nodes.end());

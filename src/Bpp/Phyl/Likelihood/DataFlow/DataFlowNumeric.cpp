@@ -71,12 +71,45 @@ void copyBppToEigen (const std::vector<ExtendedFloatVectorXd>& bppVector, Extend
   ExtendedFloat::ExtType maxE = std::max_element(bppVector.begin(), bppVector.end(), [](const ExtendedFloatVectorXd& lhs, const ExtendedFloatVectorXd& rhs){
       return lhs.exponent_part() < rhs.exponent_part();
     })->exponent_part();
+  ExtendedFloat::ExtType minE = std::min_element(bppVector.begin(), bppVector.end(), [](const ExtendedFloatVectorXd& lhs, const ExtendedFloatVectorXd& rhs){
+      return lhs.exponent_part() < rhs.exponent_part();
+    })->exponent_part();
+  ExtendedFloat min = ExtendedFloat{std::numeric_limits<double>::infinity(), maxE};
+  ExtendedFloat max =  ExtendedFloat{0,minE};
+  for (size_t i = 0; i < bppVector.size(); i++){
+    auto temp_max_f = bppVector[i].float_part().maxCoeff();
+    auto temp_min_f = bppVector[i].float_part().unaryExpr([temp_max_f](double d){return d>0?d:temp_max_f;}).minCoeff();
+    auto temp_max_ef = ExtendedFloat{temp_max_f, bppVector[i].exponent_part()};
+    auto temp_min_ef = ExtendedFloat{temp_min_f, bppVector[i].exponent_part()};
+    //temp_max_ef.normalize();
+    //temp_min_ef.normalize();
+    if (ExtendedFloat::convert(temp_max_ef) > ExtendedFloat::convert(max)){
+      max = temp_max_ef;
+    }
+    if (ExtendedFloat::convert(temp_min_ef) < ExtendedFloat::convert(min)){
+      min = temp_min_ef;
+    }
+  }
+  ExtendedFloat::ExtType exp;
 
-  eigenVector.exponent_part() = maxE;
+  double converted_min = min.get_float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, min.get_exponent_part() - maxE);
+  if (converted_min > 0){
+    exp = maxE;
+  }else{
+    double converted_max = max.get_float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, max.get_exponent_part()-minE);
+    if (std::isfinite(converted_max)){
+      exp = minE;
+    }else{
+      exp = int((minE+maxE)/2);
+    }
+  }
+
+
+  eigenVector.exponent_part() = exp;
   eigenVector.float_part() = Eigen::MatrixXd::NullaryExpr(static_cast<Eigen::Index>(bppVector[0].rows()),
                                                           static_cast<Eigen::Index>(bppVector.size()),
-                                                          [&maxE, &bppVector](int i, int j){
-      return bppVector[(size_t)j].float_part()(i) * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, bppVector[(size_t)j].exponent_part () - maxE);
+                                                          [&exp, &bppVector](int i, int j){
+      return bppVector[(size_t)j].float_part()(i) * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, bppVector[(size_t)j].exponent_part () - exp);
     });
 }
 

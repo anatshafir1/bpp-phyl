@@ -441,9 +441,7 @@ void ChromosomeNumberOptimizer::getAllPossibleChrRanges(std::vector <unsigned in
             for (size_t k = 0; k < chrNum1.size(); k++){
                 for (size_t l = 0; l < chrNum2.size(); l++){
                     chrRange = (unsigned int)(std::abs((int)chrNum1[k] - (int)chrNum2[l]));
-                    if (chrRange == 0 || chrRange == 1){
-                        continue;
-                    }else if (chrRange == 2){
+                    if (chrRange <= static_cast<unsigned int>(lowerBoundBaseNumber)){
                         continue;
                     }
                     if (!std::count(baseNumCandidates.begin(), baseNumCandidates.end(), chrRange)){
@@ -1573,7 +1571,7 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousM
 
     std::map<uint, std::map<int, vector<string>>> mapOfParamsNamesPerModelType;
     setParamsNameInForMultiProcess(mapOfParamsNamesPerModelType, modelParams);
-    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
+    std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(new GammaDiscreteRateDistribution(1, 1.0));
     std::shared_ptr<ParametrizablePhyloTree> parTree = std::make_shared<ParametrizablePhyloTree>(*tree);
     string fixedRootFreqPath = ChromEvolOptions::fixedFrequenciesFilePath_;
     bool weightedRootFreqs;
@@ -1581,14 +1579,14 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setRandomHeterogeneousM
     std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::shared_ptr<ChromosomeSubstitutionModel>(ChromosomeSubstitutionModel::initRandomModel(alphabet, modelParams[1].first, modelParams[1].second, baseNumberUpperBound[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_, fixedParams[1], parsimonyBound));
     if (fixedRootFreqPath == "none"){
         weightedRootFreqs = true;
-        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(std::shared_ptr<DiscreteDistribution>(rdist), parTree);
+        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree);
 
     }else{
         weightedRootFreqs = false;
         vector <double> rootFreqs = setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, chrModel);
         std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqs);
         std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
-        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(std::shared_ptr<DiscreteDistribution>(rdist), parTree, rootFrequencies);
+        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies);
     }
 
     
@@ -1637,8 +1635,8 @@ void ChromosomeNumberOptimizer::aliasParametersInSubstitutionProcess(std::map<ui
 }
 /**********************************************************************************************/
 SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(const PhyloTree* tree, const VectorProbabilisticSiteContainer* vsc, const IntegerAlphabet* alphabet, std::map<uint, uint> baseNumberUpperBound, std::map<uint, vector<uint>> &mapModelNodesIds, std::map<uint, pair<int, std::map<int, std::vector<double>>>> &modelParams, uint numOfModels, std::map<int, vector<std::pair<uint, int>>>* updatedSharedParams){
-    DiscreteDistribution* rdist = new GammaDiscreteRateDistribution(1, 1.0);
-    ParametrizablePhyloTree* parTree = new ParametrizablePhyloTree(*tree);
+    std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(new GammaDiscreteRateDistribution(1, 1.0));
+    std::shared_ptr<ParametrizablePhyloTree> parTree = std::make_shared<ParametrizablePhyloTree>(*tree);
     string fixedRootFreqPath = ChromEvolOptions::fixedFrequenciesFilePath_;
     bool weightedRootFreqs;
     std::map<uint, std::map<int, vector<string>>> mapOfParamsNamesPerModelType;
@@ -1647,14 +1645,14 @@ SingleProcessPhyloLikelihood* ChromosomeNumberOptimizer::setHeterogeneousModel(c
     std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet, modelParams[1].second, modelParams[1].first, baseNumberUpperBound[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
     if (fixedRootFreqPath == "none"){
         weightedRootFreqs = true;
-        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(std::shared_ptr<DiscreteDistribution>(rdist), std::shared_ptr<ParametrizablePhyloTree>(parTree));
+        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree);
 
     }else{
         weightedRootFreqs = false;
         vector <double> rootFreqs = setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, chrModel);
         std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqs);
         std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
-        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(std::shared_ptr<DiscreteDistribution>(rdist), std::shared_ptr<ParametrizablePhyloTree>(parTree), rootFrequencies);
+        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies);
     }
     
     // adding models

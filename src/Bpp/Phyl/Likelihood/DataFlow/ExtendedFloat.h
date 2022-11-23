@@ -456,6 +456,8 @@ public:
   {
     return ef.float_part () * constexpr_power<double>(ExtendedFloat::radix, ef.exponent_part ());
   }
+  FloatType get_float_part () noexcept { return f_; }
+  ExtType get_exponent_part () noexcept { return exp_; }
 
 protected:
   FloatType f_;

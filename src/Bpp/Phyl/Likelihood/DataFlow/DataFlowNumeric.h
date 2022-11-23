@@ -100,15 +100,35 @@ using EFVector = typename std::enable_if<(std::is_same<eVector, ExtendedFloatRow
 template<typename eVector, EFVector<eVector> = true>
 void copyBppToEigen (const std::vector<ExtendedFloat>& bppVector, eVector& eigenVector)
 {
-  // Look for largest extendedfloat
-  ExtendedFloat::ExtType maxE = std::max_element(bppVector.begin(), bppVector.end(), [](const ExtendedFloat& lhs, const ExtendedFloat& rhs){
-      return lhs.exponent_part() < rhs.exponent_part();
-    })->exponent_part();
+  auto max = std::max_element(bppVector.begin(), bppVector.end());
+  auto min = std::min_element(bppVector.begin(), bppVector.end(), [](const ExtendedFloat& lhs, const ExtendedFloat& rhs){
+      return (lhs < rhs) && (lhs.float_part() > 0) ;
+    });
 
-  eigenVector.exponent_part() = maxE;
+  ExtendedFloat::ExtType exp;
+  ExtendedFloat::ExtType maxE = max->exponent_part();
+  ExtendedFloat::ExtType minE = min->exponent_part();
+  double converted_min = min->float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, minE - maxE);
+  if (converted_min > 0){
+    exp = maxE;
+  }else{
+    double converted_max = max->float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, maxE-minE);
+    if (std::isfinite(converted_max)){
+      exp = minE;
+    }else{
+      exp = int((minE+maxE)/2);
+    }
+  }
+
+  // Look for largest extendedfloat
+  // ExtendedFloat::ExtType maxE = std::max_element(bppVector.begin(), bppVector.end(), [](const ExtendedFloat& lhs, const ExtendedFloat& rhs){
+  //     return lhs.exponent_part() < rhs.exponent_part();
+  //   })->exponent_part();
+
+  eigenVector.exponent_part() = exp;
   eigenVector.float_part() = Eigen::RowVectorXd::NullaryExpr(static_cast<Eigen::Index>(bppVector.size()),
-                                                             [&maxE, &bppVector](int i){
-      return bppVector[(size_t)i].float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, bppVector[(size_t)i].exponent_part () - maxE);
+                                                             [&exp, &bppVector](int i){
+      return bppVector[(size_t)i].float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, bppVector[(size_t)i].exponent_part () - exp);
     });
 }
 
