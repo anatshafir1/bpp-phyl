@@ -164,51 +164,67 @@ std::map<std::string, std::map<string, double>> extract_alphabet_states(string &
 }
 
 int main() {
-    Eigen::MatrixXd Pijt = Eigen::MatrixXd::Ones(3,3);
+    Eigen::MatrixXd Pijt = Eigen::RowVectorXd::Ones(3);
     Pijt(0,0) = 0.2;
     Pijt(0,1) = 0.3;
     Pijt(0,2) = 0.5;
-    Pijt(1,0) = 0.1;
-    Pijt(1,1) = 0.8;
-    Pijt(1,2) = 0.1;
-    Pijt(2,0) = 0.35;
-    Pijt(2,1) = 0.6;
-    Pijt(2,2) = 0.05;
+    // Pijt(1,0) = 0.1;
+    // Pijt(1,1) = 0.8;
+    // Pijt(1,2) = 0.1;
+    // Pijt(2,0) = 0.35;
+    // Pijt(2,1) = 0.6;
+    // Pijt(2,2) = 0.05;
 
     MatrixLik Ln;// = MatrixLik::Ones(2,3);
 
     ExtendedFloat ef1 = ExtendedFloat{0.25,0};
     ef1.normalize();
 
-    ExtendedFloat ef2 = ExtendedFloat{1.2e-30,0};
-    ef2.normalize();
-    ef2 *= ef2;
-    ExtendedFloat ef4 = ExtendedFloat{1.2e-300,0};
-    ef4.normalize();
-    ef2 *= ef4;
+    ExtendedFloat ef2 = ExtendedFloat{0.44,0};
     std::cout << ef2 << std::endl;
     ExtendedFloat ef3 = ExtendedFloat{0.05,0};
+    ExtendedFloat ef5 = ExtendedFloat{0.5,1000};
+    ef5.normalize();
     ef3.normalize();
-    std::vector<ExtendedFloat> vec = {ef1, ef2, ef3, ExtendedFloat{0,0}};
+    ef2.normalize();
+    std::vector<ExtendedFloat> vec = {ef5, ef2, ef3};
+    ExtendedFloat ef4 = ExtendedFloat{0.5, -1050};
+    std::cout << "converted is: " << ExtendedFloat::convert(ef4) << std::endl;
+    std::cout << "converted is: " << ExtendedFloat::convert(ef5) << std::endl;
+    ef4.normalize();
+    std::vector<ExtendedFloat> vec2 = {ef1*ef1, ef4, ef3*ef3};
     ExtendedFloatVectorXd v;
+    ExtendedFloatVectorXd v2;
     copyBppToEigen (vec, v);
+    copyBppToEigen (vec2, v2);
     std::cout <<"Mid res:" << v <<std::endl;
+    std::cout <<"Mid res:" << v2 <<std::endl;
     std::cout << "printed element " << v(0);
     std::vector<ExtendedFloatVectorXd> vector_v;
     vector_v.push_back(v);
+    vector_v.push_back(v2);
     copyBppToEigen (vector_v, Ln);
+    std::cout << "results vector ### " << Ln << std::endl;
+    std::cout << "Converted is:" << std::endl;
+    for (size_t i = 0; i < Ln.rows(); i++){
+        for (size_t j = 0; j < Ln.cols(); j++){
+            std::cout << ExtendedFloat::convert(Ln(i, j)) << std::endl;
+        }
+    }
+    Ln.normalize();
     size_t nrows = Pijt.rows();
     size_t ncols = Ln.cols();
-      // if (x0.cols() == 1){
-      //   nrows = 1;
-      // }
     vector<ExtendedFloatVectorXd> result;
     for (size_t i = 0; i < nrows; i++){
         vector <ExtendedFloat> row_col_res;
         for (size_t j = 0; j < ncols; j++){
-            auto y1 = Pijt.row(i).array();
+            auto y1 = Pijt.row(i).array().transpose();
             auto y2 = cwise(Ln.col(j));
+            std::cout <<"****************" << std::endl;
+            std::cout << "y1: " << y1 << std::endl;
+            std::cout << "y2: " << y2 << std::endl;
             auto product = y1*y2;
+            std::cout << "Product of " << i << "," << j << ": " << product << std::endl;
             auto max = product.maxCoeff();
             row_col_res.push_back(max);
         }
@@ -217,231 +233,19 @@ int main() {
         result.push_back(res);
 
     }
-    MatrixLik matLik = MatrixLik::Zero(nrows, ncols);
+    MatrixLik matLik;
+    MatrixLik MatLik_final;
     copyBppToEigen(result, matLik);
-
-
-
-
-      //     if (nrows == 1){
-      //       auto y1 = x0.col(i).transpose().array();
-      //       auto y2 = (x1.col(j).transpose()).array();
-      //       auto prod = y1 * y2;
-      //       result (i, j) = prod.maxCoeff();
-      //     }else{
-      //       auto y1 = x0.row(i).array();
-      //       auto y2 = (x1.col(j).transpose()).array();
-      //       auto prod = y1 * y2;
-      //       result (i, j) = prod.maxCoeff();
-      //     }
-
-      //   }
-      // }
-
-
-    //Ln.normalize();
-
-
-
-    // Ln = mat_double.unaryExpr ([](double d) {
-    //     ExtendedFloat ef{d, 0};
-    //     return d;
-    // });
-    // Ln = mat_int.NullaryExpr([&Ln](int i){
-    //     Ln()
-    // })
-    // Ln = Ln.binaryExpr(mat_int),
-    //         ([](ExtendedFloat d, int i){
-    //             return ExtendedFloat{d.get_float_part(), i};});
-
-
-    
-    // Ln = Pijt.unaryExpr ([](double d) {
-    //       ExtendedFloat ef{d};
-    //       ef.normalize ();
-    //       return d;
-    //     });
-
-    // ef3.normalize();
-    // Eigen::Matrix<ExtendedFloat, 1, Eigen::Dynamic> temp;
-    // temp = Ln.unaryExpr ([](ExtendedFloat d) {
-    //     //   ExtendedFloat ef{d};
-    //     //   ef.normalize ();
-    //       return d;
-    //     });
-
-
-
+    std::cout << "rows: " << matLik.rows() << std::endl;
+    std::cout << "cols: " << matLik.cols() << std::endl;
 
     std::cout << "Pijt:" << std::endl;
     std::cout << Pijt << std::endl;
 
     std::cout << "Ln: " <<  Ln << std::endl;
     std::cout << "Max result: " << std::endl;
-    std::cout << matLik << std::endl;
-
-    // string path = "/home/anat/Docs/Sida/counts_f.fasta";
-    // string outFileName = "/home/anat/Docs/Sida/counts_p.pasta";
-    // int min;
-    // int max;
-    // auto map_species_states = extract_alphabet_states(path, min, max);
-    // auto it = map_species_states.begin();
-    // while (it != map_species_states.end()){
-    //     std::cout << "species: " << it->first << std::endl;
-    //     auto &map_states_probs = map_species_states[it->first];
-    //     auto it_probs = map_states_probs.begin();
-    //     while (it_probs != map_states_probs.end()){
-    //         std::cout << "\t" << it_probs->first << " " << map_states_probs[it_probs->first] << std::endl;
-    //         it_probs ++;
-    //     }
-    //     it++;
-    // }
-    // std::cout << "****" << std::endl;
-    // std::cout << "min is: " << min << std::endl;
-    // std::cout << "max is: " << max << std::endl;
-    // create_pasta_file(outFileName, min, max, map_species_states);
-
-
-
-    // vector<uint> nodes = {1,2,5,7,8,6,9,7,7,9,11,10};
-    // vector <uint> vectorOfNodesM2 = {7,5,5,6,12};
-    // set<uint> setNodes(nodes.begin(), nodes.end());
-    // printSet(setNodes);
-    // set<uint> setNodesM2(vectorOfNodesM2.begin(), vectorOfNodesM2.end());
-    // printSet(setNodesM2);
-    // set<uint> intersect;
-    // set_intersection(setNodes.begin(), setNodes.end(), setNodesM2.begin(), setNodesM2.end(),
-    //              std::inserter(intersect, intersect.begin()));
-    // printSet(intersect);
-    // std::cout << "size: " << intersect.size() << std::endl;
-    // std::cout << intersect << std::endl;
-    // MatrixLik matrixLik = MatrixLik::Ones(5, 2);
-    // int rows = matrixLik.rows();
-    // int cols = matrixLik.cols();
-    // std::cout << rows << "," << cols << std::endl;
-    
-    // matrixLik(0, 0) = 1;
-    // matrixLik(1, 0) = 0.01;
-    // matrixLik(2, 0) = 0;
-    // matrixLik(3, 0) = -0.4;
-    // matrixLik(4, 0) = 0.1;
-    // matrixLik(0, 1) = 0;
-    // matrixLik(1, 1) = -0.003;
-    // matrixLik(2, 1) = 0.005;
-    // matrixLik(3, 1) = -0.0002;
-    // matrixLik(4, 1) = 1.2;
-    // std::cout << matrixLik << std::endl;
-    // auto floatPart = matrixLik.float_part();
-    // std::cout << floatPart << std::endl;
-    
-    // // std::cout << arr.float_part() << std::endl;
-    // auto absArr = floatPart.cwiseAbs();
-    // std::cout << "abs: " << absArr << std::endl;
-    // int minIndex_i;
-    // int minIndex_j;
-
-    // int maxIndex_i;
-    // int maxIndex_j;
-    // auto minValue = absArr.minCoeff(&minIndex_i, &minIndex_j);
-    // auto maxValue = absArr.maxCoeff(&maxIndex_i, &maxIndex_j);
-    // std::cout << "min index row: " << minIndex_i << " min index col: "<< minIndex_j << " , min value: " << minValue << std::endl;
-    // std::cout << "max index row: " << maxIndex_i << " max index col: "<< maxIndex_j << " , max value: " << maxValue << std::endl;
-    // //auto arr_no_zeros = (absArr.array() > 0);
-    // //std::cout << arr_no_zeros << std::endl;
-    // int minIndex_k;
-    // int minIndex_l;
-    // ((absArr.array() == 0).select(maxValue, absArr)).minCoeff(&minIndex_k, &minIndex_l);
-    // std::cout << "After selecting: " << absArr << std::endl;
-    // //std::cout <<"minimum is: " <<  result << std::endl;
-    // std::cout << "min index row: " << minIndex_k << " max index col: " << minIndex_l << std::endl;
-
-    // auto minNonZeroValue = maxValue;
-    // //std::cout << "min non zero value: " << minNonZeroValue << std::endl;
-    // int minNonZeroIndex = maxIndex;
-    // for (int i = 0; i < (int)absArr.size(); i++){
-    //     if ((absArr(i) < minNonZeroValue) && (absArr(i) > 0)){
-    //         minNonZeroIndex = i;
-    //         minNonZeroValue = absArr(i);
-
-    //     }
-    // }
-    // std::cout << "index: " << minNonZeroIndex << std::endl;
-    // std::cout << "array: " << absArr << std::endl;
-    // std::cout << "min non zero value is: " << absArr(minNonZeroIndex) << std::endl;
-
-
-
-    // MatrixLik mat = MatrixLik::Ones(3,2);
-    // Eigen::MatrixXd Pijt = Eigen::MatrixXd::Ones(3,3);
-    // Pijt(0,0) = 0.8;
-    // Pijt(0,1) = 0.19999999999;
-    // Pijt(0,2) = 9.999945316252479e-12;
-    // Pijt(1,0) = 0.37;
-    // Pijt(1,1) = 9.992007221626409e-15;
-    // Pijt(1,2) = 0.62999999999999;
-    // Pijt(2,0) = 0.99;
-    // Pijt(2,1) = 0.005;
-    // Pijt(2,2) = 0.005;
-    // cout << mat << endl;
-    // mat(0,0) = 2.6e-10;
-    // mat(0,1) = 0.00001;
-    // mat(1,0) = 0.02;
-    // mat(1,1) = 0.0009;
-    // mat(2,0) = 1.8e-7;
-    // mat(2,1) = 0.8;
-    // mat.normalize();
-    // auto fatherStatePijt = numeric::cwise(Pijt.row(1).transpose());
-    // auto sonLik = numeric::cwise(mat.col(0));
-    // auto fatherSonJoint = fatherStatePijt * sonLik;
-    // auto conditionals = fatherSonJoint/fatherSonJoint.sum();
-    // std::cout << "***** start *******" << std::endl;
-    // std::cout << "Pi: " << fatherStatePijt << std::endl;
-    // std::cout << "SonLik: " << sonLik << std::endl;
-    // std::cout << "The product: " << fatherSonJoint << std::endl;
-    // std::cout << "The conditionals: " << conditionals << std::endl;
-    // std::cout << "Conditionals as float: " << std::endl;
-    // for (size_t i = 0; i< 3; i++){
-    //     auto conditional = ExtendedFloat(conditionals.float_part()(i), conditionals.exponent_part());
-    //     double converted = ExtendedFloat::convert(conditional);
-    //     std::cout << converted << std::endl;
-
-    // }
-
-    // std::cout << "*****" << std::endl;
-    // std::cout << mat << std::endl;
-    // auto firstSiteArray = numeric::cwise(mat.col(0));
-    // Eigen::RowVectorXd freqs(3);
-    // freqs(0) = 0.2;
-    // freqs(1) = 0.5;
-    // freqs(2) = 0.3;
-    // //freqs.normalize();
-    // auto freqsArray = numeric::cwise(freqs.row(0).transpose());
-    // std::cout << "*****" << std::endl;
-    // std::cout << freqsArray << std::endl;
-    // std::cout << "*****" << std::endl;
-    // std::cout << firstSiteArray << std::endl;
-    // ExtendedFloatArrayXd res = freqsArray * firstSiteArray;
-    // std::cout << "checking ...." << std::endl;
-    // std::cout << res << std::endl;
-    // for (size_t i = 0; i< 3; i++){
-    //     std::cout << res(i) << std::endl;
-
-    // }
-    // std::cout << "#####" << std::endl;
-    // auto sumRes = res.sum(); 
-    // sumRes.normalize();
-    // ExtendedFloatArrayXd divRes = res/sumRes;
-    // divRes.normalize();
-    // auto exponent = divRes.exponent_part();
-    // for (size_t i = 0; i < 3; i++){
-    //     auto elem = ExtendedFloat(divRes(i), exponent);
-    //     elem.normalize();
-    //     double elemDouble = ExtendedFloat::convert(elem);
-    //     std::cout << elemDouble << std::endl;
-
-
-    // }
-
+    MatLik_final = matLik.transpose();
+    std::cout << MatLik_final << std::endl;
 
 
     return 0;

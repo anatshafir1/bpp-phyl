@@ -375,9 +375,13 @@ namespace bpp {
       size_t nbDistSite = getNumberOfDistinctSites();
       size_t nbState = getStateMap().getNumberOfModelStates();
       auto rootFreqsEf = Convert<ExtendedFloatRowVectorXd, Eigen::RowVectorXd>::create(getContext_(), {rFreqs_}, RowVectorDimension (Eigen::Index (nbState)));
-      auto rootFreqs = CWiseFill<MatrixLik, RowLik>::create(getContext_(), {rootFreqsEf}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
-      auto cond = MatrixArgMaxProduct<RowLik, MatrixLik, MatrixLik>::create (
+      auto rootFreqsEf_mat = CWiseFill<MatrixLik, RowLik>::create(getContext_(), {rootFreqsEf}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
+      auto rootFreqs = Convert<Eigen::MatrixXd, MatrixLik>::create(getContext_(), {rootFreqsEf_mat}, vRateCatTrees_[0].acr->getLikelioodMatrixDimension());
+      std::cout << "rFreqs_ = " << rootFreqs->getTargetValue() << std::endl;
+      std::cout << "rootVal = " << rootVal->getTargetValue() << std::endl;
+      auto cond = MatrixArgMaxProduct<RowLik, Eigen::MatrixXd, MatrixLik>::create (
                            getContext_(), {rootFreqs, rootVal}, RowVectorDimension (nbDistSite));
+      std::cout << "cond = " << cond->getTargetValue() << std::endl;
       return shrunk?cond:expandVector(cond);
     }
 

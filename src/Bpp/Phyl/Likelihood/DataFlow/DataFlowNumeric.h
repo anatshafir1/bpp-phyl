@@ -108,12 +108,12 @@ void copyBppToEigen (const std::vector<ExtendedFloat>& bppVector, eVector& eigen
   ExtendedFloat::ExtType exp;
   ExtendedFloat::ExtType maxE = max->exponent_part();
   ExtendedFloat::ExtType minE = min->exponent_part();
-  double converted_min = min->float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, minE - maxE);
-  if (converted_min > 0){
+  double converted_min_f = min->float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, minE - maxE);
+  if (converted_min_f > 0){
     exp = maxE;
   }else{
-    double converted_max = max->float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, maxE-minE);
-    if (std::isfinite(converted_max)){
+    double converted_max_f = max->float_part() * bpp::constexpr_power<double>(bpp::ExtendedFloat::radix, maxE-minE);
+    if (std::isfinite(converted_max_f)){
       exp = minE;
     }else{
       exp = int((minE+maxE)/2);

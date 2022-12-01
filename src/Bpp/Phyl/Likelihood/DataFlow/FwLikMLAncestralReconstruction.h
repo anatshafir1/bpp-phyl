@@ -10,7 +10,7 @@ namespace bpp{
 
     class FwLikMLAncestralReconstruction: public AssociationDAGlobalGraphObserver<ConditionalLikelihoodForward,ForwardLikelihoodBelow>{
         using DAClass = AssociationDAGlobalGraphObserver<ConditionalLikelihoodForward,ForwardLikelihoodBelow>;
-        using MaxJointLik = MatrixMaxProduct<MatrixLik, MatrixLik, MatrixLik>;
+        using MaxJointLik = MatrixMaxProduct<MatrixLik, Eigen::MatrixXd,MatrixLik>;
         using LikelihoodRootConditional = MatrixMaxProduct<RowLik, RowLik, MatrixLik>;
         // This is a bit redundant... Myabe it is better to declare this class as inheriting from ForwardLikelihoodTree.
         // If so, these data members should be 'protected' not 'private' in ForwardLikelihoodTree. Should check if it is possible.

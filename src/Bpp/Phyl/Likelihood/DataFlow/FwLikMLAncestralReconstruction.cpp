@@ -56,12 +56,12 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
       auto transitionMatrix = ConfiguredParametrizable::createMatrix<ConfiguredModel, TransitionMatrixFromModel, Eigen::MatrixXd> (context_, {model, brlen, zero, nMod}, transitionMatrixDimension (size_t(nbState_)));
             
       edge->setTransitionMatrix(transitionMatrix);
-      auto transitionMatrixEf = Convert<MatrixLik, Eigen::MatrixXd>::create(context_, {transitionMatrix}, transitionMatrixDimension (size_t(nbState_)));
+      //auto transitionMatrixEf = Convert<MatrixLik, Eigen::MatrixXd>::create(context_, {transitionMatrix}, transitionMatrixDimension (size_t(nbState_)));
       forwardNode = ForwardTransition::create (
         context_, {transitionMatrix, leafNode}, likelihoodMatrixDim_);
       if (forwardEdge){
-        *forwardEdge = MatrixArgMaxProduct<MatrixLik, MatrixLik, MatrixLik>::create (
-          context_, {transitionMatrixEf, leafNode}, likelihoodMatrixDim_);
+        *forwardEdge = MatrixArgMaxProduct<MatrixLik, Eigen::MatrixXd, MatrixLik>::create (
+          context_, {transitionMatrix, leafNode}, likelihoodMatrixDim_);
       }
       
     }
@@ -94,12 +94,12 @@ ConditionalLikelihoodForwardRef FwLikMLAncestralReconstruction::makeForwardLikel
     // L_node(i) = max_j{P_ij * (L_son1(j) * L_son2(j))}
     // Note: the MaxJointLik operator is very similar to MatrixProduct.
     // The only difference is that instead of summation, MaxJointLik uses the operator max().
-    auto transitionMatrixEf = Convert<MatrixLik, Eigen::MatrixXd>::create(context_, {transitionMatrix}, transitionMatrixDimension (size_t(nbState_)));
+    //auto transitionMatrixEf = Convert<MatrixLik, Eigen::MatrixXd>::create(context_, {transitionMatrix}, transitionMatrixDimension (size_t(nbState_)));
     forwardNode = MaxJointLik::create (
-        context_, {transitionMatrixEf, sonsMulNode}, likelihoodMatrixDim_);
+        context_, {transitionMatrix, sonsMulNode}, likelihoodMatrixDim_);
     if (forwardEdge){
-      *forwardEdge = MatrixArgMaxProduct<MatrixLik, MatrixLik, MatrixLik>::create (
-        context_, {transitionMatrixEf, sonsMulNode}, likelihoodMatrixDim_);
+      *forwardEdge = MatrixArgMaxProduct<MatrixLik, Eigen::MatrixXd, MatrixLik>::create (
+        context_, {transitionMatrix, sonsMulNode}, likelihoodMatrixDim_);
     }
 
 

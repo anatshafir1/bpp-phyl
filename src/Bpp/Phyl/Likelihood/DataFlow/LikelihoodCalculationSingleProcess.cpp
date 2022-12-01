@@ -1192,11 +1192,11 @@ void LikelihoodCalculationSingleProcess::makeJointLikelihoodFatherNode_(uint spe
         auto mul_cond_sonLik = fatherCondSonPartLik_j * sonLik_i;
         mul_cond_sonLik *= p_ji;
         mul_cond_sonLik /= likelihood;
-        // auto jointProbExponent = mul_cond_sonLik.exponent_part();
+        auto jointProbExponent = mul_cond_sonLik.get_exponent_part();
         // Don't think I need it anymore, but should check it!!!
-        // if ((mul_cond_sonLik.float_part() == 0) && (jointProbExponent > 1022)){
-        //   mul_cond_sonLik = ExtendedFloat{0};
-        // }
+        if ((mul_cond_sonLik.get_float_part() == 0) && (jointProbExponent > 1022)){
+          mul_cond_sonLik = ExtendedFloat{0};
+        }
         matOfJointProbFatherNode[i][j] = (convert(mul_cond_sonLik));
 
       }

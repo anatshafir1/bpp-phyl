@@ -2342,9 +2342,35 @@ private:
   void compute() override { compute<T0,T1>();}
       
   template<class U, class V>
-  typename std::enable_if<(std::is_same<U, ExtendedFloatMatrixXd>::value) && (std::is_same<V, ExtendedFloatMatrixXd>::value), void>::type
+  typename std::enable_if<(std::is_same<U, Eigen::MatrixXd>::value) && (std::is_same<V, ExtendedFloatMatrixXd>::value), void>::type
     compute () {
-      throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: Should re-implement it!");
+      using namespace numeric;
+      auto & result = this->accessValueMutable ();
+      const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+      const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+      size_t nrows = x0.rows();
+      size_t ncols = x1.cols();
+      std::vector<ExtendedFloatVectorXd> res_vec;
+      for (size_t i = 0; i < nrows; i++){
+        std::vector <ExtendedFloat> row_col_res;
+        for (size_t j = 0; j < ncols; j++){
+            auto row = x0.row(i);
+            auto row_array =row.array();
+            auto y1 = row_array.transpose();
+            auto y2 = cwise(x1.col(j));
+            auto product = y1*y2;
+            auto max = product.maxCoeff();
+            row_col_res.push_back(max);
+        }
+        ExtendedFloatVectorXd res;
+        copyBppToEigen(row_col_res, res);
+        res_vec.push_back(res);
+        res.normalize();
+
+    }
+    MatrixLik prodMat;
+    copyBppToEigen(res_vec, prodMat);
+    result = prodMat.transpose();
 
 
   }
@@ -2353,36 +2379,28 @@ private:
   template<class U, class V>
   typename std::enable_if<(std::is_same<U, Eigen::MatrixXd>::value) && (std::is_same<V, Eigen::MatrixXd>::value), void>::type
     compute () {
-      throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: Should re-implement it!");
-      // using namespace numeric;
-      // auto & result = this->accessValueMutable ();
-      // const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
-      // const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
-      // size_t nrows = x0.rows();
-      // size_t ncols = x1.cols();
-      // if (x0.cols() == 1){
-      //   nrows = 1;
-      // }
-      // result = zero (targetDimension_);
-      // for (size_t i = 0; i < nrows; i++){
-      //   for (size_t j = 0; j < ncols; j++){
-      //     if (nrows == 1){
-      //       auto y1 = x0.col(i).transpose().array();
-      //       auto y2 = (x1.col(j).transpose()).array();
-      //       auto prod = y1 * y2;
-      //       result (i, j) = prod.maxCoeff();
-      //     }else{
-      //       auto y1 = x0.row(i).array();
-      //       auto y2 = (x1.col(j).transpose()).array();
-      //       auto prod = y1 * y2;
-      //       result (i, j) = prod.maxCoeff();
-      //     }
+      using namespace numeric;
+      auto & result = this->accessValueMutable ();
+      result = zero (targetDimension_);
+      const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+      const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+      size_t nrows = x0.rows();
+      size_t ncols = x1.cols();
+      for (size_t i = 0; i < nrows; i++){
+        for (size_t j = 0; j < ncols; j++){
+            auto y1 = x0.row(i).array().transpose();
+            auto y2 = cwise(x1.col(j));
+            auto product = y1*y2;
+            auto max = product.maxCoeff();
+            result(i, j) = max;
+        }
 
-      //   }
-      // }
+    }
+
   }
+
   template<class U, class V>
-  typename std::enable_if<((!std::is_same<U, ExtendedFloatMatrixXd>::value) || (!std::is_same<V, ExtendedFloatMatrixXd>::value)) && ((!std::is_same<U, Eigen::MatrixXd>::value) || (!std::is_same<V, Eigen::MatrixXd>::value)), void>::type
+  typename std::enable_if<(!std::is_same<U, Eigen::MatrixXd>::value) || ((!std::is_same<V, Eigen::MatrixXd>::value) && (!std::is_same<V, ExtendedFloatMatrixXd>::value)), void>::type
     compute () {
       throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: the input should consist of two matrices!");
 
@@ -2475,9 +2493,50 @@ public:
 private:
   void compute() override { compute<T0,T1>();}
   template<class U, class V>
-  typename std::enable_if<(std::is_same<U, ExtendedFloatMatrixXd>::value) && (std::is_same<V, ExtendedFloatMatrixXd>::value), void>::type
+  typename std::enable_if<(std::is_same<U, Eigen::MatrixXd>::value) && (std::is_same<V, ExtendedFloatMatrixXd>::value), void>::type
     compute(){
-      throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: the input should consist of two matrices!");
+      //throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: the input should consist of two matrices!");
+      using namespace numeric;
+      auto & result = this->accessValueMutable ();
+      const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+      const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+      std::cerr << "x0 = " << x0 << std::endl;
+      std::cerr << "x1 = " << x1 << std::endl;
+      size_t nrows = x0.rows();
+      size_t ncols = x1.cols();
+      size_t ncols_x0 = x0.cols();
+      if (ncols_x0 == 1){
+        nrows = 1;
+      }
+
+      std::vector<ExtendedFloatVectorXd> res_vec;
+      for (size_t i = 0; i < nrows; i++){
+        std::vector <ExtendedFloat> row_col_res;
+        for (size_t j = 0; j < ncols; j++){
+            size_t pos;
+            if (nrows == 1){
+              auto y1 = cwise(x0.col(i));
+              auto y2 = cwise(x1.col(j));
+              auto product = y1*y2;
+              product.maxCoeff(&pos);              
+            }else{
+              auto y1 = x0.row(i).array().transpose();
+              auto y2 = cwise(x1.col(j));
+              auto product = y1*y2;
+              product.maxCoeff(&pos);
+
+            }
+            row_col_res.push_back(ExtendedFloat{(double)pos, 0});
+        }
+        ExtendedFloatVectorXd res;
+        copyBppToEigen(row_col_res, res);
+        res_vec.push_back(res);
+
+    }
+
+    MatrixLik prodMat;
+    copyBppToEigen(res_vec, prodMat);
+    result = prodMat.transpose();
 
 
   }
@@ -2485,14 +2544,32 @@ private:
   template<class U, class V>
   typename std::enable_if<(std::is_same<U, Eigen::MatrixXd>::value) && (std::is_same<V, Eigen::MatrixXd>::value), void>::type
     compute(){
-      throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: the input should consist of two matrices!");
+      //throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: the input should consist of two matrices!");
+      using namespace numeric;
+      auto & result = this->accessValueMutable ();
+      const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
+      const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
+      size_t nrows = x0.rows();
+      size_t ncols = x1.cols();
+      for (size_t i = 0; i < nrows; i++){
+        for (size_t j = 0; j < ncols; j++){
+          size_t pos;
+          auto y1 = x0.row(i).array().transpose();
+          auto y2 = cwise(x1.col(j));
+          auto product = y1*y2;
+          auto max = product.maxCoeff(&pos);
+          result(i, j) = (double)pos;
+        }
+
+    }
 
   }
 
   template<class U, class V>
-  typename std::enable_if<((!std::is_same<U, ExtendedFloatMatrixXd>::value) || (!std::is_same<V, ExtendedFloatMatrixXd>::value)) && ((!std::is_same<U, Eigen::MatrixXd>::value) || (!std::is_same<V, Eigen::MatrixXd>::value)), void>::type
+  typename std::enable_if<(!std::is_same<U, Eigen::MatrixXd>::value) || ((!std::is_same<V, Eigen::MatrixXd>::value) && (!std::is_same<V, ExtendedFloatMatrixXd>::value)), void>::type
     compute () {
-      throw Exception("DataFlowCWiseComputing:MatrixArgMaxProduct: the input should consist of two matrices!");
+      throw Exception("DataFlowCWiseComputing:MatrixMaxProduct: the input should consist of two matrices!");
+
 
   }
 
