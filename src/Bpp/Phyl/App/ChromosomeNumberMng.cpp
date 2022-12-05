@@ -866,12 +866,6 @@ void ChromosomeNumberMng::runStochasticMapping(ChromosomeNumberOptimizer* chrOpt
     SubstitutionProcess* nsubPro= multiModelProcess->clone();
     Context context;
     auto likObjectOpt = std::make_shared<LikelihoodCalculationSingleProcess>(context, *vsc_->clone(), *nsubPro, weightedRootFreqs);
-    ////////////////////////////////////////////////////
-    // DUBUG
-    auto likTest = SingleProcessPhyloLikelihood(context, likObjectOpt, likObjectOpt->getParameters());
-    std::cout << "stochastic mapping lik object likelihood: " << likTest.getValue();
-
-    //////////////////////////////////////////////////////////////////////
     StochasticMapping* stm = new StochasticMapping(likObjectOpt, ChromEvolOptions::NumOfSimulations_, ChromEvolOptions::numOfStochasticMappingTrials_);//ChromEvolOptions::NumOfSimulations_);
     stm->generateStochasticMapping();
     // retry to get unsuccessful nodes via stretching the problematic branches.
@@ -1544,8 +1538,8 @@ void ChromosomeNumberMng::computeExpectations(ChromosomeNumberOptimizer* chrOpti
     auto lik = ntl->getLikelihoodCalculationSingleProcess();
     
     std::map<int, vector<pair<uint, int>>> sharedParams = chrOptimizer->getSharedParams();
-    ParametrizablePhyloTree tree =  ParametrizablePhyloTree(*tree_);
-    std::shared_ptr<ParametrizablePhyloTree> parTree = std::shared_ptr<ParametrizablePhyloTree>((&tree)->clone());
+    ParametrizablePhyloTree* tree =  new ParametrizablePhyloTree(*tree_);
+    std::shared_ptr<ParametrizablePhyloTree> parTree = std::shared_ptr<ParametrizablePhyloTree>(tree);
     ValueRef <Eigen::RowVectorXd> rootFreqs = ntl->getLikelihoodCalculationSingleProcess()->getRootFreqs();
     std::shared_ptr<NonHomogeneousSubstitutionProcess> multiModelProcess =  setHeterogeneousModel(parTree, ntl, rootFreqs, sharedParams);
 
