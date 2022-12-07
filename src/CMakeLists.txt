@@ -8,8 +8,6 @@
 # File list
 set (CPP_FILES
   Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
-  Bpp/Phyl/App/ChromEvolOptions.cpp
-  Bpp/Phyl/App/ChromosomeNumberMng.cpp
   Bpp/Phyl/Legacy/App/PhylogeneticsApplicationTools.cpp
   Bpp/Phyl/App/BppPhylogeneticsApplication.cpp
   Bpp/Phyl/Distance/AbstractAgglomerativeDistanceMethod.cpp
@@ -69,7 +67,6 @@ set (CPP_FILES
   Bpp/Phyl/Legacy/Likelihood/RNonHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Legacy/Likelihood/TreeLikelihoodTools.cpp
   Bpp/Phyl/Likelihood/DataFlow/BackwardLikelihoodTree.cpp
-  Bpp/Phyl/Likelihood/ChromosomeNumberOptimizer.cpp
   Bpp/Phyl/Likelihood/DataFlow/CollectionNodes.cpp
   Bpp/Phyl/Likelihood/DataFlow/DataFlow.cpp
   Bpp/Phyl/Likelihood/DataFlow/DataFlowNumeric.cpp
@@ -123,8 +120,6 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/PhyloLikelihoods/HmmProcessPhyloLikelihood.cpp
   Bpp/Phyl/Likelihood/PhyloLikelihoods/AutoCorrelationProcessPhyloLikelihood.cpp
   Bpp/Phyl/Likelihood/MarginalAncestralReconstruction.cpp
-  Bpp/Phyl/Likelihood/UndirectedGraph.cpp
-  Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.cpp
   Bpp/Phyl/Mapping/DecompositionMethods.cpp
   Bpp/Phyl/Mapping/DecompositionReward.cpp
   Bpp/Phyl/Mapping/DecompositionSubstitutionCount.cpp
@@ -151,7 +146,6 @@ set (CPP_FILES
   Bpp/Phyl/Model/AbstractSubstitutionModel.cpp
   Bpp/Phyl/Model/AbstractWordSubstitutionModel.cpp
   Bpp/Phyl/Model/BinarySubstitutionModel.cpp
-  Bpp/Phyl/Model/ChromosomeSubstitutionModel.cpp
   Bpp/Phyl/Model/TwoParameterBinarySubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAARateSubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAAFitnessSubstitutionModel.cpp

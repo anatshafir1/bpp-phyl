@@ -2500,8 +2500,6 @@ private:
       auto & result = this->accessValueMutable ();
       const auto & x0 = accessValueConstCast<DepT0> (*this->dependency (0));
       const auto & x1 = accessValueConstCast<DepT1> (*this->dependency (1));
-      std::cerr << "x0 = " << x0 << std::endl;
-      std::cerr << "x1 = " << x1 << std::endl;
       size_t nrows = x0.rows();
       size_t ncols = x1.cols();
       size_t ncols_x0 = x0.cols();
