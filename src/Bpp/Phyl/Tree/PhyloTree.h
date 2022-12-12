@@ -190,6 +190,8 @@ public:
   */
 
   double getTotalLength() const;
+
+  void createNodeOnEdge(uint edgeIndex, double new_edge_length, size_t* numberOfNodes = 0);
 };
 }
 

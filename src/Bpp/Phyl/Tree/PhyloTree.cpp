@@ -149,6 +149,30 @@ double PhyloTree::getTotalLength() const{
 }
 
 
+void PhyloTree::createNodeOnEdge(uint edgeIndex, double new_edge_length, size_t* numberOfNodes){
+    std::shared_ptr<PhyloBranch> edge = getEdge(edgeIndex);
+    std::shared_ptr<PhyloNode> son = getSon(edge);
+    std::shared_ptr<PhyloNode> father = getFatherOfEdge(edge);
+    std::shared_ptr<PhyloNode> node = std::make_shared<PhyloNode>();
+    std::shared_ptr<PhyloBranch> branch = std::make_shared<PhyloBranch>();
+    uint nodeCounter;
+    uint edgeCounter;
+    if (numberOfNodes){
+      nodeCounter = *numberOfNodes;
+    }else{
+      nodeCounter = static_cast<uint>(getNumberOfNodes());
+    }
+    edgeCounter = nodeCounter-1;
+    unlink(father, son);
+    createNode(father, node, branch);
+    branch->setLength(new_edge_length);
+    edge->setLength(edge->getLength()-new_edge_length);
+    link(node, son, edge);
+    setNodeIndex(node, nodeCounter);
+    setEdgeIndex(branch, edgeCounter);
+  
+}
+
 PhyloTree& PhyloTree::operator+=(const PhyloTree& phylotree)
 {
   vector<shared_ptr<PhyloBranch> > vpn = getAllEdges();

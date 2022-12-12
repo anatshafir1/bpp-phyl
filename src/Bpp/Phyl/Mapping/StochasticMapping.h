@@ -259,9 +259,19 @@ public:
     /*
     * get mappings (not const)
     */
-   map<uint, vector<MutationPath>> getMappings(){
+   const map<uint, vector<MutationPath>> getMappings() const{
      return mappings_;
    }
+   size_t getNumberOfMappings() const{
+    return numOfMappings_;
+   }
+   const std::shared_ptr<PhyloTree> getTree() const{
+    return tree_;
+   }
+   const std::map<uint, std::vector<size_t>> getAncestralStates() const{
+    return ancetralStates_;
+   }
+
 
    map<uint, vector<size_t>> getFailedNodes(){
      return notRepresentedNodes_;

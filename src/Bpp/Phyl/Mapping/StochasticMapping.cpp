@@ -800,10 +800,6 @@ void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uin
   }else{
     if (tree_->isLeaf(nodeId)){
       return;
-      // auto &failedMappings = notRepresentedNodes_[nodeId];
-      // if (std::find(failedMappings.begin(), failedMappings.end(), mappingIndex) != failedMappings.end()){
-      //   return;
-      // }
 
     }
 
@@ -822,8 +818,6 @@ void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uin
       }else{
         initialStateForSon = ancetralStates_[nodeId][mappingIndex];
       }
-
-
       getDewellingTimesUnderEachStatePerMappingRecursively(sons[n], initialStateForSon, dwellingTimes, mappingIndex);
       
     }
