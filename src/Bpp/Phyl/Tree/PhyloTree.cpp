@@ -162,13 +162,16 @@ void PhyloTree::createNodeOnEdge(uint edgeIndex, double new_edge_length, size_t*
     }else{
       nodeCounter = static_cast<uint>(getNumberOfNodes());
     }
+    uint rootId = getRootIndex();
+    auto rootNode = getNode(rootId);
     edgeCounter = nodeCounter-1;
     unlink(father, son);
     createNode(father, node, branch);
     branch->setLength(new_edge_length);
     edge->setLength(edge->getLength()-new_edge_length);
     link(node, son, edge);
-    setNodeIndex(node, nodeCounter);
+    ChangeNodeIndex(rootNode, nodeCounter);
+    ChangeNodeIndex(node, rootId);
     setEdgeIndex(branch, edgeCounter);
   
 }
