@@ -149,7 +149,7 @@ double PhyloTree::getTotalLength() const{
 }
 
 
-void PhyloTree::createNodeOnEdge(uint edgeIndex, double new_edge_length, size_t* numberOfNodes){
+uint PhyloTree::createNodeOnEdge(uint edgeIndex, double new_edge_length, size_t* numberOfNodes){
     std::shared_ptr<PhyloBranch> edge = getEdge(edgeIndex);
     std::shared_ptr<PhyloNode> son = getSon(edge);
     std::shared_ptr<PhyloNode> father = getFatherOfEdge(edge);
@@ -173,6 +173,7 @@ void PhyloTree::createNodeOnEdge(uint edgeIndex, double new_edge_length, size_t*
     ChangeNodeIndex(rootNode, nodeCounter);
     ChangeNodeIndex(node, rootId);
     setEdgeIndex(branch, edgeCounter);
+    return rootId;
   
 }
 
