@@ -97,7 +97,7 @@ void AbstractTreeParsimonyScore::init_(const SiteContainer& data, bool verbose)
     throw Exception("Error, only 1 sequence!");
   if (data_->getNumberOfSequences() == 0)
     throw Exception("Error, no sequence!");
-  if ((data_->getAlphabet()->getSize() > 20) && (data_->getAlphabet()->getAlphabetType() != "Integer"))
+  if ((data_->getAlphabet()->getSize() > 20) && ((data_->getAlphabet()->getAlphabetType() != "Integer") && (data_->getAlphabet()->getAlphabetType() != "Chromosome")))
     throw Exception("Error, only alphabet with size <= 20 are supported. See the source file of AbstractTreeParsimonyScore.");
 }
 
