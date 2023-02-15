@@ -72,6 +72,7 @@ int main(){
             std::cout << "\tSon of edge is N" << tree->getNodeIndex(sonNode) << std::endl;
         }
     }
+    std::cout << "Root index is " << tree->getRootIndex() << std::endl;
     return 0;
 
 }

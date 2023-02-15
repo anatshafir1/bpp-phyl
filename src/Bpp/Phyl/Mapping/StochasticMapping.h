@@ -51,6 +51,8 @@
 #include <iostream>
 #include <iomanip>
 #include <map>
+#include <regex>
+
 
 using namespace std;
 
@@ -182,7 +184,14 @@ public:
      * @param node              The node to get the state of
      * @return                  Node state is int
      */
-    int getNodeState(const PhyloNode* node) const;
+    int getNodeState(std::shared_ptr<PhyloNode> node) const{
+      auto nodeName = node->getName();
+      std::smatch match_state;
+      std::regex state_rgx("-([\\d]+)");
+      regex_search(nodeName, match_state, state_rgx);
+      int state = stoi(match_state[1]);
+      return state;
+    }
     /**
      *@brief Gets the dwelling times for each state in a given mapping. Note: the function assums thay the 
      *        vector dwellingTimes is already resized according to the number of states!
@@ -190,7 +199,12 @@ public:
      *@param dwellingTimes A vector where the dewelling times for each state will be stored
      *@param mappingIndex The index of the mapping
      */
-    void getDewellingTimesUnderEachStatePerMapping(vector<double> &dwellingTimes, size_t mappingIndex);
+    void getDewellingTimesUnderEachStatePerMapping(vector<double> *dwellingTimes, size_t mappingIndex);
+    /**
+     *@brief Gets the expected dwelling times for each state for each branch.
+     *@param dwellingTimes A map of nodeIds and their corresponding expected dewelling times for each state
+     */
+    void getDewellingTimesUnderEachStatePerNode(std::map<uint, vector<double>> *dwellingTimes);
     /**
      *@brief Gets the of ocurrences of each transition in a given mapping. 
      *@param mappingIndex The index of the mapping
@@ -249,12 +263,17 @@ public:
 
     VVdouble getDwellingTimeOfStatePerEachMapping();
 
+
     /**
      *@brief Prints the unrepresented leaves
     */
    void printUnrepresentedLeavesWithCorrespondingMappings(ofstream &stream);
    std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> getNumOfOccurrencesFromRootToNode(std::map<uint, std::map<size_t, bool>> &presentMapping);
    void updateFromRootToNodeRecursively(std::map<uint, std::map<size_t, bool>> &presentMapping, std::map<uint, std::map<pair<size_t, size_t>, double>> &occurrencesPerMapping, size_t mappingIndex, uint nodeId, std::map<uint, std::map<size_t, std::map<std::pair<size_t, size_t>, double>>> &occurrencesFromRootToLeaf);
+    /*
+    *@brief compute posterior probability for each node and state
+    */
+   void getPosteriorProbabilities(std::map<uint, std::vector<double>> &ancestralStatesFreqs);
 
     /*
     * get mappings (not const)
@@ -289,7 +308,12 @@ public:
     */
    bool tryToReplaceMapping(double branchLength, uint nodeId, size_t mappingIndex, size_t maxNumOfIterations);
    double getRateToLeaveState(uint nodeId, size_t mapping);
-    
+    /**
+     *@brief create a tree from a mapping
+     *@param mapping index
+     *@return A tree with transitions along a branch represented by internal nodes
+    */ 
+   std::shared_ptr<PhyloTree> createMappingHistoryTree(size_t mappingIndex);
 
   private:
     bool sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, size_t maxIterNum, bool replace = false);
@@ -311,7 +335,7 @@ public:
      * @param  A vector where the dewelling times for each state will be stored
      * @param mappingIndex               Mapping index
      */
-    void getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> &dwellingTimes, size_t mappingIndex);
+    void getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> *dwellingTimes, size_t mappingIndex, std::map<uint, std::vector<double>> *dwellingTimesPerNode=0);
 
     /* Fills the transition probabilities given that itransition has occured (Qij/-Qii).
      * These probabilities are filled for each model.
@@ -328,11 +352,11 @@ public:
 
     size_t giveRandomState(size_t beginState, size_t modelIndex) const;
     
-    /* sets the state of a node in a mapping
-     * @param node               The node to get the state of
-     * @param state              The state that needs to be assigned to the node
-     */
-    void setNodeState(PhyloNode* node, size_t state);
+    // /* sets the state of a node in a mapping
+    //  * @param node               The node to get the state of
+    //  * @param state              The state that needs to be assigned to the node
+    //  */
+    // void setNodeState(PhyloNode* node, size_t state);
 
     /* set the character states of the leafs as properties of thier nodes instances
      * @param mapping - the tree to sets the properties in
@@ -348,10 +372,10 @@ public:
     void ComputeConditionals();
 
     /* compute the ancestral frequenceis of character states of all the nodes based on the mappings
-     * @param                     A vector of the posterior probabilities probabilities to fill in (node**state combinaion in each entry)
-     * @param                     A vector of mappings to base the frequencies on
+     * @param                     A map where the key is node id, and the value is a vector of state frequencies, i.e.,
+     *                            the size of the vector is in the size of number of states.
      */
-    void computeStatesFrequencies(VVDouble& ancestralStatesFreuquencies, vector<shared_ptr<PhyloTree>>& mappings);
+    void computeStatesFrequencies(std::map<uint, std::vector<double>> &ancestralStatesFreqs);
 
     /* auxiliary function that samples a state based on a given discrete distribution
      * @param distibution       The distribution to sample states based on
@@ -382,7 +406,7 @@ public:
      * @param expectedMapping           The expected mapping instance whose nodes names should be updated according to their assigned states.
      * @param posteriorProbabilities    Vector of posterior assignment proabilities to inner node to decide on assignments
      */
-    void setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, VVDouble& posteriorProbabilities);
+    void setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &ancestralStatesFrequencies);
 
     /* simulates mutations on phylogeny based the sampled ancestrals, tips data, and the simulation parameters
      * @param mappingIndex               mapping history index
@@ -414,6 +438,12 @@ public:
      @param divMethod                 The method used in the case that the son and father share the same state (either divide the wdelling time of the staed state by 2 for  two transitions (method 0) or allocate the entire dwelling time to be adjacent to the son(method 1))
     */
     void updateBranchByDwellingTimes(PhyloNode* node, VDouble& dwellingTimes, VVDouble& posteriorProbabilities, size_t divMethod = 0);
+    /* Recursively creates a tree of a mapping history, where each transition is represented by an additional node in the tree.
+     * @param nodeId               Node Index for which we do the calculation recursively
+     * @param mappingIndex         The index of the mapping
+     * @param tree          A pointer to the constructed tree
+    */
+    void assignTransitionOnHistoryTreeRec(uint nodeId, size_t mappingIndex, std::shared_ptr<PhyloTree> tree);
 
 
   };

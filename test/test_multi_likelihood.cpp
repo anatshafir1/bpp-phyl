@@ -84,7 +84,7 @@ int main() {
   
   auto model1 = std::make_shared<T92>(alphabet, 3.,0.9);
   auto model2 = std::make_shared<T92>(alphabet, 2., 0.1);
-  auto model3 = std::make_shared<T92>(alphabet, 5., 0.5);
+  //auto model3 = std::make_shared<T92>(alphabet, 5., 0.5);
 
   auto rdist1 = std::make_shared<ConstantRateDistribution>();//GammaDiscreteRateDistribution>(4, 2.0);
   auto rdist2 = rdist1;//std::make_shared<GammaDiscreteRateDistribution>(3, 1.0);
@@ -109,7 +109,7 @@ int main() {
   Vuint vP2m2{2, 4, 5};
 
   subPro2->addModel(std::shared_ptr<T92>(model1->clone()),vP2m1);
-  subPro2->addModel(std::shared_ptr<T92>(model3->clone()),vP2m2);
+  subPro2->addModel(std::shared_ptr<T92>(model2->clone()),vP2m2);
 
   ///////////////////////////////////////////
   // Similar Collection Processes
@@ -118,7 +118,7 @@ int main() {
   
   modelColl->addModel(model1, 1);
   modelColl->addModel(model2, 2);
-  modelColl->addModel(model3, 3);
+  //modelColl->addModel(model3, 3);
 
   modelColl->addFrequencies(rootFreqs, 1);
   modelColl->addDistribution(rdist1, 1);
@@ -135,7 +135,7 @@ int main() {
                                    
   map<size_t, Vuint> mModBr2;
   mModBr2[1]=vP2m1;
-  mModBr2[3]=vP2m2;
+  mModBr2[2]=vP2m2;
 
   modelColl->addSubstitutionProcess(2, mModBr2, 2, 2, 1);
 
@@ -143,13 +143,13 @@ int main() {
 
   VectorSiteContainer sites(alphabet);
   sites.addSequence(
-    BasicSequence("A", "ATCCAGACATGCCGGGACTTTGCAGAGAAGGAGTTGTTTCCCATTGCAGCCCAGGTGGATAAGGAACAGC", alphabet));
+    BasicSequence("A", "A", alphabet));
   sites.addSequence(
-    BasicSequence("B", "CGTCAGACATGCCGTGACTTTGCCGAGAAGGAGTTGGTCCCCATTGCGGCCCAGCTGGACAGGGAGCATC", alphabet));
+    BasicSequence("B", "C", alphabet));
   sites.addSequence(
-    BasicSequence("C", "GGTCAGACATGCCGGGAATTTGCTGAAAAGGAGCTGGTTCCCATTGCAGCCCAGGTAGACAAGGAGCATC", alphabet));
+    BasicSequence("C", "G", alphabet));
   sites.addSequence(
-    BasicSequence("D", "TTCCAGACATGCCGGGACTTTACCGAGAAGGAGTTGTTTTCCATTGCAGCCCAGGTGGATAAGGAACATC", alphabet));
+    BasicSequence("D", "T", alphabet));
 
   // Likelihoods
   auto pc(std::make_shared<PhyloLikelihoodContainer>(context, *modelColl));
@@ -170,26 +170,8 @@ int main() {
 
   cerr << setprecision(10) << "TL1:"  << spl1->getValue() << "\tTL2:" << spl2->getValue() << endl;
 
-  auto collNodes = pc->getCollectionNodes();
   
-  //  Mixture of process
-  
-  std::vector<size_t> vp(2);
-  vp[0]=1; vp[1]=2;
 
-  MixtureSequenceEvolution mse(modelColl.get(), vp);
-
-  MixtureProcessPhyloLikelihood mlc(*sites.clone(), mse, *collNodes);
-
-  using bpp::DotOptions;
-  bpp::writeGraphToDot("mlc.dot", {mlc.getLikelihoodNode().get()});//, DotOptions::DetailedNodeInfo | DotOp
-  cerr << "Mlc: " << mlc.getValue() << endl;
-
-  for (size_t pos=0; pos < sites.getNumberOfSites(); pos++){
-    DataLik x=spl1->getLikelihoodForASite(pos) * mlc.getSubProcessProb(0) + spl2->getLikelihoodForASite(pos) * mlc.getSubProcessProb(1);
-    if (convert(abs(x-mlc.getLikelihoodForASite(pos)))>0.001)
-      cerr << "Mixture Process : Problem on site " << pos << " : "  << x << " vs " << mlc.getLikelihoodForASite(pos) << endl;
-  }
 
   //  Mixture of phylo
 
@@ -209,64 +191,26 @@ int main() {
   pc2->addPhyloLikelihood(1, new SingleProcessPhyloLikelihood(context2, lik22));
   pc2->addPhyloLikelihood(2, new SingleProcessPhyloLikelihood(context2, lik12));
 
-  MixtureOfAlignedPhyloLikelihood moap(context2, pc2, {1,2}, false);
+  MixtureOfAlignedPhyloLikelihood moap(context2, pc2, {1,2}, true);
 
   bpp::writeGraphToDot("moap.dot", {moap.getLikelihoodNode().get()});//, DotOptions::DetailedNodeInfo | DotOp
   cerr << "Moap: " << moap.getValue() << endl;
 
   for (size_t pos=0; pos < sites.getNumberOfSites(); pos++){
-    DataLik x=spl1->getLikelihoodForASite(pos) * moap.getPhyloProb(0) + spl2->getLikelihoodForASite(pos) * moap.getPhyloProb(1);
+    auto prob1 = moap.getPhyloProb(0);
+    auto prob2 = moap.getPhyloProb(1);
+    DataLik x=spl1->getLikelihoodForASite(pos) * prob1 + spl2->getLikelihoodForASite(pos) * prob2;
     if (convert(abs(x-moap.getLikelihoodForASite(pos)))>0.001)
       cerr << "Mixture Alignment: Problem on site " << x << endl;
   }
+  auto parameters = moap.getParameters();
+  for (size_t i = 0; i < parameters.size(); i++){
+    std::cout << parameters[i].getName() << std::endl;
+  }
 
-  cout << endl;
-  
-  cout << "==========================================" << endl;
-  cout << "==========================================" << endl;
-  cout << endl;
-  
-  cout << "Optimization : " << endl;
-  cout << endl;
-
+  std::cout << "*****************************" << std::endl;
   OutputStream* profiler  = new StlOutputStream(new ofstream("profile.txt", ios::out));
   OutputStream* messenger = new StlOutputStream(new ofstream("messages.txt", ios::out));
-
-  unsigned int c1 = OptimizationTools::optimizeNumericalParameters2(
-    spl1, spl1->getParameters(), 0,
-    0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
-
-  cerr << "Opt 1: rounds " << c1 << endl;
-
-  cerr << "--------------------------------" << endl;
-  
-  unsigned int c2 = OptimizationTools::optimizeNumericalParameters2(
-    spl2, spl2->getParameters(), 0,
-    0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
-
-  spl1->getParameters().printParameters(std::cout);
-  
-  cerr << "Opt 2: rounds " << c2 << endl;
-
-  spl2->getParameters().printParameters(std::cout);
-
-  
-  cerr << setprecision(10) << "Ml1:"  << spl1->getValue() << "\tMl2:" << spl2->getValue() << endl;
-
-  cerr << "--------------------------------" << endl;
-
-  unsigned int cM = OptimizationTools::optimizeNumericalParameters2(
-    &mlc, mlc.getParameters(), 0,
-    0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
-  
-  cerr << "Opt M rounds: " << cM << endl;
-
-  cerr << "Mlc: " << mlc.getValue() << endl;
-
-  mlc.getParameters().printParameters(std::cout);
-
-  cerr << "--------------------------------" << endl;
-  
   unsigned int cM2 = OptimizationTools::optimizeNumericalParameters2(
     &moap, moap.getParameters(), 0,
     0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
@@ -276,25 +220,10 @@ int main() {
   cerr << "Moap: " << moap.getValue() << endl;
 
   moap.getParameters().printParameters(std::cout);
-
-  
-// Formula
-  
-  string formula="(phylo2 - phylo1) * (phylo1 - phylo2)";      
-
-  FormulaOfPhyloLikelihood tl(context, pc, formula, false);
-
-  cerr << formula << " : " << tl.getValue() << endl;
-
-  bpp::writeGraphToDot("formula.dot", {tl.getLikelihoodNode().get()});//, DotOptions::DetailedNodeInfo | DotOp
-
-  unsigned int cMtl = OptimizationTools::optimizeNumericalParameters2(
-    &tl, tl.getParameters(), 0,
-    0.0001, 10000, messenger, profiler, false, false, 1, OptimizationTools::OPTIMIZATION_NEWTON);
-
-  cerr << "Opt tl rounds: " << cMtl << endl;
-
-  cerr << formula << " " << tl.getValue() << endl;
+  auto prob1 = moap.getPhyloProb(0);
+  auto prob2 = moap.getPhyloProb(1);
+  std::cout << "phylo pribability " << prob1 << std::endl;
+  std::cout << "Phylo probability " << prob2 << std::endl;
 
   return 0;
 }

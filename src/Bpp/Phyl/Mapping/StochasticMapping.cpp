@@ -167,20 +167,21 @@ double StochasticMapping::getRateToLeaveState(uint nodeId, size_t mapping){
 
 }
 /******************************************************************************/
-
-void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, VVDouble& ancestralStatesFrequencies)
-{
-  // TreeTemplate<Node>* ttree = dynamic_cast<TreeTemplate<Node>*>(expectedMapping);
-  // vector<Node*> nodes = ttree->getNodes();
-  // for (size_t i = 0; i < nodes.size(); ++i)
-  // {
-  //   Node* node = nodes[i];
-  //   int nodeId = node->getId();
-  //   size_t j = static_cast<size_t>(nodeId); //Note@Laurent (Julien 17/06/20): is this really intended, as nodeIds can be discontinuous? Should there be some can of index instead?
-  //   auto d = distance(ancestralStatesFrequencies[j].begin(), max_element(ancestralStatesFrequencies[j].begin(), ancestralStatesFrequencies[j].end()));
-  //   size_t state = static_cast<size_t>(d); //Note@Laurent (Julien 17/06/20): assimuming this is always positive, is that so?
-  //   setNodeState(node, state); // in the case of a leaf, the assigned state must be sampled
-  // }
+// Note: Currently implemented only for binary trait!!!
+void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &ancestralStatesFrequencies){
+  std::map<uint, std::vector<std::pair<size_t, double>>> orderedStatesWithTimes;
+  auto nodes = expectedMapping->getAllNodes();
+  for (size_t i = 0; i < nodes.size(); i++){
+    uint nodeId = expectedMapping->getNodeIndex(nodes[i]);
+    auto d = std::distance(ancestralStatesFrequencies[nodeId].begin(),std::max_element(ancestralStatesFrequencies[nodeId].begin(), ancestralStatesFrequencies[nodeId].end()));
+    size_t state = static_cast<size_t>(d);
+    if (expectedMapping->isLeaf(nodes[i])){
+      nodes[i]->setName(nodes[i]->getName()+"-"+ std::to_string(state));
+    }else{
+      nodes[i]->setName("N"+ std::to_string(nodeId)+"-"+ std::to_string(state));
+    }
+    
+  }
 }
 
 /******************************************************************************/
@@ -188,62 +189,57 @@ void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapp
 shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_ptr<PhyloTree> >& mappings, size_t divMethod)
 {
   // // initialize the expected history
-  // nodesCounter_ = dynamic_cast<TreeTemplate<Node>*>(baseTree_)->getNodes().size() - 1;
-  shared_ptr<PhyloTree> expectedMapping(make_shared<PhyloTree>(*tree_));
-  // setLeafsStates(expectedMapping);
+  shared_ptr<PhyloTree> expectedMapping(std::shared_ptr<PhyloTree>(tree_->clone()));
 
-  // // compute a vector of the posterior asssignment probabilities for each inner node
-  // VVDouble ancestralStatesFrequencies;
-  // ancestralStatesFrequencies.clear();
-  // vector<Node*> nodes = dynamic_cast<TreeTemplate<Node>*>(expectedMapping)->getNodes();
-  // size_t statesNum = tl_->getNumberOfStates();
-  // ancestralStatesFrequencies.resize(nodes.size(), VDouble(statesNum));
-  // computeStatesFrequencies(ancestralStatesFrequencies, mappings);
+  // compute a vector of the posterior asssignment probabilities for each inner node
+  std::map<uint, std::vector<double>> ancestralStatesFrequencies;
+  computeStatesFrequencies(ancestralStatesFrequencies);
+  // calculate expected duration times
+  std::map<uint, std::vector<double>> dwellingTimes;
+  getDewellingTimesUnderEachStatePerNode(&dwellingTimes);
 
-  // // set the ancestral states accrdonig to the maximal posterior (i.e, conditional) probability
-  // setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
+  // set the ancestral states according to the maximal posterior (i.e, conditional) probability
+  setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
+  auto nodes = expectedMapping->getAllNodes();
+  for (size_t i = 0; i < nodes.size(); i++){
+    uint nodeId = expectedMapping->getNodeIndex(nodes[i]);
+    if (nodeId == expectedMapping->getRootIndex()){
+      continue;
+    }
+    auto father = expectedMapping->getFatherOfNode(expectedMapping->getNode(nodeId));
+    uint fatherId = expectedMapping->getNodeIndex(father);
+    size_t fatherState = (size_t)getNodeState(father);
+    size_t sonState = (size_t)getNodeState(nodes[i]);
+    if (fatherState != sonState){
+      // we assume that only one change had occurred, and add one node
+      auto edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
+      uint newNodeId = expectedMapping->createNodeOnEdge(expectedMapping->getEdgeIndex(edge_to_fragment), dwellingTimes[nodeId][fatherState]);
+      (expectedMapping->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(sonState));
 
-  // // update the expected history with the dwelling times
-  // for (size_t n = 0; n < nodes.size(); ++n)
-  // {
-  //   Node* node = nodes[n];
-  //   if (node->hasFather()) // for any node except to the root
-  //   {
-  //     // initialize vector of average dwelling times for the branch stemming from node
-  //     VDouble AverageDwellingTimes;
-  //     AverageDwellingTimes.clear();
-  //     AverageDwellingTimes.resize(statesNum, 0);
-  //     // compute the average dwelling times of all the states
-  //     for (size_t i = 0; i < mappings.size(); ++i)
-  //     {
-  //       TreeTemplate<Node>* mapping =  dynamic_cast<TreeTemplate<Node>*>(mappings[i]);
-  //       // get the pointers to the node and its father in the i'th mapping
-  //       Node* curNode = mapping->getNode(node->getName());
-  //       Node* father = mapping->getNode(node->getFather()->getName()); // the original father of the node (according to the base tree) in the mapping
-  //       while (curNode != father)
-  //       {
-  //         AverageDwellingTimes[static_cast<size_t>(getNodeState(curNode))] += curNode->getDistanceToFather(); //Note@Laurent (Julien 17/06/20): assuming state is positive, is that so?
-  //         curNode = curNode->getFather();
-  //       }
-  //     }
-  //     double branchLength = node->getDistanceToFather();   // this is the length of the original branch in the base tree
-  //     bool updateBranch = true;
-  //     for (size_t state = 0; state < statesNum; ++state)
-  //     {
-  //       AverageDwellingTimes[state] /= static_cast<double>(mappings.size());
-  //       if (AverageDwellingTimes[state] == branchLength) // if one of the dwelling times equals the branch length, then there is only one state along te branch and there is no need to edit it
-  //       {
-  //         updateBranch = false;
-  //       }
-  //     }
-  //     // break the branch according to average dwelling times
-  //     if (updateBranch)
-  //     {
-  //       updateBranchByDwellingTimes(node, AverageDwellingTimes, ancestralStatesFrequencies, divMethod);
-  //     }
-  //   }
-  // }
-  // nodesCounter_ = dynamic_cast<TreeTemplate<Node>*>(baseTree_)->getNodes().size() - 1;
+    }else{
+      // in case we have a branch with same terminal states, we consider two options:
+      // 1. x->y->x (two transitions)
+      // 2. no transitions if the duration time of the other state was too small.
+      size_t otherState = 1-fatherState;
+      auto branch = expectedMapping->getEdgeToFather(nodeId);
+      double branchLength = branch->getLength();
+      if (dwellingTimes[nodeId][otherState] < 0.005 * branchLength){
+        // most probably a noise, and no tranition had occurred
+        continue;
+      }
+      double fatherStatePosterior = ancestralStatesFrequencies[fatherId][fatherState];
+      double sonStatePosterior = ancestralStatesFrequencies[nodeId][fatherState];
+      
+      auto edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
+      // dividing the proportions of time according to the posterior probabilities
+      double weightFather = fatherStatePosterior/(fatherStatePosterior+sonStatePosterior);
+      uint newNodeId = expectedMapping->createNodeOnEdge(expectedMapping->getEdgeIndex(edge_to_fragment), weightFather* dwellingTimes[nodeId][fatherState]);
+      (expectedMapping->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(otherState));
+      auto second_edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
+      newNodeId = expectedMapping->createNodeOnEdge(expectedMapping->getEdgeIndex(second_edge_to_fragment), dwellingTimes[nodeId][otherState]);
+      (expectedMapping->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(sonState));
+    }
+  }
   return expectedMapping;
 }
 
@@ -251,78 +247,52 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_p
 
 shared_ptr<PhyloTree> StochasticMapping::generateAnalyticExpectedMapping(size_t divMethod)
 {
-  // /* Compute the posterior assignment probabilities to internal nodes, based on the fractional probablities computed earlier */
+  /* Compute the posterior assignment probabilities to internal nodes, based on the fractional probablities computed earlier */
   // const vector<int> states =  tl_->getAlphabetStates();
-  // vector<int> nodeIds = baseTree_->getNodesId();
-  // size_t nodeId;
-  // VVDouble posteriorProbabilities;
-  // posteriorProbabilities.clear();
-  // posteriorProbabilities.resize(baseTree_->getNumberOfNodes(), VDouble(states.size()));
-  // double nodeDataProb;
-  // // because the sum of partial likelihoods (i.e, the fractional probabilities) is in fact the probablity of the data, it is sufficient to standardize the vector of fractional probabilires for each node to obtain the posterior probabilities
-  // for (size_t n = 0; n < baseTree_->getNumberOfNodes(); ++n)
-  // {
-  //   nodeId = static_cast<size_t>(nodeIds[n]); //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
-  //   nodeDataProb = 0;
-  //   for (size_t s = 0; s < states.size(); ++s)
-  //   {
-  //     nodeDataProb = nodeDataProb + fractionalProbabilities_[nodeId][s];
-  //   }
-  //   for (size_t nodeState = 0; nodeState < states.size(); ++nodeState)
-  //   {
-  //     posteriorProbabilities[nodeId][nodeState] = fractionalProbabilities_[nodeId][nodeState] / nodeDataProb;
-  //   }
-  // }
-
+  vector<int> states = likelihood_->getStateMap().getAlphabetStates();
+  auto nodeIds = tree_->getNodeIndexes(tree_->getAllNodes());
+  std::map<uint, std::vector<double>> posteriorProbabilities;
+   // because the sum of partial likelihoods (i.e, the fractional probabilities) is in fact the probablity of the data, it is sufficient to standardize the vector of fractional probabilires for each node to obtain the posterior probabilities
+  getPosteriorProbabilities(posteriorProbabilities);
   // /* Assign states to internal nodes based on the majority rule over the posterior probabilities */
   shared_ptr<PhyloTree> expectedMapping(make_shared<PhyloTree>(*tree_));
+  setExpectedAncestrals(expectedMapping, posteriorProbabilities);
+  /* Compute the reward per state per site - expect two entries per site (that is, two entries in total).
+  // Let r0 be the reward of state 0 nd r1 the reward of state 1. */
+  
+  //std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(new ConstantRateDistribution());
+  //likelihood_->getSubstitutionProcess().getModel(0, 0);
+  const std::shared_ptr<const TransitionModel> model = dynamic_pointer_cast<const TransitionModel>(likelihood_->getSubstitutionProcess().getModel(0, 0));
 
-  // setLeafsStates(expectedMapping);
-  // setExpectedAncestrals(expectedMapping, posteriorProbabilities);
+  VVDouble expectedDwellingTimes;
+  expectedDwellingTimes.clear();
+  expectedDwellingTimes.resize(nodeIds.size(), VDouble(states.size()));
+  for (size_t s = 0; s < states.size(); ++s)
+  {
+    UserAlphabetIndex1 alpha = UserAlphabetIndex1(likelihood_->getData()->getAlphabet());
+    alpha.setIndex(states[s], 1); // set the reward of the state as 1 and the reward for the rest of the states as 0
+    for (size_t m = 0; m < states.size(); ++m)
+    {
+      if (m != s)
+      {
+        alpha.setIndex(states[m], 0); //Note@Laurent (Julien 17/06/20): can you chack my correction there and above? I changed s/m to states[s] and states[m], is that correct?
+      }
+    }
+    DecompositionReward reward(dynamic_cast<const SubstitutionModel*>(model.get()), &alpha); // TO FIX 20.6: this line attempts to delete alpha which doesn't belong to it. cloning it didn't help - get help from Itay / Anat
+    shared_ptr<LikelihoodCalculationSingleProcess> rewardLik = make_shared<LikelihoodCalculationSingleProcess>(*likelihood_);
+    ProbabilisticRewardMapping mapping(RewardMappingTools::computeRewardVectors(*rewardLik, tree_->getAllNodesIndexes(), reward, false));
+    for (size_t n = 0; n < nodeIds.size(); ++n)
+    {
+      uint nodeId = nodeIds[n];
+      if (nodeId != tree_->getRootIndex()) // for any node except to the root
+      {
+        expectedDwellingTimes[static_cast<size_t>(nodeId)][s] = mapping.getReward(nodeId, 0); //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
+      }
+    }
+  }
 
-  // /* Compute the reward per state per site - expect two entries per site (that is, two entries in total).
-  //    Let r0 be the reward of state 0 nd r1 the reward of state 1. */
-  // UserAlphabetIndex1* alpha = new UserAlphabetIndex1(tl_->getAlphabet());
-  // DiscreteDistribution* rDist = new ConstantRateDistribution();
-  // TransitionModel* tlModel = tl_->getModelForSite(0, 0)->clone();
-  // DRTreeLikelihood* drtl = new DRHomogeneousTreeLikelihood(*baseTree_, *(tl_->getData()), tlModel, rDist, false);
-  // drtl->initialize();
-  // vector<int> ids = baseTree_->getNodesId();
-  // const SubstitutionModel* model = dynamic_cast<const SubstitutionModel*>(tl_->getModelForSite(0, 0));
-
-  // /* Compute the expected dwelling times per branch and state as follows:
-  //    For branch b of length t, the average welling time in state 0 is r0*t (based on Minin and Suchard paper).
-  //    The average dwelling time in state 1 should complement to t (make sure of it!) */
-  // vector<Node*> nodes = dynamic_cast<TreeTemplate<Node>*>(expectedMapping)->getNodes();
-  // double branchLength;
-  // Node* node;
-  // VVDouble expectedDwellingTimes;
-  // expectedDwellingTimes.clear();
-  // expectedDwellingTimes.resize(nodes.size(), VDouble(states.size()));
-  // for (size_t s = 0; s < states.size(); ++s)
-  // {
-  //   alpha->setIndex(states[s], 1); // set the reward of the state as 1 and the reward for the rest of the states as 0
-  //   for (size_t m = 0; m < states.size(); ++m)
-  //   {
-  //     if (m != s)
-  //     {
-  //       alpha->setIndex(states[m], 0); //Note@Laurent (Julien 17/06/20): can you chack my correction there and above? I changed s/m to states[s] and states[m], is that correct?
-  //     }
-  //   }
-  //   unique_ptr<Reward> reward(new DecompositionReward(model, alpha));
-  //   unique_ptr<ProbabilisticRewardMapping> mapping(RewardMappingTools::computeRewardVectors(*drtl, ids, *reward, false));
-  //   for (size_t n = 0; n < nodes.size(); ++n)
-  //   {
-  //     node = nodes[n];
-  //     if (node->hasFather()) // for any node except to the root
-  //     {
-  //       expectedDwellingTimes[static_cast<size_t>(node->getId())][s] = mapping->getReward(node->getId(), 0); //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
-  //     }
-  //   }
-  // }
-
-  // // standardize expected dwelling itmes, if needed, and update the mapping accorgingly
-  // double sumOfDwellingTimes;
+  // standardize expected dwelling itmes, if needed, and update the mapping accorgingly
+  double sumOfDwellingTimes;
   // bool updateBranch;
   // nodesCounter_ = dynamic_cast<TreeTemplate<Node>*>(baseTree_)->getNodes().size() - 1;
   // for (size_t n = 0; n < nodes.size(); ++n)
@@ -338,7 +308,7 @@ shared_ptr<PhyloTree> StochasticMapping::generateAnalyticExpectedMapping(size_t 
   //       if (expectedDwellingTimes[static_cast<size_t>(node->getId())][s] == 0) //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
 
   //       {
-  //         updateBranch = false;
+  //         updateBranch =  false;
   //       }
   //       sumOfDwellingTimes = sumOfDwellingTimes + expectedDwellingTimes[static_cast<size_t>(node->getId())][s]; //Note@Laurent (Julien 17/06/20): what is nodeId is negative?
 
@@ -375,20 +345,6 @@ shared_ptr<PhyloTree> StochasticMapping::generateAnalyticExpectedMapping(size_t 
   // delete drtl;
 
   return expectedMapping;
-}
-/******************************************************************************/
-
-int StochasticMapping::getNodeState(const PhyloNode* node) const
-{
-  return (dynamic_cast<const BppInteger*>(node->getProperty(STATE)))->getValue();
-}
-
-/******************************************************************************/
-
-void StochasticMapping::setNodeState(PhyloNode* node, size_t state)
-{
-  BppInteger stateProperty(static_cast<int>(state));
-  node->setProperty(STATE, stateProperty);
 }
 
 /******************************************************************************/
@@ -484,11 +440,70 @@ void StochasticMapping::fillRootConditionals(ExtendedFloatArrayXd &conditionals)
     }
   }
 }
+/******************************************************************************/
+void StochasticMapping::getPosteriorProbabilities(std::map<uint, std::vector<double>> &posteriorProbs){
+  // some auxiliiary variables
+  size_t nbState = likelihood_->getStateMap().getNumberOfModelStates();
+  auto flt = likelihood_->getForwardLikelihoodTree(0);
+  auto nodeIds = tree_->getNodeIndexes(tree_->getAllNodes());
+  for (size_t i = 0; i < nodeIds.size(); i++){
+    auto nodeId = nodeIds[i];
+    posteriorProbs[nodeId];
+    posteriorProbs[nodeId].resize(nbState);
+    if (tree_->getRootIndex() == nodeId){
+        auto rootLik = numeric::cwise(((flt->getForwardLikelihoodArrayAtRoot())->getTargetValue()).col(0));
+        auto rootPosterior = rootLik/rootLik.sum();
+        for (size_t s = 0; s < nbState; s++){
+          auto efPosterior = ExtendedFloat(rootPosterior.float_part()(s), rootPosterior.exponent_part());
+          posteriorProbs[nodeId][s] = ExtendedFloat::convert(efPosterior);
+        }
+
+    }else{
+      auto& dagIndexes = flt->getDAGNodesIndexes(nodeId);
+      if(dagIndexes.size() > 1){
+        throw Exception("StochasticMapping::getPosteriorProbabilities(): not implemented for mixture models!");
+      }
+      for (const auto& index : dagIndexes){
+        auto LikNodeMat = flt->getForwardLikelihoodArray(index)->getTargetValue(); // getting likelihood calculations for the specific node (speciesId)
+        auto nodeLik = numeric::cwise(LikNodeMat.col(0)); // getting the likelihood for the first site
+        auto nodePosterior = nodeLik/nodeLik.sum(); 
+        for (size_t s = 0; s < nbState; s ++){
+          auto efPosteriorProb = ExtendedFloat(nodePosterior.float_part()(s), nodePosterior.exponent_part());
+          posteriorProbs[nodeId][s] = ExtendedFloat::convert(efPosteriorProb);
+        }
+      }      
+    }
+  }
+  return;
+
+}
 
 /******************************************************************************/
 
-void StochasticMapping::computeStatesFrequencies(VVDouble& ancestralStatesFrequencies, vector<shared_ptr<PhyloTree> >& mappings)
+void StochasticMapping::computeStatesFrequencies(std::map<uint, std::vector<double>> &ancestralStatesFreqs)
 {
+  size_t nbStates = likelihood_-> getStateMap().getNumberOfModelStates();
+  auto nodeIds = tree_->getNodeIndexes(tree_->getAllNodes());
+  for (size_t i = 0; i < nodeIds.size(); i++){
+    ancestralStatesFreqs[nodeIds[i]];
+    ancestralStatesFreqs[nodeIds[i]].resize(nbStates);
+    std::fill(ancestralStatesFreqs[nodeIds[i]].begin(), ancestralStatesFreqs[nodeIds[i]].end(), 0);
+    if (tree_->isLeaf(tree_->getNode(nodeIds[i]))){
+      // for leaves there is a frequency of 1 in one of the states. It does
+      // not matter which mapping to choose. I choose arbitrary mapping 0.
+      ancestralStatesFreqs[nodeIds[i]][ancetralStates_[nodeIds[i]][0]] = 1.0;
+    }
+    for (size_t j = 0; j < numOfMappings_; j++){
+      ancestralStatesFreqs[nodeIds[i]][ancetralStates_[nodeIds[i]][j]]++;
+      
+    }
+    for (size_t k = 0; k < nbStates; k++){
+      ancestralStatesFreqs[nodeIds[i]][k] /= static_cast<double>(numOfMappings_);
+    }
+  }
+
+  
+
   // // some auxiliiary variables
   // size_t statesNum = tl_->getNumberOfStates();
   // const SiteContainer* leafsStates = tl_->getData();
@@ -684,15 +699,37 @@ bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uin
 }
 
 /******************************************************************************/
-void StochasticMapping::getDewellingTimesUnderEachStatePerMapping(vector<double> &dwellingTimes, size_t mappingIndex){
+void StochasticMapping::getDewellingTimesUnderEachStatePerMapping(vector<double> *dwellingTimes, size_t mappingIndex){
   auto rootId = tree_->getRootIndex();
   auto sons = tree_->getSons(rootId);
   for (size_t i = 0; i < sons.size(); i++){
-    getDewellingTimesUnderEachStatePerMappingRecursively(sons[i], ancetralStates_[rootId][mappingIndex], dwellingTimes, mappingIndex);
+    getDewellingTimesUnderEachStatePerMappingRecursively(sons[i], ancetralStates_[rootId][mappingIndex], dwellingTimes, mappingIndex, 0);
   }
 
 }
-/*****************************************************************************/
+/******************************************************************************/
+void StochasticMapping::getDewellingTimesUnderEachStatePerNode(std::map<uint, vector<double>> *dwellingTimes){
+  // initialize map
+  auto nodeIds = tree_->getNodeIndexes(tree_->getAllNodes());
+  for (size_t i = 0; i < nodeIds.size(); i++){
+    (*dwellingTimes)[nodeIds[i]];
+    (*dwellingTimes)[nodeIds[i]].resize(likelihood_-> getStateMap().getNumberOfModelStates());
+  }
+  
+  for (size_t m = 0; m < numOfMappings_; m++){
+    auto rootId = tree_->getRootIndex();
+    auto sons = tree_->getSons(rootId);
+    for (size_t i = 0; i < sons.size(); i++){
+      getDewellingTimesUnderEachStatePerMappingRecursively(sons[i], ancetralStates_[rootId][m], 0, m, dwellingTimes);
+    }
+  }
+  auto it = dwellingTimes->begin();
+  while (it != dwellingTimes->end()){
+    (*dwellingTimes)[it->first] /= static_cast<double>(numOfMappings_);
+    it ++;
+  }
+}
+// /*****************************************************************************/
 bool StochasticMapping::sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, size_t maxIterNum, bool replace){
   bool success = true;
   auto alphabet = likelihood_->getData()->getAlphabet();
@@ -770,8 +807,9 @@ bool StochasticMapping::isAccounted(uint nodeId, size_t mappingIndex){
   return accounted;
 }
 /******************************************************************************/
-void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> &dwellingTimes, size_t mappingIndex){
+void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> *dwellingTimesStates, size_t mappingIndex, std::map<uint, std::vector<double>> *dwellingTimesPerNode){
   auto mutationPath = mappings_[nodeId][mappingIndex];
+  auto & dwellingTimes = (dwellingTimesPerNode) ? (*dwellingTimesPerNode)[nodeId] : *dwellingTimesStates;
   //if ((notRepresentedNodes_.find(nodeId) == notRepresentedNodes_.end()) && ()){
   bool accountedBranch = isAccounted(nodeId, mappingIndex);
   vector<size_t> states;
@@ -818,7 +856,7 @@ void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uin
       }else{
         initialStateForSon = ancetralStates_[nodeId][mappingIndex];
       }
-      getDewellingTimesUnderEachStatePerMappingRecursively(sons[n], initialStateForSon, dwellingTimes, mappingIndex);
+      getDewellingTimesUnderEachStatePerMappingRecursively(sons[n], initialStateForSon, dwellingTimesStates, mappingIndex, dwellingTimesPerNode);
       
     }
   }
@@ -1154,7 +1192,7 @@ VVdouble StochasticMapping::getDwellingTimeOfStatePerEachMapping(){
   for (size_t i = 0; i < numOfMappings_; i++){
     dwellingTimesPerMapping[i].resize(nbState);
     std::fill(dwellingTimesPerMapping[i].begin(), dwellingTimesPerMapping[i].end(), 0);
-    getDewellingTimesUnderEachStatePerMapping(dwellingTimesPerMapping[i], i);
+    getDewellingTimesUnderEachStatePerMapping(&dwellingTimesPerMapping[i], i);
   }
   return dwellingTimesPerMapping;
 }
@@ -1167,7 +1205,7 @@ Vdouble StochasticMapping::getDwellingTimesUnderEachState(bool expectedDuration)
   // set all values to zero initially
   std::fill(expectedDwellingTimes.begin(), expectedDwellingTimes.end(), 0);
   for (size_t i = 0; i < numOfMappings_; i++){
-    getDewellingTimesUnderEachStatePerMapping(expectedDwellingTimes, i);
+    getDewellingTimesUnderEachStatePerMapping(&expectedDwellingTimes, i);
 
   }
 
@@ -1216,9 +1254,54 @@ bool StochasticMapping::tryToReplaceMapping(double branchLength, uint nodeId, si
   return success;
 }
 
+/******************************************************************************/
+std::shared_ptr<PhyloTree> StochasticMapping::createMappingHistoryTree(size_t mappingIndex){
+  std::shared_ptr<PhyloTree> tree = std::shared_ptr<PhyloTree>(tree_->clone());
+  uint rootId = tree_->getRootIndex();
+  assignTransitionOnHistoryTreeRec(rootId, mappingIndex, tree);
+  // chnage name here for the root
+  auto rootNode = tree->getNode(tree->getRootIndex());
+  size_t initialState = ancetralStates_[tree->getRootIndex()][mappingIndex];
+  rootNode->setName("N"+std::to_string(tree->getRootIndex())+"-"+ std::to_string(initialState));
+  return tree;
+
+}
+/******************************************************************************/
+void StochasticMapping::assignTransitionOnHistoryTreeRec(uint nodeId, size_t mappingIndex, std::shared_ptr<PhyloTree> tree){
+
+  // get the state of the initial node, change its name so it will include the state
+  // go over the transitions, and create the relevant internal nodes with names that
+  // include the states
+  auto node = tree->getNode(nodeId);
+  if (tree->getRootIndex() != nodeId){
+    size_t initialState = ancetralStates_[nodeId][mappingIndex];
+    if (tree->isLeaf(node)){
+       node->setName(node->getName()+"-"+ std::to_string(initialState));
+       return;
+    }else{
+       node->setName("N-"+ std::to_string(initialState));
+    }
+  }
+
+  auto sonsIds = tree->getSons(nodeId);
+  for (size_t i = 0; i < sonsIds.size(); i++){
+    auto son = tree->getNode(sonsIds[i]);
+    auto edge_to_fragment = tree->getEdgeToFather(son);
+    auto mutationPath = mappings_[sonsIds[i]][mappingIndex];
+    std::vector<size_t> states = mutationPath.getStates();
+    std::vector<double> times = mutationPath.getTimes();
+    for (size_t j = 0; j < times.size(); j++){
+      uint newNodeId = tree->createNodeOnEdge(tree->getEdgeIndex(edge_to_fragment), times[j]);
+      (tree->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(states[j]));
+
+    }
+    assignTransitionOnHistoryTreeRec(sonsIds[i], mappingIndex, tree);
+
+  }
+
+}
 
 /******************************************************************************/
-
 void StochasticMapping::updateBranchByDwellingTimes(PhyloNode* node, VDouble& dwellingTimes, VVDouble& ancestralStatesFrequencies, size_t divMethod)
 {
   // /* first, convert the dwelling times vector to a mutation path of the branch */

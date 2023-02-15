@@ -247,6 +247,13 @@ int main() {
     MatLik_final = matLik.transpose();
     std::cout << MatLik_final << std::endl;
 
+    const string node_name = "N_lb-23";
+    std::smatch match_sp_name;
+    std::regex state_rgx("-([\\d]+)");
+    regex_search(node_name, match_sp_name, state_rgx);
+    int state = stoi(match_sp_name[1]);
+    std::cout << "State is " << state << std::endl;
+
 
     return 0;
 }
