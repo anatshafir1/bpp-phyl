@@ -8,8 +8,6 @@
 # File list
 set (CPP_FILES
   Bpp/Phyl/App/PhylogeneticsApplicationTools.cpp
-  Bpp/Phyl/App/ChromEvolOptions.cpp
-  Bpp/Phyl/App/ChromosomeNumberMng.cpp
   Bpp/Phyl/Distance/AbstractAgglomerativeDistanceMethod.cpp
   Bpp/Phyl/Distance/BioNJ.cpp
   Bpp/Phyl/Distance/DistanceEstimation.cpp
@@ -44,7 +42,6 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/AbstractHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/AbstractNonHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/AbstractTreeLikelihood.cpp
-  Bpp/Phyl/Likelihood/ChromosomeNumberOptimizer.cpp
   Bpp/Phyl/Likelihood/DRASDRTreeLikelihoodData.cpp
   Bpp/Phyl/Likelihood/DRASRTreeLikelihoodData.cpp
   Bpp/Phyl/Likelihood/DRHomogeneousMixedTreeLikelihood.cpp
@@ -64,7 +61,6 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/RNonHomogeneousMixedTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/RNonHomogeneousTreeLikelihood.cpp
   Bpp/Phyl/Likelihood/TreeLikelihoodTools.cpp
-  Bpp/Phyl/Likelihood/UndirectedGraph.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/BackwardLikelihoodTree.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/CollectionNodes.cpp
   Bpp/Phyl/NewLikelihood/DataFlow/DataFlow.cpp
@@ -118,7 +114,6 @@ set (CPP_FILES
   Bpp/Phyl/NewLikelihood/PhyloLikelihoods/AutoCorrelationProcessPhyloLikelihood.cpp
   Bpp/Phyl/NewLikelihood/JointMLAncestralReconstruction.cpp
   Bpp/Phyl/NewLikelihood/MarginalAncestralReconstruction.cpp
-  Bpp/Phyl/Mapping/ComputeChromosomeTransitionsExp.cpp
   Bpp/Phyl/Mapping/DecompositionMethods.cpp
   Bpp/Phyl/Mapping/DecompositionReward.cpp
   Bpp/Phyl/Mapping/DecompositionSubstitutionCount.cpp
@@ -147,7 +142,6 @@ set (CPP_FILES
   Bpp/Phyl/Model/AbstractSubstitutionModel.cpp
   Bpp/Phyl/Model/AbstractWordSubstitutionModel.cpp
   Bpp/Phyl/Model/BinarySubstitutionModel.cpp
-  Bpp/Phyl/Model/ChromosomeSubstitutionModel.cpp
   Bpp/Phyl/Model/TwoParameterBinarySubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAARateSubstitutionModel.cpp
   Bpp/Phyl/Model/Codon/AbstractCodonAAFitnessSubstitutionModel.cpp

@@ -10,7 +10,7 @@
 #include <Bpp/Phyl/Model/Nucleotide/T92.h>
 #include <Bpp/Phyl/Model/FrequencySet/NucleotideFrequencySet.h>
 #include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
-#include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
+//#include <Bpp/Phyl/Model/ChromosomeSubstitutionModel.h>
 #include <Bpp/Seq/Io/Pasta.h>
 
 #include <Bpp/Phyl/NewLikelihood/ParametrizablePhyloTree.h>
@@ -18,8 +18,8 @@
 #include <Bpp/Phyl/NewLikelihood/RateAcrossSitesSubstitutionProcess.h>
 
 #include <Bpp/Phyl/NewLikelihood/DataFlow/LikelihoodCalculationSingleProcess.h>
-#include <Bpp/Phyl/App/ChromosomeNumberMng.h>
-#include <Bpp/Phyl/App/ChromEvolOptions.h>
+//#include <Bpp/Phyl/App/ChromosomeNumberMng.h>
+//#include <Bpp/Phyl/App/ChromEvolOptions.h>
 
 #include <iostream>
 
@@ -31,9 +31,9 @@ using namespace std;
 // void updateMapsOfParamTypesAndNames(std::map<int, std::map<uint, std::vector<string>>> &typeWithParamNames, std::map<string, std::pair<int, uint>> &paramNameAndType, SingleProcessPhyloLikelihood* tl);
 // void updateWithTypeAndCorrespondingName(std::map<std::string, int> &typeGeneralName);
 // void printLikParameters(SingleProcessPhyloLikelihood* lik);
-void calculateConditionals(VVdouble &conditionalProbs, Vdouble &lik, RowMatrix<double> &Pijt);
-void printConsitionals(VVDouble &conditionalProbs, string nodeName);
-void printSpecies(PhyloTree* tree, uint index);
+// void calculateConditionals(VVdouble &conditionalProbs, Vdouble &lik, RowMatrix<double> &Pijt);
+// void printConsitionals(VVDouble &conditionalProbs, string nodeName);
+// void printSpecies(PhyloTree* tree, uint index);
 
 
 // int main(){
@@ -582,128 +582,128 @@ void printSpecies(PhyloTree* tree, uint index);
 
 // }
 
-void calculateConditionals(VVdouble &conditionalProbs, Vdouble &lik, RowMatrix<double> &Pijt){
-    auto nbState = lik.size();
-    conditionalProbs.resize(nbState);
-    for (size_t fatherState = 0; fatherState < nbState; fatherState++){
-        conditionalProbs[fatherState].resize(nbState);
-        double sumLik = 0;
-        for (size_t sonState = 0; sonState < nbState; sonState++){
-            sumLik += Pijt(fatherState, sonState) * lik[sonState];
-            conditionalProbs[fatherState][sonState] = Pijt(fatherState, sonState) * lik[sonState];
-        }
-        for (size_t sonState = 0; sonState < nbState; sonState++){
-            conditionalProbs[fatherState][sonState] /= sumLik;
-        }
+// void calculateConditionals(VVdouble &conditionalProbs, Vdouble &lik, RowMatrix<double> &Pijt){
+//     auto nbState = lik.size();
+//     conditionalProbs.resize(nbState);
+//     for (size_t fatherState = 0; fatherState < nbState; fatherState++){
+//         conditionalProbs[fatherState].resize(nbState);
+//         double sumLik = 0;
+//         for (size_t sonState = 0; sonState < nbState; sonState++){
+//             sumLik += Pijt(fatherState, sonState) * lik[sonState];
+//             conditionalProbs[fatherState][sonState] = Pijt(fatherState, sonState) * lik[sonState];
+//         }
+//         for (size_t sonState = 0; sonState < nbState; sonState++){
+//             conditionalProbs[fatherState][sonState] /= sumLik;
+//         }
 
-    }
-}
+//     }
+// }
 
-/*******************************************************************************************/
-void printConsitionals(VVDouble &conditionalProbs, string nodeName){
-    std::cout << "******" << std::endl;
-    std::cout << "# " << nodeName << std::endl;
-    for (size_t i = 0; i < conditionalProbs.size(); i++){
-        for (size_t j = 0; j < conditionalProbs[i].size(); j++){
-            if (j == conditionalProbs[i].size()-1){
-                std::cout << conditionalProbs[i][j] << std::endl;
-            }else{
-                std::cout << conditionalProbs[i][j] << "\t";
-            }
-        }
-    }
-}
-void printSpecies(PhyloTree* tree, uint index){
-    if (!(tree->isLeaf(index))){
-        auto sons = tree->getSons(index);
-        for (size_t i = 0; i < sons.size(); i++){
-            std::cout << "father is: " << index << " Son is: " << sons[i] << std::endl;
-            printSpecies(tree, sons[i]);
+// /*******************************************************************************************/
+// void printConsitionals(VVDouble &conditionalProbs, string nodeName){
+//     std::cout << "******" << std::endl;
+//     std::cout << "# " << nodeName << std::endl;
+//     for (size_t i = 0; i < conditionalProbs.size(); i++){
+//         for (size_t j = 0; j < conditionalProbs[i].size(); j++){
+//             if (j == conditionalProbs[i].size()-1){
+//                 std::cout << conditionalProbs[i][j] << std::endl;
+//             }else{
+//                 std::cout << conditionalProbs[i][j] << "\t";
+//             }
+//         }
+//     }
+// }
+// void printSpecies(PhyloTree* tree, uint index){
+//     if (!(tree->isLeaf(index))){
+//         auto sons = tree->getSons(index);
+//         for (size_t i = 0; i < sons.size(); i++){
+//             std::cout << "father is: " << index << " Son is: " << sons[i] << std::endl;
+//             printSpecies(tree, sons[i]);
 
-        }
+//         }
 
-    }
+//     }
     
-}
-void fitModel(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution* rdist,
-                 const ParametrizablePhyloTree&  new_tree,
-                 const ProbabilisticSiteContainer& sites)
-{
-    std::vector<std::string> sequnces_names = sites.getSequencesNames();
-    for (size_t k = 0; k < sequnces_names.size(); k++){
-        std::cout << sequnces_names[k] << " index " << k << std::endl;
-        for (int i = 0; i < 21; i++){
-            std::cout << "\t"<< sites.getStateValueAt(0, sequnces_names[k], i) << std::endl;
+// }
+// void fitModel(std::shared_ptr<SubstitutionModel> model, DiscreteDistribution* rdist,
+//                  const ParametrizablePhyloTree&  new_tree,
+//                  const ProbabilisticSiteContainer& sites)
+// {
+//     std::vector<std::string> sequnces_names = sites.getSequencesNames();
+//     for (size_t k = 0; k < sequnces_names.size(); k++){
+//         std::cout << sequnces_names[k] << " index " << k << std::endl;
+//         for (int i = 0; i < 21; i++){
+//             std::cout << "\t"<< sites.getStateValueAt(0, sequnces_names[k], i) << std::endl;
 
-        }
-    }
-    ParametrizablePhyloTree parTree(new_tree);
-    NonHomogeneousSubstitutionProcess* subProSim = NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, &parTree);
-    Context context;
-    SubstitutionProcess* nsubPro=subProSim->clone();
-    auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, *nsubPro, true);
-    SingleProcessPhyloLikelihood ntl(context, lik, lik->getParameters());
-    // NOTE: in order to get the correct likelihood value, when using Pasta it is important to change the stateMap instance
-    // line 68: change: states_.push_back(i) to: states_.push_back(i-min)
-    // Most probably this stateMap function will be deleted, and replaced by the existing function in Bio++,
-    // once I change chromosome alphabet to integer alphabet!!
-    std::cout << "likelihood is for homogeneous model: " << ntl.getValue() << std::endl;
-
-
-}
+//         }
+//     }
+//     ParametrizablePhyloTree parTree(new_tree);
+//     NonHomogeneousSubstitutionProcess* subProSim = NonHomogeneousSubstitutionProcess::createHomogeneousSubstitutionProcess(model, rdist, &parTree);
+//     Context context;
+//     SubstitutionProcess* nsubPro=subProSim->clone();
+//     auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, sites, *nsubPro, true);
+//     SingleProcessPhyloLikelihood ntl(context, lik, lik->getParameters());
+//     // NOTE: in order to get the correct likelihood value, when using Pasta it is important to change the stateMap instance
+//     // line 68: change: states_.push_back(i) to: states_.push_back(i-min)
+//     // Most probably this stateMap function will be deleted, and replaced by the existing function in Bio++,
+//     // once I change chromosome alphabet to integer alphabet!!
+//     std::cout << "likelihood is for homogeneous model: " << ntl.getValue() << std::endl;
 
 
-void test_pasta_format(){
-    string counts_file = "/home/anat/Docs/Sida/counts_p.pasta";
-    string tree_path = "/home/anat/Docs/Sida/tree.newick";
-    Pasta pasta;
-    const ChromosomeAlphabet* alphabet = new ChromosomeAlphabet(6,26);
+// }
+
+
+// void test_pasta_format(){
+//     string counts_file = "/home/anat/Docs/Sida/counts_p.pasta";
+//     string tree_path = "/home/anat/Docs/Sida/tree.newick";
+//     Pasta pasta;
+//     const ChromosomeAlphabet* alphabet = new ChromosomeAlphabet(6,26);
   
-    VectorProbabilisticSiteContainer sites(alphabet);
-    pasta.readAlignment(counts_file,sites);
+//     VectorProbabilisticSiteContainer sites(alphabet);
+//     pasta.readAlignment(counts_file,sites);
 
 
     
-    Newick reader;
-    unique_ptr<PhyloTree> pTree(reader.readPTree(tree_path));
+//     Newick reader;
+//     unique_ptr<PhyloTree> pTree(reader.readPTree(tree_path));
     
-    // setting first model
-    std::vector<double> gain;
-    gain.push_back(15.3292);
-    std::vector<double> loss;
-    loss.push_back(15.3292);
-    std::vector<double> dupl;
-    dupl.push_back(22.9938);
-    int baseNumber = 4;
-    std::vector<double> baseNumR;
-    baseNumR.push_back(15.3292);
-    std::vector<double> demi;
-    demi.push_back(9.96398);
+//     // setting first model
+//     std::vector<double> gain;
+//     gain.push_back(15.3292);
+//     std::vector<double> loss;
+//     loss.push_back(15.3292);
+//     std::vector<double> dupl;
+//     dupl.push_back(22.9938);
+//     int baseNumber = 4;
+//     std::vector<double> baseNumR;
+//     baseNumR.push_back(15.3292);
+//     std::vector<double> demi;
+//     demi.push_back(9.96398);
 
-    std::vector<int> rateFuncType;
-    rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
-    rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
-    rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
-    rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
-    rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
+//     std::vector<int> rateFuncType;
+//     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
+//     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
+//     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
+//     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
+//     rateFuncType.push_back(ChromosomeNumberDependencyFunction::CONSTANT);
 
-    std::map<int, std::vector<double>> mapOfParamsModel;
-    mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain;
-    mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss;
-    mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl;
-    mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = demi;
-    mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = baseNumR;
-
-
-    shared_ptr<SubstitutionModel> model(new ChromosomeSubstitutionModel(alphabet, mapOfParamsModel, baseNumber, 9, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType));
-    unique_ptr<DiscreteDistribution> rdist(new GammaDiscreteRateDistribution(1, 1.0));
-    fitModel(model, rdist.get(), *pTree, sites);
+//     std::map<int, std::vector<double>> mapOfParamsModel;
+//     mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::GAIN)] = gain;
+//     mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::LOSS)] = loss;
+//     mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::DUPL)] = dupl;
+//     mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::DEMIDUPL)] = demi;
+//     mapOfParamsModel[static_cast<int>(ChromosomeSubstitutionModel::BASENUMR)] = baseNumR;
 
 
-}
+//     shared_ptr<SubstitutionModel> model(new ChromosomeSubstitutionModel(alphabet, mapOfParamsModel, baseNumber, 9, ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, rateFuncType));
+//     unique_ptr<DiscreteDistribution> rdist(new GammaDiscreteRateDistribution(1, 1.0));
+//     fitModel(model, rdist.get(), *pTree, sites);
+
+
+// }
 
 int main(){
-    test_pasta_format();
+    //test_pasta_format();
 
     return 0;
 
