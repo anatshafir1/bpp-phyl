@@ -41,6 +41,10 @@
 #include <Bpp/Phyl/Mapping/RewardMappingTools.h>
 #include <Bpp/Phyl/Mapping/Reward.h>
 #include <Bpp/Phyl/Mapping/DecompositionReward.h>
+#include <Bpp/Phyl/Io/Newick.h>
+#include <Bpp/Phyl/Model/RateDistribution/GammaDiscreteRateDistribution.h>
+#include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
+
 
 
 
@@ -210,265 +214,178 @@ void computePosteriors(VVDouble& posteriorProbabilities, Tree* baseTree, RHomoge
 		}
     }
 */}
+/*
+std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(new GammaDiscreteRateDistribution(1, 1.0));
+    std::shared_ptr<ParametrizablePhyloTree> parTree = std::make_shared<ParametrizablePhyloTree>(*tree);
+    string fixedRootFreqPath = ChromEvolOptions::fixedFrequenciesFilePath_;
+    bool weightedRootFreqs;
+    std::map<uint, std::map<int, vector<string>>> mapOfParamsNamesPerModelType;
+    LikelihoodUtils::setParamsNameInForMultiProcess(mapOfParamsNamesPerModelType, modelParams);
+    std::shared_ptr<NonHomogeneousSubstitutionProcess> subProSim;
+    std::shared_ptr<ChromosomeSubstitutionModel> chrModel = std::make_shared<ChromosomeSubstitutionModel>(alphabet, modelParams[1].second, modelParams[1].first, baseNumberUpperBound[1], ChromosomeSubstitutionModel::rootFreqType::ROOT_LL, ChromEvolOptions::rateChangeType_);
+    if (fixedRootFreqPath == "none"){
+        weightedRootFreqs = true;
+        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree);
+
+    }else{
+        weightedRootFreqs = false;
+        vector <double> rootFreqs = LikelihoodUtils::setFixedRootFrequencies(ChromEvolOptions::fixedFrequenciesFilePath_, chrModel);
+        std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(chrModel->getStateMap(), false)), rootFreqs);
+        std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
+        subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies);
+    }
+*/
+/******************************************************/
+void printNodeRec(std::shared_ptr<PhyloTree> tree, uint nodeId, bool names){
+    if ((!(tree->isLeaf(nodeId)))){
+        auto sons = tree->getSons(nodeId);
+        if (names){
+            std::cout << "current node is " << (tree->getNode(nodeId))->getName();
+            std::cout << " id is " << nodeId << std::endl;
+
+        }else{
+            std::cout << "current node is " << nodeId << std::endl;
+        }
+        
+        std::cout << "\tSons are: " << std::endl;
+        for (size_t i = 0; i < sons.size(); i++){
+            shared_ptr<PhyloBranch> branch=tree->getEdgeToFather(sons[i]);
+            if (names){
+                std::cout << "\t\t" << (tree->getNode(sons[i]))->getName() << " branch length is " << branch->getLength();
+                std::cout << " id is " << sons[i] << std::endl;
+
+            }else{
+                std::cout << "\t\t" <<sons[i] << " branch length is " << branch->getLength() << std::endl;
+            }
+            
+        }
+        for (size_t i = 0; i < sons.size(); i++){
+            printNodeRec(tree, sons[i], names);
+        }
+    }
+}
+/******************************************************/
+void printTree(std::shared_ptr<PhyloTree> tree, bool names){
+    uint rootNodeId = tree->getRootIndex();
+    printNodeRec(tree, rootNodeId, names);
+
+}
+/******************************************************/
+void testClone(std::shared_ptr<PhyloTree> tree){
+    std::shared_ptr<PhyloTree> clonedTree = std::shared_ptr<PhyloTree>(tree->clone());
+    auto nodes = clonedTree->getAllNodes();
+    uint nodeId;
+    for (size_t i = 0; i < nodes.size(); i++){
+        if (clonedTree->getNodeIndex(nodes[i]) != clonedTree->getRootIndex()){
+            nodeId = clonedTree->getNodeIndex(nodes[i]);
+            break;
+        }
+    }
+    auto edge_to_fragment = clonedTree->getEdgeToFather(nodeId);      
+    double weightFather = 0.5;
+    double branchLength = edge_to_fragment->getLength();
+    uint newNodeId = clonedTree->createNodeOnEdge(clonedTree->getEdgeIndex(edge_to_fragment), weightFather* branchLength);
+    printTree(clonedTree, true);
+    std::cout << "***** ***** *****" << std::endl;
+    printTree(tree, true);
+
+
+}
+
+/******************************************************/
+void stochasticMapping(){
+    //fix seed for debugging purposes
+    double seedUb = 10000000;
+    //double mySeed = RandomTools::giveRandomNumberBetweenZeroAndEntry(seedUb);
+    RandomTools::setSeed(static_cast<long int>(seedUb));
+    Newick reader;
+    shared_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("(((S1:0.1,S2:0.1):0.3,S3:0.4):0.2,(S4:0.3,S5:0.3):0.3);", false, "", false, false));
+    std::shared_ptr<ParametrizablePhyloTree> parTree = std::make_shared<ParametrizablePhyloTree>(*pTree);
+    auto clonedTree = pTree->clone();
+    delete clonedTree;
+        
+    // create a binary model
+    const BinaryAlphabet* alphabet = new BinaryAlphabet();
+    double mu = 1.;
+    double pi0 = 0.5;
+    auto twoParamModel = std::make_shared<TwoParameterBinarySubstitutionModel>(alphabet,mu,pi0);
+    //std::shared_ptr<ReversibleSubstitutionModel> nestedModel = std::dynamic_pointer_cast<ReversibleSubstitutionModel>(twoParamModel);
+    std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(new GammaDiscreteRateDistribution(1, 1.0));
+    vector <double> rootFreqs;
+    rootFreqs.push_back(0.25);
+    rootFreqs.push_back(0.75);
+    std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(twoParamModel->getStateMap(), false)), rootFreqs);
+    std::shared_ptr<FrequencySet> rootFrequencies = static_pointer_cast<FrequencySet>(rootFreqsFixed);
+    std::shared_ptr<NonHomogeneousSubstitutionProcess> subProSim = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies);        
+
+    // process character data
+    std::shared_ptr<VectorSiteContainer> sites = std::make_shared<VectorSiteContainer>(alphabet);
+	sites->addSequence(BasicSequence("S1", "1", alphabet));
+	sites->addSequence(BasicSequence("S2", "1", alphabet));
+	sites->addSequence(BasicSequence("S3", "0", alphabet));
+	sites->addSequence(BasicSequence("S4", "0", alphabet));
+	sites->addSequence(BasicSequence("S5", "1", alphabet));
+
+    auto nodes = pTree->getAllNodes();
+    std::vector<uint> modelNodes;
+    for (size_t i = 0; i < nodes.size(); i++){
+        auto nodeId = pTree->getNodeIndex(nodes[i]);
+        if (nodeId == pTree->getRootIndex()){
+            continue;
+        }
+        modelNodes.push_back(nodeId);
+    }
+    subProSim->addModel(std::shared_ptr<TwoParameterBinarySubstitutionModel>(twoParamModel->clone()), modelNodes);
+		        
+    // create tree likelihood function
+    Context context;
+    auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *sites->clone(), *subProSim->clone());
+    SingleProcessPhyloLikelihood ntl(context, lik);
+    auto lik_val = ntl.getValue();
+    std::cout << "Likelihood is: " << lik_val << std::endl;
+
+
+    unsigned int mappingsNum = 3;
+    StochasticMapping* stm = new StochasticMapping(lik, mappingsNum);//ChromEvolOptions::NumOfSimulations_);
+    stm->generateStochasticMapping();
+    std::vector<std::shared_ptr<PhyloTree>> mappings;
+    for (size_t i = 0; i < mappingsNum; i++){
+        auto mappingTree = stm->createMappingHistoryTree(i);
+        mappings.push_back(mappingTree);
+        printTree(mappingTree, true);
+        std::cout << "****************" << std::endl;
+
+
+
+    }
+    std::cout << "Expected mapping tree: " << std::endl;
+        
+    auto expected_mapping = stm->generateExpectedMapping(mappings);
+    printTree(expected_mapping, true);
+    // print the trees
+    delete stm;
+
+}
+
+
+/******************************************************/
 
 
 int main() 
 {
-  /*  try
+   try
 
     {
-        //fix seed for debugging purposes
-        double seedUb = 10000000;
-        double mySeed = RandomTools::giveRandomNumberBetweenZeroAndEntry(seedUb);
-        RandomTools::setSeed(static_cast<long int>(mySeed));
-        cout << "seed: " << mySeed << endl; // for debugging purposes in case the tester fails
-        
-        // create a binary model
-        const BinaryAlphabet* alphabet = new BinaryAlphabet();
-        double mu = 1.;
-        double pi0 = 0.5;
-        ReversibleSubstitutionModel* nestedModel = dynamic_cast<ReversibleSubstitutionModel*>(new TwoParameterBinarySubstitutionModel(alphabet,mu,pi0));
-        DiscreteDistribution* rDist = new GammaDiscreteDistribution(2, 1, 1, true);
-        SubstitutionModel* model = new G2001 (nestedModel, rDist);
-        
-        // process tree
-        TreeTemplate<Node>* ttree = TreeTemplateTools::parenthesisToTree("(S15:0.85385,((S19:0.0854569,S16:0.139158):0.248594,(((((S12:0.0215813,S14:0.0122578):0.00733911,((S20:0.0133406,S18:0.02058):0.00622244,S8:0.0616991):0.00855007):0.0194517,S21:0.0361841):0.0260926,(S10:6.01257,S9:0.0572114):0.00432963):0.0582364,((((S11:0.00192042,((S13:0.00546429,S22:0.00413541):1e-06,S7:0.00544892):0.00223313):0.0224013,S6:0.0147796):0.0012621,(S24:1e-06,S23:1e-06):0.020303):0.0480321,((S2:0.0212492,((S1:0.029627,S3:0.322449):1e-06,S17:0.0303775):1e-06):0.0311297,(S5:0.00337913,S4:1e-06):0.0451854):0.00880453):0.0445887):0.133367):0.85385);");
-        Tree* tree = dynamic_cast<Tree*>(ttree); 
-        giveNamesToInternalNodes(tree); // give internal names to nodes in post-order
-        vector<Node*> nodes = ttree->getNodes();
+        Newick reader;
+        shared_ptr<PhyloTree> pTree(reader.parenthesisToPhyloTree("(((S1:0.1,S2:0.1):0.3,S3:0.4):0.2,(S4:0.3,S5:0.3):0.3);", false, "", false, false));
+        testClone(pTree);
 
-        map<int,size_t> nodeIdToIndex;
-        for (size_t i=0; i<nodes.size(); ++i)
-        {
-            nodeIdToIndex[nodes[i]->getId()] = i; 
-        }
 
-        // process character data
-        VectorSiteContainer sites(alphabet);
-		sites.addSequence(BasicSequence("S1", "1", alphabet));
-		sites.addSequence(BasicSequence("S2", "0", alphabet));
-		sites.addSequence(BasicSequence("S3", "1", alphabet));
-		sites.addSequence(BasicSequence("S4", "0", alphabet));
-		sites.addSequence(BasicSequence("S5", "0", alphabet));
-		sites.addSequence(BasicSequence("S6", "0", alphabet));
-		sites.addSequence(BasicSequence("S7", "0", alphabet));
-		sites.addSequence(BasicSequence("S8", "1", alphabet));
-		sites.addSequence(BasicSequence("S9", "0", alphabet));
-		sites.addSequence(BasicSequence("S10", "0", alphabet));
-		sites.addSequence(BasicSequence("S11", "0", alphabet));
-		sites.addSequence(BasicSequence("S12", "0", alphabet));
-		sites.addSequence(BasicSequence("S13", "0", alphabet));
-		sites.addSequence(BasicSequence("S14", "1", alphabet));
-		sites.addSequence(BasicSequence("S15", "1", alphabet));
-		sites.addSequence(BasicSequence("S16", "1", alphabet));
-		sites.addSequence(BasicSequence("S17", "0", alphabet));
-		sites.addSequence(BasicSequence("S18", "1", alphabet));
-		sites.addSequence(BasicSequence("S19", "0", alphabet));
-		sites.addSequence(BasicSequence("S20", "1", alphabet));
-		sites.addSequence(BasicSequence("S21", "1", alphabet));
-		sites.addSequence(BasicSequence("S22", "0", alphabet));
-		sites.addSequence(BasicSequence("S23", "0", alphabet));
-		sites.addSequence(BasicSequence("S24", "-", alphabet));
-        SiteContainerTools::changeGapsToUnknownCharacters(sites);
-        
-        // create tree likelihood function
-        DiscreteDistribution* LfrDist = new ConstantRateDistribution();
-        RHomogeneousTreeLikelihood* characterTreeLikelihood = new RHomogeneousTreeLikelihood(*tree, dynamic_cast<const SiteContainer&>(sites), dynamic_cast<TransitionModel*>(model), LfrDist, false);
-        characterTreeLikelihood->initialize();
-        
-        // generate 1000 sotchastic mappings
-        unsigned int mappingsNum = 1000;
-        StochasticMapping* stocMapping = new StochasticMapping(dynamic_cast<TreeLikelihood*>(characterTreeLikelihood), mappingsNum);
-        vector<Tree*> mappings;
-        stocMapping->generateStochasticMapping(mappings);
-        
-        // make sure all the mappings are legal
-        for (size_t i=0; i<mappingsNum; ++i)
-        {
-            checkIfMappingLegal(stocMapping, mappings[i], ttree, characterTreeLikelihood);
-        }
-
-		// compute ancestral frequencies over the stochastic mappings
-        VVDouble ancestralFrequencies;
-        ancestralFrequencies.clear();
-        size_t statesNum = characterTreeLikelihood->getNumberOfStates();
-        ancestralFrequencies.resize(nodes.size(), VDouble(statesNum));
-        stocMapping->computeStatesFrequencies(ancestralFrequencies, mappings);
-        
-		// generate an expected history
-        Tree* expectedHistory = stocMapping->generateExpectedMapping(mappings);
-        string treeStr = TreeTools::treeToParenthesis(*expectedHistory); // for debugging
-
-        checkIfMappingLegal(stocMapping, expectedHistory, ttree, characterTreeLikelihood);
-        Node* expectedMappingNode;
-        int state;
-        double stateFrequency, stateProbability;
-        
-		// make sure ancestral assignments correspond to frequencies in the mappings and the the posterior probabilities
-		for (size_t j=0; j < nodes.size(); ++j)
-        {
-           if (!nodes[j]->isLeaf())
-           {
-            expectedMappingNode = dynamic_cast<TreeTemplate<Node>*>(expectedHistory)->getNode(nodes[j]->getName()); 
-            state = stocMapping->getNodeState(expectedMappingNode);
-            stateFrequency = ancestralFrequencies[j][state];
-            if (stateFrequency < 0.5)
-            {
-                    cout << "Failed to assign ancestral state to node " << expectedMappingNode->getName() << " according to the frequency: Assigned state is " << state << " while its frequency is " << stateFrequency << endl;
-                    return 1;
-            }
-            stateProbability = posteriorProbabilities[j][state];
-            }
-        }
-        
-		// compute the average dwelling times at node S5
-        VDouble AverageDwellingTimes;
-        AverageDwellingTimes.clear();
-        AverageDwellingTimes.resize(statesNum,0);
-        
-		// compute the average dwelling times of all the states
-        for (size_t i=0; i<mappings.size(); ++i)
-        {
-            TreeTemplate<Node>* mapping =  dynamic_cast<TreeTemplate<Node>*>(mappings[i]);
-            // get the pointers to the node and its father in the i'th mapping
-
-            Node* curNode = mapping->getNode("S19");
-            
-            Node* father = mapping->getNode((ttree->getNode("S19"))->getFather()->getName()); // the original father of the node (according to the base tree) in the mapping
-
-            while (curNode != father)
-            {
-                AverageDwellingTimes[StochasticMapping::getNodeState(curNode)] += curNode->getDistanceToFather();
-                curNode = curNode->getFather();
-            }
-        }
-        for (size_t s=0; s<statesNum; ++s)
-        {
-            AverageDwellingTimes[s] = 1.0* AverageDwellingTimes[s] / mappingsNum;
-        }
-
-		// check state of father of S5: if the state of the father is 1 -> also make sure the division of dwelling time under state 1 corresponds to the frequency of 1 in the father
-        Node* son = dynamic_cast<TreeTemplate<Node>*>(expectedHistory)->getNode("S19");
-		string fatherName = (ttree->getNode("S19"))->getFather()->getName();
-		Node* father = dynamic_cast<TreeTemplate<Node>*>(expectedHistory)->getNode(fatherName);
-        size_t fatherState = StochasticMapping::getNodeState(father);
-        size_t sonState = StochasticMapping::getNodeState(son);
-		double splitFromSon, splitToFather;
-        map<size_t, double> stateToDwelling;
-        splitFromSon = son->getDistanceToFather();
-        stateToDwelling.clear();
-        stateToDwelling[StochasticMapping::getNodeState(son->getFather())] = (son->getFather())->getDistanceToFather();
-        stateToDwelling[StochasticMapping::getNodeState(son->getFather()->getFather())] = ((son->getFather())->getFather())->getDistanceToFather();  
-        stateToDwelling[StochasticMapping::getNodeState(son->getFather()->getFather()->getFather())] = ((son->getFather())->getFather())->getFather()->getDistanceToFather(); 
-        splitToFather = ((son->getFather())->getFather())->getFather()->getFather()->getDistanceToFather();  
-        if (fatherState == sonState)
-        {
-            stateToDwelling[sonState] = splitFromSon + splitToFather;
-            // compute division of dwelling time according to the states freuqncies at the father
-            double fatherFrequency = ancestralFrequencies[nodeIdToIndex[(ttree->getNode("S19"))->getFather()->getId()]][sonState];
-			double sonFrequency = ancestralFrequencies[nodeIdToIndex[(ttree->getNode("S19"))->getId()]][sonState];
-            double fatherShare = fatherFrequency / (sonFrequency+fatherFrequency) * AverageDwellingTimes[sonState];
-            double sonShare = AverageDwellingTimes[sonState] - fatherShare;
-
-            // expected: ...S5{1}:AverageDwellingTimes[1]-fatherShare)mappingInternal_1{0}:AverageDwellingTimes[0])mappingInternal_2{1}:fatherShare)father{1}
-            if (abs(splitFromSon - sonShare) > 0.0001)
-            {
-                cout << "Error in dwelling time division between father and son. Branch of son is of length " << splitFromSon << " instead of " << sonShare << endl;
-                return 1;
-            }
-            if (abs(splitToFather - fatherShare) > 0.0001)
-            {
-                cout << "Error in dwelling time division between father and son. Branch beneath father is of length " << splitToFather << " instead of " << fatherShare << endl;
-                return 1;               
-            }
-        }
-        else
-        {
-            stateToDwelling[sonState] = splitFromSon;
-            stateToDwelling[fatherState] = splitToFather;
-            if (abs(stateToDwelling[sonState] - AverageDwellingTimes[sonState]) > 0.0001)
-            {
-                cout << "Error in dwelling time from son. Branch of son is of length " << stateToDwelling[sonState] << " instead of " << AverageDwellingTimes[sonState] << endl;
-                return 1;
-            }
-            if (abs(stateToDwelling[fatherState] - AverageDwellingTimes[fatherState]) > 0.0001)
-            {
-                cout << "Error in dwelling time to father. Branch of son is of length " << stateToDwelling[fatherState] << " instead of " << AverageDwellingTimes[fatherState] << endl;
-                return 1;
-            }
-        }
-        // check the rest of the splits
-        for (size_t s=0; s<statesNum; ++s)
-        {
-            if ((s != sonState) & (s != fatherState))
-            {
-                if (abs(stateToDwelling[s] - AverageDwellingTimes[s]) > 0.0001)
-                {
-                    cout << "Error in dwelling time in transition from state " << s << "Branch is of length " << stateToDwelling[s] << " instead of " << AverageDwellingTimes[s] << endl;
-                    return 1;   
-                }
-            }
-        }
-
-        // delete all the created stochastic mappings
-        for (size_t i=0; i<mappings.size(); ++i)
-        {
-            delete mappings[i];
-        }
-
-		// repeat the same tests for the analytic expected history
-        Tree* analyticExpectedHistory = stocMapping->generateAnalyticExpectedMapping();
-        checkIfMappingLegal(stocMapping, analyticExpectedHistory, ttree, characterTreeLikelihood);
-
-        // create another analytic expected mapping and make sure its equal to the former one (reconstruction is deterministic)
-        Tree* analyticExpectedHistory2 = stocMapping->generateAnalyticExpectedMapping();
-        
-		// compare for each node in post-order traversal: name, state and distance to father
-        vector<Node*> hist1Nodes = dynamic_cast<TreeTemplate<Node>*>(analyticExpectedHistory)->getNodes();
-        vector<Node*> hist2Nodes = dynamic_cast<TreeTemplate<Node>*>(analyticExpectedHistory2)->getNodes();
-        if (hist1Nodes.size() != hist2Nodes.size())
-        {
-            cerr << "Error! in repeated reconstruction of analytic expected history the number of nodes varies" << endl;
-            return 1;
-        }
-        for (size_t n=0; n<hist1Nodes.size(); ++n)
-        {
-            if (hist1Nodes[n]->getId() != hist2Nodes[n]->getId())
-            {
-                cerr << "Error! the nodes IDs in the two reconstrcued analyitc histories don't match for index " << n << endl;
-                return 1;
-            }
-            if (StochasticMapping::getNodeState(hist1Nodes[n]) != StochasticMapping::getNodeState(hist2Nodes[n]))
-            {
-                cerr << "Error! the nodes states in the two reconstrcued analyitc histories don't match for node id " << hist1Nodes[n]->getId() << endl;
-                return 1;
-            }
-            if (hist1Nodes[n]->getId() != analyticExpectedHistory->getRootId())
-            {
-                if (abs(hist1Nodes[n]->getDistanceToFather() - hist2Nodes[n]->getDistanceToFather()) > 0.0001)
-                {
-                    cerr << "Error! the branch lengths in the two reconstrcued analyitc histories don't match for node id " << hist1Nodes[n]->getId() << endl;
-                    return 1;
-                }
-            }
-        }
-         
-        delete characterTreeLikelihood;
-        delete expectedHistory;
-        delete analyticExpectedHistory;
-        delete analyticExpectedHistory2;
-        delete ttree;
-        delete model; // rDist will be deleted via model as the destructor of G2001 deletes its rDist_ data member
-        delete alphabet;
-        delete stocMapping;
-        delete LfrDist;
-
-    }
-    catch (exception & e)
-    {
+ 
+    }catch (exception & e){
         cout << e.what() << endl;
         return 1;
     }
-*/
+
     return 0;
 }

@@ -651,7 +651,11 @@ string Newick::treeToParenthesis(const PhyloTree& tree, bool writeId) const
 
   return s.str();
 }
+/******************************************************************************/
+std::string Newick::writeTreeToParenthesis(const PhyloTree& tree, bool writeId) const{
+  return treeToParenthesis(tree, writeId);
 
+}
 /******************************************************************************/
 
 string Newick::treeToParenthesis(const PhyloTree& tree, bool bootstrap, const string& propertyName) const

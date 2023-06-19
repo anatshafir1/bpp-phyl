@@ -46,6 +46,7 @@
 #include "../Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h"
 #include "../Simulation/MutationProcess.h"
 #include "../Simulation/SubstitutionProcessSequenceSimulator.h"
+#include <Bpp/Phyl/Io/Newick.h>
 
 // From the STL:
 #include <iostream>
@@ -313,7 +314,12 @@ public:
      *@param mapping index
      *@return A tree with transitions along a branch represented by internal nodes
     */ 
-   std::shared_ptr<PhyloTree> createMappingHistoryTree(size_t mappingIndex);
+   std::shared_ptr<PhyloTree> createMappingHistoryTree(size_t mappingIndex) const;
+    /**
+     *@brief create a trees from all stochastic mappings
+     *@return A vector of trees with transitions along a branch represented by internal nodes
+    */ 
+   std::vector<std::shared_ptr<PhyloTree>> createMappingHistoryTrees() const;
 
   private:
     bool sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, size_t maxIterNum, bool replace = false);
@@ -443,7 +449,7 @@ public:
      * @param mappingIndex         The index of the mapping
      * @param tree          A pointer to the constructed tree
     */
-    void assignTransitionOnHistoryTreeRec(uint nodeId, size_t mappingIndex, std::shared_ptr<PhyloTree> tree);
+    void assignTransitionOnHistoryTreeRec(uint nodeId, size_t mappingIndex, std::shared_ptr<PhyloTree> tree) const;
 
 
   };

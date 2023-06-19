@@ -235,6 +235,18 @@ public:
   {
     write_(trees, out);
   }
+
+/**
+ * @brief Get the parenthesis description of a tree.
+ *
+ * @param tree The tree to convert.
+ * @param writeId Tells if node ids must be printed.
+ *                This will overwrite bootstrap values if there are ones.
+ *                Leaves id will be added to the leave names, separated by a '_' character.
+ * @return A string in the parenthesis format.
+ */
+
+  std::string writeTreeToParenthesis(const PhyloTree& tree, bool writeId = false) const;
   /** @} */
 
 protected:

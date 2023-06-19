@@ -119,6 +119,7 @@ set (CPP_FILES
   Bpp/Phyl/Likelihood/PhyloLikelihoods/MixtureProcessPhyloLikelihood.cpp
   Bpp/Phyl/Likelihood/PhyloLikelihoods/HmmProcessPhyloLikelihood.cpp
   Bpp/Phyl/Likelihood/PhyloLikelihoods/AutoCorrelationProcessPhyloLikelihood.cpp
+  Bpp/Phyl/Likelihood/PhyloLikelihoods/JointPhyloLikelihood.cpp
   Bpp/Phyl/Likelihood/MarginalAncestralReconstruction.cpp
   Bpp/Phyl/Mapping/DecompositionMethods.cpp
   Bpp/Phyl/Mapping/DecompositionReward.cpp

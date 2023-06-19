@@ -189,7 +189,10 @@ void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapp
 shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_ptr<PhyloTree> >& mappings, size_t divMethod)
 {
   // // initialize the expected history
-  shared_ptr<PhyloTree> expectedMapping(std::shared_ptr<PhyloTree>(tree_->clone()));
+  Newick writer;
+  Newick reader;
+  std::string tree_str = writer.writeTreeToParenthesis(*tree_);
+  std::shared_ptr<PhyloTree> expectedMapping = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree(tree_str));
 
   // compute a vector of the posterior asssignment probabilities for each inner node
   std::map<uint, std::vector<double>> ancestralStatesFrequencies;
@@ -200,16 +203,19 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_p
 
   // set the ancestral states according to the maximal posterior (i.e, conditional) probability
   setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
-  auto nodes = expectedMapping->getAllNodes();
+  auto nodes = tree_->getAllNodes();
   for (size_t i = 0; i < nodes.size(); i++){
-    uint nodeId = expectedMapping->getNodeIndex(nodes[i]);
-    if (nodeId == expectedMapping->getRootIndex()){
+    uint nodeId = tree_->getNodeIndex(nodes[i]);
+    if (nodeId == tree_->getRootIndex()){
       continue;
     }
-    auto father = expectedMapping->getFatherOfNode(expectedMapping->getNode(nodeId));
-    uint fatherId = expectedMapping->getNodeIndex(father);
-    size_t fatherState = (size_t)getNodeState(father);
-    size_t sonState = (size_t)getNodeState(nodes[i]);
+    auto father = tree_->getFatherOfNode(tree_->getNode(nodeId));
+     uint fatherId = tree_->getNodeIndex(father);
+    if (fatherId == tree_->getRootIndex()){
+      fatherId = expectedMapping->getRootIndex();
+    }
+    size_t fatherState = (size_t)getNodeState(expectedMapping->getNode(fatherId));
+    size_t sonState = (size_t)getNodeState(expectedMapping->getNode(nodeId));
     if (fatherState != sonState){
       // we assume that only one change had occurred, and add one node
       auto edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
@@ -227,7 +233,7 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_p
         // most probably a noise, and no tranition had occurred
         continue;
       }
-      double fatherStatePosterior = ancestralStatesFrequencies[fatherId][fatherState];
+      double fatherStatePosterior = ancestralStatesFrequencies[tree_->getNodeIndex(father)][fatherState];
       double sonStatePosterior = ancestralStatesFrequencies[nodeId][fatherState];
       
       auto edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
@@ -492,14 +498,18 @@ void StochasticMapping::computeStatesFrequencies(std::map<uint, std::vector<doub
       // for leaves there is a frequency of 1 in one of the states. It does
       // not matter which mapping to choose. I choose arbitrary mapping 0.
       ancestralStatesFreqs[nodeIds[i]][ancetralStates_[nodeIds[i]][0]] = 1.0;
-    }
-    for (size_t j = 0; j < numOfMappings_; j++){
-      ancestralStatesFreqs[nodeIds[i]][ancetralStates_[nodeIds[i]][j]]++;
+    }else{
+      for (size_t j = 0; j < numOfMappings_; j++){
+        ancestralStatesFreqs[nodeIds[i]][ancetralStates_[nodeIds[i]][j]]++;
       
+      }
+      for (size_t k = 0; k < nbStates; k++){
+        ancestralStatesFreqs[nodeIds[i]][k] /= static_cast<double>(numOfMappings_);
+      }
+
     }
-    for (size_t k = 0; k < nbStates; k++){
-      ancestralStatesFreqs[nodeIds[i]][k] /= static_cast<double>(numOfMappings_);
-    }
+
+
   }
 
   
@@ -1253,28 +1263,42 @@ bool StochasticMapping::tryToReplaceMapping(double branchLength, uint nodeId, si
   bool success = sampleEvolutionaryPathForBranch(sonState, fatherState, father, nodeId, branchLength, mappingIndex, maxNumOfIterations, true);
   return success;
 }
+/******************************************************************************/
+std::vector<std::shared_ptr<PhyloTree>> StochasticMapping::createMappingHistoryTrees() const{
+  std::vector<std::shared_ptr<PhyloTree>> trees;
+  for (size_t i = 0; i < numOfMappings_; i ++){
+    auto tree = createMappingHistoryTree(i);
+    trees.push_back(tree);
+  }
+  return trees;
+  
+}
 
 /******************************************************************************/
-std::shared_ptr<PhyloTree> StochasticMapping::createMappingHistoryTree(size_t mappingIndex){
-  std::shared_ptr<PhyloTree> tree = std::shared_ptr<PhyloTree>(tree_->clone());
+std::shared_ptr<PhyloTree> StochasticMapping::createMappingHistoryTree(size_t mappingIndex) const{
+  Newick writer;
+  Newick reader;
+  std::string tree_str = writer.writeTreeToParenthesis(*tree_);
+  std::shared_ptr<PhyloTree> tree = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree(tree_str));
+  //std::shared_ptr<PhyloTree> tree = std::shared_ptr<PhyloTree>(tree_->clone());
   uint rootId = tree_->getRootIndex();
+  size_t initialState = ancetralStates_.at(rootId)[mappingIndex];
   assignTransitionOnHistoryTreeRec(rootId, mappingIndex, tree);
   // chnage name here for the root
   auto rootNode = tree->getNode(tree->getRootIndex());
-  size_t initialState = ancetralStates_[tree->getRootIndex()][mappingIndex];
   rootNode->setName("N"+std::to_string(tree->getRootIndex())+"-"+ std::to_string(initialState));
   return tree;
 
 }
 /******************************************************************************/
-void StochasticMapping::assignTransitionOnHistoryTreeRec(uint nodeId, size_t mappingIndex, std::shared_ptr<PhyloTree> tree){
+void StochasticMapping::assignTransitionOnHistoryTreeRec(uint nodeId, size_t mappingIndex, std::shared_ptr<PhyloTree> tree) const{
 
   // get the state of the initial node, change its name so it will include the state
   // go over the transitions, and create the relevant internal nodes with names that
   // include the states
   auto node = tree->getNode(nodeId);
   if (tree->getRootIndex() != nodeId){
-    size_t initialState = ancetralStates_[nodeId][mappingIndex];
+    size_t initialState = ancetralStates_.at(nodeId)[mappingIndex];
     if (tree->isLeaf(node)){
        node->setName(node->getName()+"-"+ std::to_string(initialState));
        return;
@@ -1287,7 +1311,7 @@ void StochasticMapping::assignTransitionOnHistoryTreeRec(uint nodeId, size_t map
   for (size_t i = 0; i < sonsIds.size(); i++){
     auto son = tree->getNode(sonsIds[i]);
     auto edge_to_fragment = tree->getEdgeToFather(son);
-    auto mutationPath = mappings_[sonsIds[i]][mappingIndex];
+    auto mutationPath = mappings_.at(sonsIds[i])[mappingIndex];
     std::vector<size_t> states = mutationPath.getStates();
     std::vector<double> times = mutationPath.getTimes();
     for (size_t j = 0; j < times.size(); j++){
