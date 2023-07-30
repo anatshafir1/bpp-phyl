@@ -76,12 +76,23 @@ protected:
   bool weightedFrequencies_;
   SingleProcessPhyloLikelihood* tempLik_;
   bool firstLikChange_;
+  std::shared_ptr<PhyloTree> tempTree_;
 
 
 public:
   JointPhyloLikelihood(Context& context, std::shared_ptr<PhyloLikelihoodContainer> pC, bool expectedHistory, bool weightedFrequencies, size_t numOfMappings, bool inCollection = true);
 
-  ~JointPhyloLikelihood() {}
+  ~JointPhyloLikelihood() {
+    // auto sequenceData = tempLik_->getData();
+    // auto process = &(tempLik_->getSubstitutionProcess());
+    //auto contextDel = &(tempLik_->getContext());
+    // delete process;
+    // delete sequenceData;
+    // if (getPhyloContainer()->getContext() != contextDel){
+    //   delete contextDel;
+    // }
+    //delete tempLik_;
+  }
 
   JointPhyloLikelihood* clone() const
   {
@@ -89,6 +100,12 @@ public:
   }
   SingleProcessPhyloLikelihood* getPhylo2() const{
     return tempLik_;
+  }
+  const std::shared_ptr<PhyloTree> getStochasticMappingTree() const{
+    return tempTree_;
+  }
+  std::shared_ptr<PhyloTree> getStochasticMappingTree(){
+    return tempTree_;
   }
 
   JointPhyloLikelihood(const JointPhyloLikelihood& sd);

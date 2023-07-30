@@ -48,7 +48,7 @@ JointPhyloLikelihood::JointPhyloLikelihood(Context& context, std::shared_ptr<Phy
   AbstractPhyloLikelihood(context),
   SetOfAbstractPhyloLikelihood(context, pC, {}, inCollection),
   likCal_(new LikelihoodCalculation(context)),
-  traitOptimization_(true),
+  traitOptimization_(false),
   expectedHistory_(expectedHistory),
   numOfMappings_(numOfMappings),
   weightedFrequencies_(weightedFrequencies),
@@ -93,6 +93,7 @@ void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
         stm->generateStochasticMapping();
         auto mappings = stm->createMappingHistoryTrees();
         auto expectedMapping = stm->generateExpectedMapping(mappings);
+        tempTree_ = expectedMapping;
         //size_t numberOfStates = std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>(getAbstractPhyloLikelihood(nPhylo_[0])->getLikelihoodCalculation())->getStateMap().getNumberOfModelStates();
         auto nodes = expectedMapping->getAllNodes();
         // creating map of states with the relevant branches (for the creation of the heterogeneous model)
@@ -135,9 +136,22 @@ void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
         auto data = std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>(tempLik_->getLikelihoodCalculation())->getData();
         auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(*context, *data->clone(), *nsubPro, weightedFrequencies_);
         SingleProcessPhyloLikelihood* newLik = new SingleProcessPhyloLikelihood(*context, lik, lik->getParameters());
+        auto paramNames = tempLik_->getSubstitutionModelParameters().getParameterNames();
+        for (auto &name:paramNames){
+          auto paramValueToAssign = tempLik_->getParameter(name).getValue();
+          newLik->setParameterValue(name, paramValueToAssign);
+        }
         auto lik_to_del = tempLik_;
         tempLik_ = newLik;
         if (!(firstLikChange_)){
+          auto sequenceData = lik_to_del->getData();
+          auto process = &(lik_to_del->getSubstitutionProcess());
+          auto contextDel = &(lik_to_del->getContext());
+          delete process;
+          delete sequenceData;
+          if (getPhyloContainer()->getContext() != contextDel){
+            delete contextDel;
+          }
           delete lik_to_del;
         }else{
           firstLikChange_ = false;

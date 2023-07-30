@@ -190,6 +190,9 @@ public:
         sdp->setData(sites);
     }
   }
+  const Context* getContext(){
+    return &context_;
+  }
 
 
   /**
