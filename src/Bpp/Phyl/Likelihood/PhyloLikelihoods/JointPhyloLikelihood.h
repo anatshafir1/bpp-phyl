@@ -104,6 +104,9 @@ public:
   const std::shared_ptr<PhyloTree> getStochasticMappingTree() const{
     return tempTree_;
   }
+  void setStochasticMappingTree(std::shared_ptr<PhyloTree> tree){
+    tempTree_ = tree;
+  }
   std::shared_ptr<PhyloTree> getStochasticMappingTree(){
     return tempTree_;
   }

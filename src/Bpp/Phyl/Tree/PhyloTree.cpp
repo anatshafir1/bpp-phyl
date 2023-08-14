@@ -284,5 +284,43 @@ void PhyloTree::addSubTree(std::shared_ptr<PhyloNode> phyloNode, const Node& nod
     addSubTree(soni, fils);
   }
 }
+/*************************************************/
+void PhyloTree::copyNodes(PhyloTree* tree, std::shared_ptr<PhyloNode> father, uint nodeId) const{
+  std::shared_ptr<PhyloNode> node(new PhyloNode());
+  shared_ptr<PhyloBranch> branch(new PhyloBranch());
+  auto branchPtr = getIncomingEdges(getNode(nodeId))[0];
+  double branchLength = branchPtr->getLength();
+  tree->createNode(father, node, branch);
+  branch->setLength(branchLength);
+  tree->setNodeIndex(node, nodeId);
+  uint branchIndex = getEdgeIndex(branchPtr);
+  tree->setEdgeIndex(branch, branchIndex);
+  auto name = getNode(nodeId)->getName();
+  node->setName(name);
+  if (!(isLeaf(nodeId))){
+    auto sons = getSons(nodeId);
+    for (size_t i = 0; i < sons.size(); i++){
+      copyNodes(tree, node, sons[i]);
+    }
 
+  }
+}
+
+/*************************************************/
+
+PhyloTree PhyloTree::deepClone() const{
+  PhyloTree tree = PhyloTree();
+  std::shared_ptr<PhyloNode> node(new PhyloNode());
+  auto id = getRootIndex();
+  auto rootName = getNode(id)->getName();
+  tree.createNode(node);
+  tree.setNodeIndex(node, id);
+  node->setName(rootName);
+  auto sons = getSons(getRootIndex());
+  for (size_t i = 0; i < sons.size(); i++){
+    copyNodes(&tree, node, sons[i]);
+  }
+  tree.rootAt(node);
+  return tree;
+}
 

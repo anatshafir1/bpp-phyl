@@ -192,6 +192,9 @@ public:
   double getTotalLength() const;
 
   uint createNodeOnEdge(uint edgeIndex, double new_edge_length, size_t* numberOfNodes = 0);
+  void copyNodes(PhyloTree* tree, std::shared_ptr<PhyloNode> father, uint nodeId) const;
+
+  PhyloTree deepClone() const;
 };
 }
 
