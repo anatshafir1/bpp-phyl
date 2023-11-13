@@ -44,7 +44,7 @@ using namespace std;
 using namespace bpp;
 
 JointPhyloLikelihood::JointPhyloLikelihood(Context& context, std::shared_ptr<PhyloLikelihoodContainer> pC, bool expectedHistory, bool weightedFrequencies, size_t numOfMappings,
- bool inCollection) :
+ bool ML, bool inCollection) :
   AbstractPhyloLikelihood(context),
   SetOfAbstractPhyloLikelihood(context, pC, {}, inCollection),
   likCal_(new LikelihoodCalculation(context)),
@@ -53,7 +53,8 @@ JointPhyloLikelihood::JointPhyloLikelihood(Context& context, std::shared_ptr<Phy
   numOfMappings_(numOfMappings),
   weightedFrequencies_(weightedFrequencies),
   tempLik_(0),
-  firstLikChange_(true)
+  firstLikChange_(true),
+  ML_(ML)
 
 {
   addPhyloLikelihood(1, "_1");
@@ -75,7 +76,8 @@ JointPhyloLikelihood::JointPhyloLikelihood(const JointPhyloLikelihood& sd) :
   numOfMappings_(sd.numOfMappings_),
   weightedFrequencies_(sd.weightedFrequencies_),
   tempLik_(sd.tempLik_),
-  firstLikChange_(sd.firstLikChange_)
+  firstLikChange_(sd.firstLikChange_),
+  ML_(sd.ML_)
 {}
 
 void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
@@ -88,6 +90,10 @@ void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
         getAbstractPhyloLikelihood(nPhylo_[0])->matchParametersValues(params);
         getAbstractPhyloLikelihood(nPhylo_[0])->getValue();
         StochasticMapping* stm = new StochasticMapping(std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>(getAbstractPhyloLikelihood(nPhylo_[0])->getLikelihoodCalculation()), numOfMappings_);
+        if (ML_){
+          std::map<uint, std::vector<size_t>> mlAncestors = getMLAncestralReconstruction(dynamic_cast<SingleProcessPhyloLikelihood*>(getAbstractPhyloLikelihood(nPhylo_[0])));
+          stm->setMLAncestors(&mlAncestors);
+        }
         double seedUb = 10000000;
         RandomTools::setSeed(static_cast<long int>(seedUb));
         stm->generateStochasticMapping();
@@ -109,14 +115,8 @@ void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
           }
         }
         // creating the new likelihood object with the different tree
-        const NonHomogeneousSubstitutionProcess* prevSubstitutionModel = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(&(std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>((tempLik_)->getLikelihoodCalculation()))->getSubstitutionProcess());
-        ValueRef <Eigen::RowVectorXd> rootFreqs = std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>(tempLik_->getLikelihoodCalculation())->getRootFreqs();
-        auto rootFreqsValues =  rootFreqs->getTargetValue();
-        Vdouble rootFreqsBpp;
-        copyEigenToBpp(rootFreqsValues, rootFreqsBpp);
-        std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(prevSubstitutionModel->getModel(1)->getStateMap(), false)), rootFreqsBpp);
-        std::shared_ptr<FrequencySet> rootFrequencies = std::shared_ptr<FrequencySet>(rootFreqsFixed->clone());
-
+        const NonHomogeneousSubstitutionProcess* prevSubstitutionModel = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(&((tempLik_)->getLikelihoodCalculationSingleProcess())->getSubstitutionProcess());
+        std::shared_ptr<FrequencySet> rootFrequencies = copyRootFrequencies(prevSubstitutionModel, tempLik_);
         ParametrizablePhyloTree tree =  ParametrizablePhyloTree(*expectedMapping);
         std::shared_ptr<ParametrizablePhyloTree> parTree = std::shared_ptr<ParametrizablePhyloTree>((&tree)->clone());
         std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(prevSubstitutionModel->getRateDistribution()->clone());
@@ -133,7 +133,7 @@ void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
         delete stm;
         SubstitutionProcess* nsubPro= subPro->clone();
         Context* context = new Context();
-        auto data = std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>(tempLik_->getLikelihoodCalculation())->getData();
+        auto data = tempLik_->getLikelihoodCalculationSingleProcess()->getData();
         auto lik = std::make_shared<LikelihoodCalculationSingleProcess>(*context, *data->clone(), *nsubPro, weightedFrequencies_);
         SingleProcessPhyloLikelihood* newLik = new SingleProcessPhyloLikelihood(*context, lik, lik->getParameters());
         auto paramNames = tempLik_->getSubstitutionModelParameters().getParameterNames();
@@ -179,6 +179,61 @@ void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
     return jointLik;
 
  }
+
+
+
+std::shared_ptr<FrequencySet> JointPhyloLikelihood::copyRootFrequencies(const NonHomogeneousSubstitutionProcess* prevSubstitutionModel, SingleProcessPhyloLikelihood* lik){
+  ValueRef <Eigen::RowVectorXd> rootFreqs = lik->getLikelihoodCalculationSingleProcess()->getRootFreqs();
+  auto rootFreqsValues =  rootFreqs->getTargetValue();
+  Vdouble rootFreqsBpp;
+  copyEigenToBpp(rootFreqsValues, rootFreqsBpp);
+  std::shared_ptr<FixedFrequencySet> rootFreqsFixed = std::make_shared<FixedFrequencySet>(std::shared_ptr<const StateMap>(new CanonicalStateMap(prevSubstitutionModel->getModel(1)->getStateMap(), false)), rootFreqsBpp);
+  std::shared_ptr<FrequencySet> rootFrequencies = std::shared_ptr<FrequencySet>(rootFreqsFixed->clone());
+  return rootFrequencies;
+
+ }
+
+
+ std::map<uint, std::vector<size_t>> JointPhyloLikelihood::getMLAncestralReconstruction(SingleProcessPhyloLikelihood* likProcess){
+  // dynamic_cast<SingleProcessPhyloLikelihood*>
+  auto tree = likProcess->getTree();
+  std::shared_ptr<ParametrizablePhyloTree> parTree = std::shared_ptr<ParametrizablePhyloTree>((&tree)->clone());
+  auto lik = likProcess->getLikelihoodCalculationSingleProcess();
+  ValueRef <Eigen::RowVectorXd> rootFreqs = likProcess->getLikelihoodCalculationSingleProcess()->getRootFreqs();
+  const NonHomogeneousSubstitutionProcess* prevSubstitutionModel = dynamic_cast<const NonHomogeneousSubstitutionProcess*>(&(lik->getSubstitutionProcess()));
+  std::shared_ptr<FrequencySet> rootFrequencies = copyRootFrequencies(prevSubstitutionModel, likProcess);  
+  std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(prevSubstitutionModel->getRateDistribution()->clone());
+  std::shared_ptr<NonHomogeneousSubstitutionProcess> subPro = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies);
+  size_t numOfModels = prevSubstitutionModel->getNumberOfModels();
+  // adding models
+  for (uint i = 1; i <= numOfModels; i++){
+    auto model = prevSubstitutionModel->getModel(i);
+    auto params = model->getParameters();
+    auto newModel = model->clone();
+    for (size_t j = 0; j < params.size(); j++){
+      auto name = params[j].getName();
+      newModel->setParameterValue(name, params[j].getValue());
+    }
+    auto nodesOfModel = prevSubstitutionModel->getNodesWithModel(i);
+    subPro->addModel(std::shared_ptr<BranchModel>(newModel), nodesOfModel);
+  }
+  SubstitutionProcess* nsubPro= subPro->clone();
+  Context context;
+  auto data = likProcess->getLikelihoodCalculationSingleProcess()->getData();
+  auto ancestralLik = std::make_shared<LikelihoodCalculationSingleProcess>(context, *data->clone(), *nsubPro, rootFreqs);
+  ancestralLik->makeJointMLAncestralReconstruction();
+  JointMLAncestralReconstruction ancr = JointMLAncestralReconstruction(ancestralLik);
+  ancr.init();
+  std::map<uint, std::vector<size_t>> ancestors = ancr.getAllAncestralStates();
+  auto sequenceData = ancestralLik->getData();
+  auto process = &(ancestralLik->getSubstitutionProcess());
+  delete process;
+  delete sequenceData;
+  //delete parTree;
+  return ancestors;
+
+ }
+
 
 // // this function can be abstract here, and then redefined by the derived classes
 //  void JointPhyloLikelihood::optimizeTraitModel(double tol, uint numOfIterations){

@@ -106,8 +106,10 @@ protected:
     map<size_t, VVdouble> jumpsProbs_;                  // For each model: Jump probabilities: for each j: Qij/-Qii
     map<uint, vector<size_t>> notRepresentedNodes_;     // a map of nodes that were underrepresented, because the mapping didn't match any possible evolutionary path
     size_t numOfMappingTrials_;
+    std::map<uint, std::vector<size_t>>* MLAncr_;         // ML ancestors for the expected mapping
     
 public:
+  #define EPSILON_THRESHOLD 0.005
 
   explicit StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings, size_t numOfMappingTrials = 1000000); // it is a good general practice to use "explicit" keyword on constructors with a single argument: https://stackoverflow.com/questions/121162/what-does-the-explicit-keyword-mean
 
@@ -124,7 +126,8 @@ public:
     mappings_(),
     jumpsProbs_(sm.jumpsProbs_),
     notRepresentedNodes_(sm.notRepresentedNodes_),
-    numOfMappingTrials_(sm.numOfMappingTrials_)
+    numOfMappingTrials_(sm.numOfMappingTrials_),
+    MLAncr_(sm.MLAncr_)
       
     { 
 
@@ -149,6 +152,16 @@ public:
 
     //void generateStochasticMapping(std::vector<std::shared_ptr<PhyloTree>>& mappings);
     void generateStochasticMapping();
+    /*
+     * @brief set ML ancestors. This function should be used prior to finding the expected mapping
+     * @param  ML ancestors. 
+     */
+    void setMLAncestors(std::map<uint, vector<size_t>>* ancestors){
+      MLAncr_ = ancestors;
+
+    }
+
+
 
     /**
      *@brief Creates a single expected (i.e, average) history based on
@@ -450,6 +463,24 @@ public:
      * @param tree          A pointer to the constructed tree
     */
     void assignTransitionOnHistoryTreeRec(uint nodeId, size_t mappingIndex, std::shared_ptr<PhyloTree> tree) const;
+    /*
+    Get the expected number of transitions given the expected ancestral states. This function is needed in order to obtain the expected mapping
+    history for a multi-state trait
+    * @param nodeId         Current node for whcih we want to get the expected number of transitions along the branch
+    * @param fatherId       Father id of the current node
+    * @param startState     The desired start state of the branch (the expected ancestral state)
+    * @param endState       The desired end state of the branch (the expected ancestral state)
+    * @param transitionOcurrences   The map which should store the expected number of transitions for each possible transition given the termianl states, per each node
+    */
+    void getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations);
+    void getExpectedNumberOfTransitionsPerGivenTermianls(std::shared_ptr<PhyloTree> expectedTree, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations);
+    std::map<size_t, vector<size_t>> createEdges(std::map<size_t, double> &vertices, std::map<std::pair<size_t, size_t>, double> &transitions);
+    void findBestPath(std::pair<size_t,size_t> &bestCandidatePathId, std::map<std::pair<size_t, size_t>, double> &paths, size_t desiredPathId, std::map<size_t, vector<size_t>> &edges, std::map<std::pair<size_t, size_t>, double> &transitions, size_t end);
+    void reconstructBestPath(std::vector<size_t> &bestPath, size_t lengthOfPath, std::map<std::pair<size_t,size_t>, std::pair<size_t, size_t>> &pathReconstruction, std::pair<size_t,size_t> bestCandidatePathId, size_t start, size_t end);
+    vector<size_t> findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime);
+
+    void findTransitionsAndTimeDurationsForBinary(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes, std::map<uint, std::vector<double>> &ancestralStatesFrequencies);
+    void findExpectedHistoryTransitionsAndTimeDurationsMultiState(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes);
 
 
   };

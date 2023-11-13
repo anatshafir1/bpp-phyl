@@ -49,6 +49,8 @@
 #include "SingleProcessPhyloLikelihood.h"
 #include <Bpp/Phyl/Likelihood/NonHomogeneousSubstitutionProcess.h>
 #include <Bpp/Phyl/OptimizationTools.h>
+#include <Bpp/Phyl/Likelihood/JointMLAncestralReconstruction.h>
+
 namespace bpp
 {
 /**
@@ -77,10 +79,11 @@ protected:
   SingleProcessPhyloLikelihood* tempLik_;
   bool firstLikChange_;
   std::shared_ptr<PhyloTree> tempTree_;
+  bool ML_;
 
 
 public:
-  JointPhyloLikelihood(Context& context, std::shared_ptr<PhyloLikelihoodContainer> pC, bool expectedHistory, bool weightedFrequencies, size_t numOfMappings, bool inCollection = true);
+  JointPhyloLikelihood(Context& context, std::shared_ptr<PhyloLikelihoodContainer> pC, bool expectedHistory, bool weightedFrequencies, size_t numOfMappings, bool ML, bool inCollection = true);
 
   ~JointPhyloLikelihood() {
     // auto sequenceData = tempLik_->getData();
@@ -141,6 +144,8 @@ protected:
    *
    */
   ValueRef<DataLik> makeLikelihoods();
+  std::shared_ptr<FrequencySet> copyRootFrequencies(const NonHomogeneousSubstitutionProcess* prevSubstitutionModel, SingleProcessPhyloLikelihood* lik);
+  std::map<uint, std::vector<size_t>> getMLAncestralReconstruction(SingleProcessPhyloLikelihood* likProcess);
 
 
 };
