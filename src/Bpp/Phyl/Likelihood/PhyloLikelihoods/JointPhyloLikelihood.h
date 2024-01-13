@@ -137,6 +137,7 @@ public:
   void setParamUpdateMode(bool traitUpdated){
     traitOptimization_ = traitUpdated;
   }
+  static std::map<uint, std::vector<size_t>> getMLAncestralReconstruction(SingleProcessPhyloLikelihood* likProcess, ParameterList updatedParams, size_t suffixLength);
 
 protected:
   /**
@@ -144,8 +145,7 @@ protected:
    *
    */
   ValueRef<DataLik> makeLikelihoods();
-  std::shared_ptr<FrequencySet> copyRootFrequencies(const NonHomogeneousSubstitutionProcess* prevSubstitutionModel, SingleProcessPhyloLikelihood* lik);
-  std::map<uint, std::vector<size_t>> getMLAncestralReconstruction(SingleProcessPhyloLikelihood* likProcess);
+  static std::shared_ptr<FrequencySet> copyRootFrequencies(const NonHomogeneousSubstitutionProcess* prevSubstitutionModel, SingleProcessPhyloLikelihood* lik);
 
 
 };

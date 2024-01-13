@@ -90,15 +90,17 @@ void JointPhyloLikelihood::fireParameterChanged(const ParameterList& params)
         getAbstractPhyloLikelihood(nPhylo_[0])->matchParametersValues(params);
         getAbstractPhyloLikelihood(nPhylo_[0])->getValue();
         StochasticMapping* stm = new StochasticMapping(std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>(getAbstractPhyloLikelihood(nPhylo_[0])->getLikelihoodCalculation()), numOfMappings_);
-        if (ML_){
-          std::map<uint, std::vector<size_t>> mlAncestors = getMLAncestralReconstruction(dynamic_cast<SingleProcessPhyloLikelihood*>(getAbstractPhyloLikelihood(nPhylo_[0])));
-          stm->setMLAncestors(&mlAncestors);
-        }
+        std::map<uint, std::vector<size_t>> mlAncestors;
+        
         double seedUb = 10000000;
         RandomTools::setSeed(static_cast<long int>(seedUb));
-        stm->generateStochasticMapping();
-        auto mappings = stm->createMappingHistoryTrees();
-        auto expectedMapping = stm->generateExpectedMapping(mappings);
+        if (ML_){
+          auto &updatedParams = getParameters();     
+          mlAncestors = getMLAncestralReconstruction(dynamic_cast<SingleProcessPhyloLikelihood*>(getAbstractPhyloLikelihood(nPhylo_[0])), updatedParams, 4);
+          stm->setMLAncestors(&mlAncestors);
+          
+        }
+        auto expectedMapping = stm->createExpectedMappingHistory(numOfMappings_);
         tempTree_ = expectedMapping;
         //size_t numberOfStates = std::dynamic_pointer_cast<LikelihoodCalculationSingleProcess>(getAbstractPhyloLikelihood(nPhylo_[0])->getLikelihoodCalculation())->getStateMap().getNumberOfModelStates();
         auto nodes = expectedMapping->getAllNodes();
@@ -194,7 +196,7 @@ std::shared_ptr<FrequencySet> JointPhyloLikelihood::copyRootFrequencies(const No
  }
 
 
- std::map<uint, std::vector<size_t>> JointPhyloLikelihood::getMLAncestralReconstruction(SingleProcessPhyloLikelihood* likProcess){
+std::map<uint, std::vector<size_t>> JointPhyloLikelihood::getMLAncestralReconstruction(SingleProcessPhyloLikelihood* likProcess, ParameterList updatedParams, size_t suffixLength){
   // dynamic_cast<SingleProcessPhyloLikelihood*>
   auto tree = likProcess->getTree();
   std::shared_ptr<ParametrizablePhyloTree> parTree = std::shared_ptr<ParametrizablePhyloTree>((&tree)->clone());
@@ -205,14 +207,26 @@ std::shared_ptr<FrequencySet> JointPhyloLikelihood::copyRootFrequencies(const No
   std::shared_ptr<DiscreteDistribution> rdist = std::shared_ptr<DiscreteDistribution>(prevSubstitutionModel->getRateDistribution()->clone());
   std::shared_ptr<NonHomogeneousSubstitutionProcess> subPro = std::make_shared<NonHomogeneousSubstitutionProcess>(rdist, parTree, rootFrequencies);
   size_t numOfModels = prevSubstitutionModel->getNumberOfModels();
+  auto substitutionParams = likProcess->getSubstitutionModelParameters();
+  auto substitutionModelParameterNames = substitutionParams.getParameterNames();
   // adding models
   for (uint i = 1; i <= numOfModels; i++){
     auto model = prevSubstitutionModel->getModel(i);
+    auto prefix = model->getNamespace();
     auto params = model->getParameters();
     auto newModel = model->clone();
-    for (size_t j = 0; j < params.size(); j++){
-      auto name = params[j].getName();
-      newModel->setParameterValue(name, params[j].getValue());
+
+    for (size_t j = 0; j < substitutionModelParameterNames.size(); j++){
+      std::string suffix = "";
+      if (suffixLength == 4){
+        suffix = "_1";
+      }
+      auto &updatedParam = updatedParams.getParameter(substitutionModelParameterNames[j] + suffix);
+      auto fullParamName = updatedParam.getName();
+
+      auto nameWithoutPrefix = (fullParamName).substr(prefix.length());
+      auto name = nameWithoutPrefix.substr(0, nameWithoutPrefix.size() - suffixLength);
+      newModel->setParameterValue(name, updatedParam.getValue());
     }
     auto nodesOfModel = prevSubstitutionModel->getNodesWithModel(i);
     subPro->addModel(std::shared_ptr<BranchModel>(newModel), nodesOfModel);
@@ -233,6 +247,9 @@ std::shared_ptr<FrequencySet> JointPhyloLikelihood::copyRootFrequencies(const No
   return ancestors;
 
  }
+
+
+
 
 
 // // this function can be abstract here, and then redefined by the derived classes

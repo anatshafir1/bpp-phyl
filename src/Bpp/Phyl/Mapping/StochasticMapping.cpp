@@ -212,14 +212,38 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_p
   // set the ancestral states according to the maximal posterior (i.e, conditional) probability
   setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
   size_t numberOfStates = likelihood_->getStateMap().getNumberOfModelStates();
-  if (numberOfStates == 2){
-    findTransitionsAndTimeDurationsForBinary(expectedMapping, dwellingTimes, ancestralStatesFrequencies);
-  }else{
-    findExpectedHistoryTransitionsAndTimeDurationsMultiState(expectedMapping, dwellingTimes);
+  // if (numberOfStates == 2){
+  //findTransitionsAndTimeDurationsForBinary(expectedMapping, dwellingTimes, ancestralStatesFrequencies);
+  // }else{
+  //   findExpectedHistoryTransitionsAndTimeDurationsMultiState(expectedMapping, dwellingTimes);
+
+  // }
+  findExpectedHistoryTransitionsAndTimeDurationsMultiState(expectedMapping, dwellingTimes);
+
+  return expectedMapping;
+}
+/******************************************************************************/
+void StochasticMapping::getTimeDurationsPerStateGivenAncestrals(std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::map<uint, std::vector<double>> &timeDurationsPerState){
+  auto nodes = tree_->getAllNodes();
+  auto nbStates = likelihood_->getStateMap().getNumberOfModelStates();
+  for (size_t i = 0; i < nodes.size(); i++){
+    uint nodeId = tree_->getNodeIndex(nodes[i]);
+    if (nodeId == tree_->getRootIndex()){
+      continue;
+    }
+    timeDurationsPerState[nodeId].resize(nbStates);
+    auto &timeDurationsPerNode = timeDurations[nodeId];
+    auto it = timeDurationsPerNode.begin();
+    while (it != timeDurationsPerNode.end()){
+      auto &transition = it->first;
+      size_t currState = transition.first;
+      timeDurationsPerState[nodeId][currState] += timeDurationsPerNode[transition];
+      it ++;
+    }
 
   }
 
-  return expectedMapping;
+
 }
 /******************************************************************************/
 void StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes){
@@ -227,9 +251,15 @@ void StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState
   std::map<uint, std::map<pair<size_t, size_t>, double>> timeDurations;
 
   getExpectedNumberOfTransitionsPerGivenTermianls(expectedMapping, transitionOcurrences, timeDurations);
+  std::map<uint, std::vector<double>> timeDurationsPerState;
+  getTimeDurationsPerStateGivenAncestrals(timeDurations, timeDurationsPerState);
+
   auto nodes = tree_->getAllNodes();
   for (size_t i = 0; i < nodes.size(); i++){
     uint nodeId = tree_->getNodeIndex(nodes[i]);
+    if (nodeId == tree_->getRootIndex()){
+      continue;
+    }
     auto father = tree_->getFatherOfNode(tree_->getNode(nodeId));
     uint fatherId = tree_->getNodeIndex(father);
     if (fatherId == tree_->getRootIndex()){
@@ -239,38 +269,39 @@ void StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState
     double branchLength = branch->getLength();
     size_t fatherState = (size_t)getNodeState(expectedMapping->getNode(fatherId));
     size_t sonState = (size_t)getNodeState(expectedMapping->getNode(nodeId));
-    auto mappingStates = findExpectedMappingPathForEachNode(fatherState, sonState, transitionOcurrences[nodeId], dwellingTimes[nodeId], branchLength);
-    mappingStates.push_back(sonState); // this is a dummy transition, just to create the transition of the last state to itself.
-    std::map<pair<size_t, size_t>, double> relativeTimeDuration;
+    auto mappingStates = MultiStateMappingPath::findExpectedMappingPathForEachNode(fatherState, sonState, transitionOcurrences[nodeId], timeDurationsPerState[nodeId], branchLength);
+    if (mappingStates.size() > 0){
+      mappingStates.push_back(sonState); // this is a dummy transition, just to create the transition of the last state to itself.
+
+    }else{
+      continue;
+    }
+    std::map<pair<size_t, size_t>, double> occurrencesOfTrnasitionsInExpectedPath;
     for (size_t j = 0; j < mappingStates.size()-1; j++){
       std::pair<size_t,size_t> transition(mappingStates[j], mappingStates[j+1]);
-      relativeTimeDuration[transition] = timeDurations[nodeId][transition];
-
-    }
-    auto it = relativeTimeDuration.begin();
-    std::map<size_t, double> totalTimes;
-    while (it != relativeTimeDuration.end()){
-      if (totalTimes.find((it->first).first) != totalTimes.end()){
-        totalTimes[(it->first).first] = relativeTimeDuration[it->first];
+      if (occurrencesOfTrnasitionsInExpectedPath.find(transition) != occurrencesOfTrnasitionsInExpectedPath.end()){
+        occurrencesOfTrnasitionsInExpectedPath[transition] += 1;
       }else{
-        totalTimes[(it->first).first] += relativeTimeDuration[it->first];
-      }        
-      it ++;
+        occurrencesOfTrnasitionsInExpectedPath[transition] = 1;
+      }
     }
-    auto itTransitions = relativeTimeDuration.begin();
-    while (itTransitions != relativeTimeDuration.end()){
-      relativeTimeDuration[it->first] /= totalTimes[(it->first).first];
+    std::map<std::pair<size_t, size_t>, double> newBranchLengths;
+    auto &timeDurationPerTransitionPerNode = timeDurations[nodeId];
+    auto itTransitions = timeDurationPerTransitionPerNode.begin();
+    while (itTransitions != timeDurationPerTransitionPerNode.end()){
+      newBranchLengths[itTransitions->first] = timeDurationPerTransitionPerNode[itTransitions->first]/occurrencesOfTrnasitionsInExpectedPath[itTransitions->first];
       itTransitions ++;
     }
+
+
     // now fragmenting the edge
     double segmentBranchLength;
     double dwellingTime;
     uint newNodeId;
     std::pair<size_t,size_t> transition;
-    for (size_t j = 0; j < mappingStates.size()-1; j++){
+    for (size_t j = 0; j < mappingStates.size()-2; j++){
       transition = pair<size_t,size_t>(mappingStates[j], mappingStates[j+1]);
-      dwellingTime = dwellingTimes[nodeId][mappingStates[j]];
-      segmentBranchLength = dwellingTime * relativeTimeDuration[transition];
+      segmentBranchLength = newBranchLengths[transition];
       auto edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
       newNodeId = expectedMapping->createNodeOnEdge(expectedMapping->getEdgeIndex(edge_to_fragment), segmentBranchLength);
       (expectedMapping->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(mappingStates[j+1]));
@@ -989,180 +1020,234 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerGivenTermianls(std::sha
 
 }
 /******************************************************************************/
-std::map<size_t, vector<size_t>> StochasticMapping::createEdges(std::map<size_t, double> &vertices, std::map<std::pair<size_t, size_t>, double> &transitions){
-  std::map<size_t, vector<size_t>> edges;
-  auto it = transitions.begin();
-  while (it != transitions.end()){
-    auto transition = it->first;
-    size_t outgoing = transition.first;
-    if (vertices[outgoing] < EPSILON_THRESHOLD){
-      continue;
-    }
-    size_t incoming = transition.second;
-    if (vertices[incoming] < EPSILON_THRESHOLD){
-      continue;
-    }
-    if (edges.find(outgoing) == edges.end()){
-      edges[outgoing];
+// std::vector<size_t> StochasticMapping::decimalToBinaryPowers(int decimalNumber) {
+//     std::vector<size_t> powers;
+//     int power = 0;
+//     while (decimalNumber > 0) {
+//         if (decimalNumber % 2 == 1) {
+//             powers.push_back((size_t)(power));
+//         }
+
+//         decimalNumber /= 2;
+//         ++power;
+//     }
+
+//     return powers;
+// }
+/******************************************************************************************************/
+// std::map<size_t, vector<size_t>> StochasticMapping::createEdges(std::map<size_t, double> &vertices, std::map<std::pair<size_t, size_t>, double> &transitions){
+//   std::map<size_t, vector<size_t>> edges;
+//   auto it = transitions.begin();
+//   while (it != transitions.end()){
+//     auto transition = it->first;
+//     if ((transitions[transition] <= 0) || (transition.first == transition.second)){
+//       it ++;
+//       continue;
+
+//     }
+//     size_t outgoing = transition.first;
+//     if (vertices[outgoing] < EPSILON_THRESHOLD){
+//         it ++;
+//         continue;
+//     }
+//     size_t incoming = transition.second;
+//     if (vertices[incoming] < EPSILON_THRESHOLD){
+//         it ++;
+//         continue;
+//     }
+//     if (edges.find(outgoing) == edges.end()){
+//       edges[outgoing];
       
-    }
-    edges[outgoing].push_back(incoming);
-    it ++;
-  }
-  return edges;
-}
+//     }
+//     edges[outgoing].push_back(incoming);
+//     it ++;
+//   }
+//   return edges;
+// }
 /******************************************************************************/
-void StochasticMapping::findBestPath(std::pair<size_t,size_t> &bestCandidatePathId, std::map<std::pair<size_t, size_t>, double> &paths, size_t desiredPathId, std::map<size_t, vector<size_t>> &edges, std::map<std::pair<size_t, size_t>, double> &transitions, size_t end){
-  std::pair<size_t,size_t> candidatePathId;
-  double weightBest = 0;
-  auto itPath = paths.begin();
-  vector<size_t> neighbors;
-  while (itPath != paths.end()){
-    size_t pathId = (itPath->first).first;
-    if (pathId != desiredPathId){
-      continue;
-    }
-    size_t lastMid = (itPath->first).second;
-    neighbors = edges[lastMid];
-    double weight;
+// void StochasticMapping::findBestPath(std::pair<size_t,size_t> &bestCandidatePathId, std::map<std::pair<size_t, size_t>, double> &paths, size_t desiredPathId, std::map<size_t, vector<size_t>> &edges, std::map<std::pair<size_t, size_t>, double> &transitions, size_t end, bool &foundPath){
+//   std::pair<size_t,size_t> candidatePathId;
+//   double weightBest = 0;
+//   auto itPath = paths.begin();
+//   vector<size_t> neighbors;
+//   while (itPath != paths.end()){
+//     size_t pathId = (itPath->first).first;
+//     if (pathId != desiredPathId){
+//       itPath++;
+//       continue;
+//     }
+//     size_t lastMid = (itPath->first).second;
+//     neighbors = edges[lastMid];
+//     double weight;
     
-    if (std::find(neighbors.begin(), neighbors.end(), end) != neighbors.end()){
-      candidatePathId = itPath->first;
-      std::pair<size_t, size_t> lastEdge(lastMid, end);
-      weight = paths[candidatePathId] + transitions[lastEdge];
-      if (weight > weightBest){
-        bestCandidatePathId = itPath->first;
-        weightBest = weight;
+//     if (std::find(neighbors.begin(), neighbors.end(), end) != neighbors.end()){
+//       candidatePathId = itPath->first;
+//       std::pair<size_t, size_t> lastEdge(lastMid, end);
+//       weight = paths[candidatePathId] + transitions[lastEdge];
+//       foundPath = true;
+//       if (weight > weightBest){
+//         bestCandidatePathId = itPath->first;
+//         weightBest = weight;
 
-      }
-    }
-    itPath++;
-  }
-
-}
+//       }
+//     }
+//     itPath++;
+//   }
+// }
 /******************************************************************************/
-void StochasticMapping::reconstructBestPath(std::vector<size_t> &bestPath, size_t lengthOfPath, std::map<std::pair<size_t,size_t>, std::pair<size_t, size_t>> &pathReconstruction, std::pair<size_t,size_t> bestCandidatePathId, size_t start, size_t end){
-  bestPath.resize(lengthOfPath);
-  std::pair<size_t, size_t> fatherPath;
-  size_t currState;
-  for (size_t k = 1; k <= lengthOfPath; k++){
-    size_t reverseIndex = lengthOfPath-k;
-    if (k == 1){
-      bestPath[reverseIndex] = end;
-    }else if (k == lengthOfPath){
-      bestPath[reverseIndex] = start;
-    }else{
-      if (k  == 2){
-        fatherPath = pathReconstruction[bestCandidatePathId];
-      }else{
-        fatherPath = pathReconstruction[fatherPath];
-      }
-      currState = fatherPath.second;
-      bestPath[reverseIndex] = currState;
+// void StochasticMapping::reconstructBestPath(std::vector<size_t> &bestPath, size_t lengthOfPath, std::map<std::pair<size_t,size_t>, std::pair<size_t, size_t>> &pathReconstruction, std::pair<size_t,size_t> bestCandidatePathId, size_t start, size_t end){
+//   bestPath.resize(lengthOfPath);
+//   std::pair<size_t, size_t> fatherPath;
+//   size_t currState;
+//   for (size_t k = 1; k <= lengthOfPath; k++){
+//     size_t reverseIndex = lengthOfPath-k;
+//     if (k == 1){
+//       bestPath[reverseIndex] = end;
+//     }else if (k == lengthOfPath){
+//       bestPath[reverseIndex] = start;
+//     }else{
+//       if (k  == 2){
+//         fatherPath = bestCandidatePathId;
+//       }else{
+//         fatherPath = pathReconstruction[fatherPath];
+//       }
+//       currState = fatherPath.second;
+//       bestPath[reverseIndex] = currState;
 
-    }
-  }
+//     }
+//   }
 
-}
+// }
 
 /******************************************************************************/
-vector<size_t> StochasticMapping::findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime){
-  std::map<size_t, double> relativeTimeDuration;
-  std::vector<size_t> bestPath;
-  size_t desiredPathId = 0;
+// vector<size_t> StochasticMapping::findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime){
+//   std::map<size_t, double> relativeTimeDuration;
+//   std::vector<size_t> bestPath;
+//   size_t desiredPathId = 0;
   
-  size_t numOfNotAdded = 0;
-  for (size_t i = 0; i < dwellingTimes.size(); i++){
-    relativeTimeDuration[i] = dwellingTimes[i]/totalDurationTime;
-    if (relativeTimeDuration[i] < EPSILON_THRESHOLD){
-      numOfNotAdded ++;
-      if (i != end){
-        desiredPathId += std::pow(2, i);
-      }
-    }
-  }
-  auto edges = createEdges(relativeTimeDuration, transitions);
-  size_t pathLength = dwellingTimes.size()-numOfNotAdded-1; // we don't include the final end node.
+//   size_t numOfNotAdded = 0;
+//   for (size_t i = 0; i < dwellingTimes.size(); i++){
+//     relativeTimeDuration[i] = dwellingTimes[i]/totalDurationTime;
+//     if (relativeTimeDuration[i] < EPSILON_THRESHOLD){
+//       numOfNotAdded ++;
+//     }else{
+//       if (i != end){
+//         desiredPathId += std::pow(2, i);
+//       }else{
+//         if (start == end){
+//           desiredPathId += std::pow(2, i);
+//         }
+//       }
+//     }
+//   }
+//   auto edges = createEdges(relativeTimeDuration, transitions);
+//   if (edges.size() == 0){
+//     return bestPath;
+//   }
+//   size_t pathLength = dwellingTimes.size()-numOfNotAdded-1; // we don't include the final end node.
   
-  std::map<std::pair<size_t, size_t>, double> paths;
-  std::map<std::pair<size_t,size_t>, std::pair<size_t, size_t>> pathReconstruction;
-  std::map<size_t, vector<size_t>> used;
-  auto neighbors = edges[start];
-  if (neighbors.size() == 0){  
-    //bestPath.push_back(end);
-    return bestPath;
-  }
-  if (pathLength == 1){
-    if (std::find(neighbors.begin(), neighbors.end(), end) != neighbors.end()){
-      bestPath.push_back(start);
-      bestPath.push_back(end);
-      return bestPath;
-    }
-    throw Exception("StochasticMapping::findExpectedMappingPathForEachNode: No such path!");
-  }
-  for (size_t i = 0; i < neighbors.size(); i++){
-    if (neighbors[i] == end){
-      continue;
-    }
-    size_t pathId = std::pow(2, start) + std::pow(2, neighbors[i]);
-    size_t fatherPathId = 0;
-    size_t endOfFather = start;
-    std::pair<size_t, size_t> fatherPathWithEnd(fatherPathId, endOfFather);
-    used[pathId].push_back(start);
-    used[pathId].push_back(neighbors[i]);
-    pathLength -= 2; // path length excludes start and an additional neighbor in addition to the dest node
-    std::pair<size_t, size_t> pathWithEnd(pathId, neighbors[i]);
-    std::pair<size_t, size_t> edge(start, neighbors[i]);
-    paths[pathWithEnd] = transitions[edge];
-    pathReconstruction[pathWithEnd] = fatherPathWithEnd;
-  }
-  for (size_t i = 0; i < pathLength; i++){
-    auto it = paths.begin();
-    while (it != paths.end()){
-      size_t fatherIdPath = (it->first).first;
-      size_t newStart = (it->first).second;
-      neighbors = edges[newStart];
-      for (size_t j = 0; j < neighbors.size(); j++){
-        if (neighbors[j] == end){
-          continue;
-        }
-        if (std::find(used[fatherIdPath].begin(), used[fatherIdPath].end(), neighbors[j]) != used[fatherIdPath].end()){
-          continue;
-        }
-        size_t currentPathId = fatherIdPath + std::pow(2, neighbors[j]);
-        if (used.find(currentPathId) == used.end()){
-          used[currentPathId].push_back(neighbors[j]);
-        }
-        std::pair<size_t, size_t> currentPathWithEnd(currentPathId, neighbors[j]);
-        std::pair<size_t, size_t> edge(newStart, neighbors[j]);
-        double weight = paths[it->first] + transitions[edge];
-        if (paths.find(currentPathWithEnd) != paths.end()){
-          if (weight > paths[currentPathWithEnd]){
-            paths[currentPathWithEnd] = weight;
-            pathReconstruction[currentPathWithEnd] = it->first;
-          }
-        }else{
-          paths[currentPathWithEnd] = weight;
-          pathReconstruction[currentPathWithEnd] = it->first;
-        }
-      }
+//   std::map<std::pair<size_t, size_t>, double> paths;
+//   std::map<std::pair<size_t,size_t>, std::pair<size_t, size_t>> pathReconstruction;
+//   auto neighbors = edges[start];
+//   if (neighbors.size() == 0){  
+//     //bestPath.push_back(end);
+//     return bestPath;
+//   }
+//   if ((pathLength == 1) && (start != end)){
+//     if (std::find(neighbors.begin(), neighbors.end(), end) != neighbors.end()){
+//       bestPath.push_back(start);
+//       bestPath.push_back(end);
+//       return bestPath;
+//     }
+//     throw Exception("StochasticMapping::findExpectedMappingPathForEachNode: No such path!");
+//   }
+//   for (size_t i = 0; i < neighbors.size(); i++){
+//     if (neighbors[i] == end){
+//       continue;
+//     }
+//     size_t pathId = std::pow(2, start) + std::pow(2, neighbors[i]);
+//     size_t fatherPathId = 0;
+//     size_t endOfFather = start;
+//     std::pair<size_t, size_t> fatherPathWithEnd(fatherPathId, endOfFather);
 
-      it ++;
-    }
-  }
-  // Find the best path
+    
+//     std::pair<size_t, size_t> pathWithEnd(pathId, neighbors[i]);
+//     std::pair<size_t, size_t> edge(start, neighbors[i]);
+//     paths[pathWithEnd] = transitions[edge];
+//     pathReconstruction[pathWithEnd] = fatherPathWithEnd;
+//   }
+//   if (start == end){
+//     pathLength -= 1; // path length excludes start and an additional neighbor but not the dest node, since start and end are the same.
+
+//   }else{
+//     pathLength -= 2; // path length excludes start and an additional neighbor in addition to the dest node
+
+//   }
+//   vector<std::pair<size_t, size_t>> pathsIdsOfInitialLength;
+//   auto it = paths.begin();
+//   while (it != paths.end()){
+//     size_t id = (it->first).first;
+//     if (id != 0){
+//         pathsIdsOfInitialLength.push_back(it->first);
+//     }
+
+//     it ++;
+//   }
+//   auto pathsIdsOfGivenLength = pathsIdsOfInitialLength;
   
+//   for (size_t i = 0; i < pathLength; i++){
+//     vector<std::pair<size_t, size_t>> pathsIdsOfCurrentLength;
+//     for (size_t j = 0; j < pathsIdsOfGivenLength.size(); j++){
+//       size_t fatherIdPath = pathsIdsOfGivenLength[j].first;
+//       size_t newStart = pathsIdsOfGivenLength[j].second;
+//       neighbors = edges[newStart];
+//       for (size_t k = 0; k< neighbors.size(); k++){
+//         if (neighbors[k] == end){
+//           continue;
+//         }
+//         auto used = decimalToBinaryPowers(fatherIdPath);
+//         if (std::find(used.begin(), used.end(), neighbors[k]) != used.end()){
+//           continue;
+//         }
+//         size_t currentPathId = fatherIdPath + std::pow(2, neighbors[k]);
+
+//         std::pair<size_t, size_t> currentPathWithEnd(currentPathId, neighbors[k]);
+//         std::pair<size_t, size_t> edge(newStart, neighbors[k]);
+//         double weight = paths[pathsIdsOfGivenLength[j]] + transitions[edge];
+//         if (paths.find(currentPathWithEnd) != paths.end()){
+//           if (weight <= paths[currentPathWithEnd]){
+//             continue;
+//           }
+//         }else{
+//           paths[currentPathWithEnd] = weight;
+//           pathReconstruction[currentPathWithEnd] = pathsIdsOfGivenLength[j];
+//           pathsIdsOfCurrentLength.push_back(currentPathWithEnd);
+//         }
+        
+//       }
+
+//     }
+//     pathsIdsOfGivenLength = pathsIdsOfCurrentLength;
+//   }
+//   // Find the best path
   
-  std::pair<size_t,size_t> bestCandidatePathId; 
-  findBestPath(bestCandidatePathId, paths, desiredPathId, edges, transitions, end);
+//   bool foundPath = false;
+//   std::pair<size_t,size_t> bestCandidatePathId; 
+//   findBestPath(bestCandidatePathId, paths, desiredPathId, edges, transitions, end, foundPath);
 
-  // reconstruct the best path
-  size_t lengthOfPath = dwellingTimes.size()-numOfNotAdded;
-  reconstructBestPath(bestPath, lengthOfPath, pathReconstruction, bestCandidatePathId, start, end);
-  return bestPath;
+//   // reconstruct the best path
+//   size_t lengthOfPath = dwellingTimes.size()-numOfNotAdded;
+//   if (start == end){
+//     lengthOfPath ++;
+//   }
+//   if (!foundPath){
+//     throw Exception("Path does not exist!");
+//   }
+//   reconstructBestPath(bestPath, lengthOfPath, pathReconstruction, bestCandidatePathId, start, end);
+//   return bestPath;
 
 
-}
+// }
 
 /******************************************************************************/
 // This fucntion is needed for the multi-state heuristic approach 
@@ -1250,9 +1335,16 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(ui
     it ++;
   }
   auto itTime = timeDurations[nodeId].begin();
+  // just for debug!!!
+  double sumOfTimeDuration = 0;
+  //
   while (itTime != timeDurations[nodeId].end()){
     timeDurations[nodeId][itTime->first] /= static_cast<double>(counter);
+    sumOfTimeDuration += timeDurations[nodeId][itTime->first];
     itTime ++;
+  }
+  if (sumOfTimeDuration <= 0){
+    std::cout << "problem is here!" << std::endl;
   }
 
 }

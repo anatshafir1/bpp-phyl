@@ -273,7 +273,7 @@ void test_binary_models(const IntegerAlphabet* alpha)
         }
     }
     freqs.reset(new FullIntegerFrequencySet(alpha, freqVals)); // frequencies set must be reset upon each usage to avoid concatanation of namespaces of prevous models
-    SingleRateModel oneRateModel(alpha, freqs, false);
+    CharacterSubstitutionModel oneRateModel = SingleRateModel(alpha, freqs, false);
     oneRateModel.setParameterValue("global_rate", rateVals(0,1));
     oneRateModel.setFrequencySet(*freqs);
     auto& Q2 = oneRateModel.getGenerator();

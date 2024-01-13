@@ -47,6 +47,7 @@
 #include "../Simulation/MutationProcess.h"
 #include "../Simulation/SubstitutionProcessSequenceSimulator.h"
 #include <Bpp/Phyl/Io/Newick.h>
+#include "MultiStateMappingPath.h"
 
 // From the STL:
 #include <iostream>
@@ -159,6 +160,19 @@ public:
     void setMLAncestors(std::map<uint, vector<size_t>>* ancestors){
       MLAncr_ = ancestors;
 
+    }
+    std::map<uint, vector<size_t>> getMLAncestors(){
+      return *MLAncr_;
+    }
+    std::shared_ptr<PhyloTree> createExpectedMappingHistory(size_t mappingsNum){
+      generateStochasticMapping();
+      std::vector<std::shared_ptr<PhyloTree>> mappings;
+      for (size_t i = 0; i < mappingsNum; i++){
+        auto mappingTree = createMappingHistoryTree(i);
+        mappings.push_back(mappingTree);
+      }
+      auto expected_mapping = generateExpectedMapping(mappings);
+      return expected_mapping;
     }
 
 
@@ -474,13 +488,12 @@ public:
     */
     void getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations);
     void getExpectedNumberOfTransitionsPerGivenTermianls(std::shared_ptr<PhyloTree> expectedTree, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations);
-    std::map<size_t, vector<size_t>> createEdges(std::map<size_t, double> &vertices, std::map<std::pair<size_t, size_t>, double> &transitions);
-    void findBestPath(std::pair<size_t,size_t> &bestCandidatePathId, std::map<std::pair<size_t, size_t>, double> &paths, size_t desiredPathId, std::map<size_t, vector<size_t>> &edges, std::map<std::pair<size_t, size_t>, double> &transitions, size_t end);
-    void reconstructBestPath(std::vector<size_t> &bestPath, size_t lengthOfPath, std::map<std::pair<size_t,size_t>, std::pair<size_t, size_t>> &pathReconstruction, std::pair<size_t,size_t> bestCandidatePathId, size_t start, size_t end);
-    vector<size_t> findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime);
 
     void findTransitionsAndTimeDurationsForBinary(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes, std::map<uint, std::vector<double>> &ancestralStatesFrequencies);
     void findExpectedHistoryTransitionsAndTimeDurationsMultiState(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes);
+    void getTimeDurationsPerStateGivenAncestrals(std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::map<uint, std::vector<double>> &timeDurationsPerState);
+
+
 
 
   };
