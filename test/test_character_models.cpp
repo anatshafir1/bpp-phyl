@@ -23,7 +23,6 @@
 #include <Bpp/Phyl/Model/Character/RatePerPairModel.h>
 #include <Bpp/Phyl/Tree/TreeTemplate.h>
 #include <Bpp/Phyl/Tree/TreeTemplateTools.h>
-#include <Bpp/Phyl/Likelihood/RHomogeneousTreeLikelihood.h>
 #include <Bpp/Phyl/App/PhylogeneticsApplicationTools.h>
 
 // from std
