@@ -63,7 +63,7 @@ namespace bpp{
       // 4. Now since all the delta degrees are 0, we can find an euler path. All the added edges are then reconstructed to their
       //    respective path, and we can get either one chinese postman path, or several paths, if there were any disjoint paths in the graph.
       
-      static vector<vector<pair<size_t, size_t>>> chinesePostman(std::vector<vector<size_t>> &graph, size_t start, size_t end);
+      static vector<vector<pair<size_t, size_t>>> chinesePostman(std::vector<vector<size_t>> &graph, size_t start, size_t end, bool &foundPath);
       // A function that calculates the weights of the edges between the odd vertices
       static std::map<std::pair<size_t, size_t>, double> findWeightsForOddVerticesEdges(std::vector<vector<size_t>> graph, size_t start, size_t end, std::vector<std::pair<size_t, size_t>> &indexToEdges, bool circuitCloseEdgeAdded, std::unordered_map<size_t, unordered_map<size_t, size_t>> &trackPathsFromEachStart);
       // finds the shortest path between a start node and the rest of the vertices
@@ -80,11 +80,13 @@ namespace bpp{
       static vector<vector<size_t>> createGraphForChinesePostman(std::unordered_map<size_t, size_t> &indicesToNodes, std::unordered_map<size_t, size_t> &nodesToIndices, std::unordered_map<size_t, double> &relativeTimeDuration, std::map<std::pair<size_t, size_t>, double> &transitions);
       // TSP implementation
       static vector<size_t> TSP(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, double totalDurationTime, bool &validPath, std::unordered_map<size_t, double> &relativeTimeDuration);
-      static vector<size_t> findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime);
+      static vector<size_t> findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime, bool &foundPath);
       static std::unordered_map<size_t, vector<size_t>> createEdges(std::unordered_map<size_t, double> &vertices, std::map<std::pair<size_t, size_t>, double> &transitions);
       static std::vector<size_t> decimalToBinaryPowers(int decimalNumber);
       static void findBestPath(std::pair<size_t,size_t> &bestCandidatePathId, std::map<std::pair<size_t, size_t>, double> &paths, size_t desiredPathId, std::unordered_map<size_t, vector<size_t>> &edges, std::map<std::pair<size_t, size_t>, double> &transitions, size_t end, bool &foundPath);
       static void reconstructBestPath(std::vector<size_t> &bestPath, size_t lengthOfPath, std::map<std::pair<size_t,size_t>, std::pair<size_t, size_t>> &pathReconstruction, std::pair<size_t,size_t> bestCandidatePathId, size_t start, size_t end);
+      static void printGraph(vector<vector<size_t>>& graph);
+
 
   };
 

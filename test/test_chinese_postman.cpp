@@ -670,6 +670,7 @@ void testEulerPath(){
     G[3].push_back(4);
 
     G[4].push_back(0);
+    bool foundPath = true;
 
     auto path = MultiStateMappingPath::getEulerPath(G, 0, 0);
     std::cout << "Euler path is:" << std::endl;
@@ -699,7 +700,8 @@ void testChinese2(){
 
     G[4].push_back(2);
     G[5].push_back(0);
-    auto paths = MultiStateMappingPath::chinesePostman(G, 0, 2);
+    bool foundPath = true;
+    auto paths = MultiStateMappingPath::chinesePostman(G, 0, 2, foundPath);
     std::cout << "chinese path is:" << std::endl;
     for (auto &path : paths){
         std::cout << "\tsubpath is:" << std::endl;
@@ -721,9 +723,10 @@ void testChinese3(){
     G[1].push_back(3);
     G[2].push_back(0);
     G[3].push_back(0);
+    bool foundPath = true;
 
 
-    auto paths = MultiStateMappingPath::chinesePostman(G, 1, 0);
+    auto paths = MultiStateMappingPath::chinesePostman(G, 1, 0, foundPath);
     std::cout << "chinese path is:" << std::endl;
     for (auto &path : paths){
         std::cout << "\tsubpath is:" << std::endl;
@@ -755,7 +758,8 @@ void testTSP3(){
 
 
   double totalDurationTime = 0.5;
-  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime);
+  bool foundPath = true;
+  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime, foundPath);
   for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
   }
@@ -778,7 +782,8 @@ void testTSP4(){
 
 
   double totalDurationTime = 0.20001;
-  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime);
+  bool foundPath = true;
+  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime, foundPath);
   for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
   }
@@ -837,7 +842,8 @@ void testTSP1(){
   dwellingTimes[3] = 0.5;
 
   double totalDurationTime = 1.1;
-  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime);
+  bool foundPath = true;
+  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime, foundPath);
   for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
   }
@@ -904,7 +910,8 @@ void testTSP2(){
   dwellingTimes[3] = 0.5;
 
   double totalDurationTime = 1.1;
-  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime);
+  bool foundPath = true;
+  auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(start, end, transitions, dwellingTimes, totalDurationTime, foundPath);
   for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
   }
@@ -926,7 +933,8 @@ void testTSP5(){
     dwellingTimes[3] = 0.25;
     dwellingTimes[4] = 0.25;
     double totalDurationTime = 1.1;
-    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 4, transitions, dwellingTimes, totalDurationTime);
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 4, transitions, dwellingTimes, totalDurationTime, foundPath);
     for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
     }
@@ -960,7 +968,8 @@ void testCPP1(){
     dwellingTimes[1] = 0.2;
     dwellingTimes[2] = 0.1;
     double totalDurationTime = 0.6;
-    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 0, transitions, dwellingTimes, totalDurationTime);
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 0, transitions, dwellingTimes, totalDurationTime, foundPath);
     for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
     }
@@ -981,7 +990,8 @@ void testCPP2(){
     dwellingTimes[2] = 0.1;
     dwellingTimes[3] = 0.4;
     double totalDurationTime = 1.0;
-    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 1, transitions, dwellingTimes, totalDurationTime);
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 1, transitions, dwellingTimes, totalDurationTime, foundPath);
     for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
     }
@@ -1003,7 +1013,8 @@ void testCPP3(){
     dwellingTimes[3] = 0.0000001;
     dwellingTimes[4] = 0.1;
     double totalDurationTime = 0.7000001;
-    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 1, transitions, dwellingTimes, totalDurationTime);
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 1, transitions, dwellingTimes, totalDurationTime, foundPath);
     for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
     }
@@ -1026,11 +1037,83 @@ void testCPP4(){
     dwellingTimes[4] = 0.1;
     dwellingTimes[5] = 0.1;
     double totalDurationTime = 0.9;
-    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 2, transitions, dwellingTimes, totalDurationTime);
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 2, transitions, dwellingTimes, totalDurationTime, foundPath);
+    if (!foundPath){
+      std::cout << "path not found!!" << std::endl;
+    }
     for (size_t i = 0; i < path.size(); i++){
       std::cout << path[i] << std::endl;
     }
 
+}
+void testCPP5(){
+    std::cout << "test CPP 5: chinese" << std::endl;
+    std::vector<std::pair<size_t, size_t>> edges = {{0, 1}};
+    std::map<std::pair<size_t, size_t>, double> transitions;
+    for (auto &edge : edges){
+        transitions[edge] = 1.0;
+    }
+    vector<double> dwellingTimes;
+    dwellingTimes.resize(3);
+    dwellingTimes[0] = 0.3;
+    dwellingTimes[1] = 0.2;
+    dwellingTimes[2] = 0.1;
+    double totalDurationTime = 0.6;
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 2, transitions, dwellingTimes, totalDurationTime, foundPath);
+    if (!foundPath){
+      std::cout << "not found path!" << std::endl;
+    }
+    for (size_t i = 0; i < path.size(); i++){
+      std::cout << path[i] << std::endl;
+    }
+}
+
+void testCPP6(){
+    std::cout << "test CPP 6: chinese" << std::endl;
+    std::vector<std::pair<size_t, size_t>> edges = {{0, 1}, {1,0}, {0,2}, {2,0}};
+    std::map<std::pair<size_t, size_t>, double> transitions;
+    for (auto &edge : edges){
+        transitions[edge] = 1.0;
+    }
+    vector<double> dwellingTimes;
+    dwellingTimes.resize(3);
+    dwellingTimes[0] = 0.3;
+    dwellingTimes[1] = 0.2;
+    dwellingTimes[2] = 0.1;
+    double totalDurationTime = 0.6;
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 2, transitions, dwellingTimes, totalDurationTime, foundPath);
+    if (!foundPath){
+      std::cout << "not found path!" << std::endl;
+    }
+    for (size_t i = 0; i < path.size(); i++){
+      std::cout << path[i] << std::endl;
+    }
+}
+void testCPP7(){
+    std::cout << "test CPP 7: chinese" << std::endl;
+    std::vector<std::pair<size_t, size_t>> edges = {{0, 1}, {1,3}, {0,2}, {2,3}};
+    std::map<std::pair<size_t, size_t>, double> transitions;
+    for (auto &edge : edges){
+        transitions[edge] = 1.0;
+    }
+    vector<double> dwellingTimes;
+    dwellingTimes.resize(4);
+    dwellingTimes[0] = 0.3;
+    dwellingTimes[1] = 0.2;
+    dwellingTimes[2] = 0.1;
+    dwellingTimes[3] = 0.1;
+    double totalDurationTime = 0.7;
+    bool foundPath = true;
+    auto path = MultiStateMappingPath::findExpectedMappingPathForEachNode(0, 3, transitions, dwellingTimes, totalDurationTime, foundPath);
+    if (!foundPath){
+      std::cout << "not found path!" << std::endl;
+    }
+    for (size_t i = 0; i < path.size(); i++){
+      std::cout << path[i] << std::endl;
+    }
 }
 void testChinese1(){
     vector<vector<size_t>> G;
@@ -1046,7 +1129,8 @@ void testChinese1(){
     G[3].push_back(4);
 
     G[4].push_back(1);
-    auto paths = MultiStateMappingPath::chinesePostman(G, 0, 4);
+    bool foundPath = true;
+    auto paths = MultiStateMappingPath::chinesePostman(G, 0, 4, foundPath);
     std::cout << "chinese path is:" << std::endl;
     for (auto &path : paths){
         std::cout << "\tsubpath is:" << std::endl;
@@ -1060,6 +1144,7 @@ void testChinese1(){
 
 
 }
+
 /**********************************************************************************************************/
 // vector<vector<vector<size_t>>> findDisJointPaths(vector<vector<size_t>> &graph, size_t start, size_t end){
 //     // if there are node x and y that are not reachable from each other they are not together in the path
@@ -1186,6 +1271,9 @@ int main(){
     testCPP2();
     testCPP3();
     testCPP4();
+    testCPP5();
+    testCPP6();
+    testCPP7();
 
     return 0;
 }

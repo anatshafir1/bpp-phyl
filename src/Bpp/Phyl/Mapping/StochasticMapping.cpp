@@ -245,21 +245,24 @@ void StochasticMapping::getTimeDurationsPerStateGivenAncestrals(std::map<uint, s
 
 
 }
+
 /******************************************************************************/
 void StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes){
   std::map<uint, std::map<pair<size_t, size_t>, double>> transitionOcurrences;
   std::map<uint, std::map<pair<size_t, size_t>, double>> timeDurations;
+  std::unordered_map<uint, vector<size_t>> mostFreqPaths;
 
-  getExpectedNumberOfTransitionsPerGivenTermianls(expectedMapping, transitionOcurrences, timeDurations);
+  getExpectedNumberOfTransitionsPerGivenTermianls(expectedMapping, transitionOcurrences, timeDurations, mostFreqPaths);
   std::map<uint, std::vector<double>> timeDurationsPerState;
   getTimeDurationsPerStateGivenAncestrals(timeDurations, timeDurationsPerState);
-
+  
   auto nodes = tree_->getAllNodes();
   for (size_t i = 0; i < nodes.size(); i++){
     uint nodeId = tree_->getNodeIndex(nodes[i]);
     if (nodeId == tree_->getRootIndex()){
       continue;
     }
+    bool foundPath = true;
     auto father = tree_->getFatherOfNode(tree_->getNode(nodeId));
     uint fatherId = tree_->getNodeIndex(father);
     if (fatherId == tree_->getRootIndex()){
@@ -269,12 +272,27 @@ void StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState
     double branchLength = branch->getLength();
     size_t fatherState = (size_t)getNodeState(expectedMapping->getNode(fatherId));
     size_t sonState = (size_t)getNodeState(expectedMapping->getNode(nodeId));
-    auto mappingStates = MultiStateMappingPath::findExpectedMappingPathForEachNode(fatherState, sonState, transitionOcurrences[nodeId], timeDurationsPerState[nodeId], branchLength);
+    auto mappingStates = MultiStateMappingPath::findExpectedMappingPathForEachNode(fatherState, sonState, transitionOcurrences[nodeId], timeDurationsPerState[nodeId], branchLength, foundPath);
     if (mappingStates.size() > 0){
       mappingStates.push_back(sonState); // this is a dummy transition, just to create the transition of the last state to itself.
 
     }else{
-      continue;
+      if (foundPath){
+        continue;
+
+      }else{
+        std::cout << "Most frequent path:\n";
+        if (mostFreqPaths[nodeId].size() == 0){
+          continue;
+        }
+        for (auto &state : mostFreqPaths[nodeId]){
+          mappingStates.push_back(state);
+          std::cout << state << ",";
+        }
+        mappingStates.push_back(sonState);
+        std::cout << sonState << std::endl;
+      }
+      
     }
     std::map<pair<size_t, size_t>, double> occurrencesOfTrnasitionsInExpectedPath;
     for (size_t j = 0; j < mappingStates.size()-1; j++){
@@ -285,28 +303,36 @@ void StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState
         occurrencesOfTrnasitionsInExpectedPath[transition] = 1;
       }
     }
-    std::map<std::pair<size_t, size_t>, double> newBranchLengths;
     auto &timeDurationPerTransitionPerNode = timeDurations[nodeId];
-    auto itTransitions = timeDurationPerTransitionPerNode.begin();
-    while (itTransitions != timeDurationPerTransitionPerNode.end()){
-      newBranchLengths[itTransitions->first] = timeDurationPerTransitionPerNode[itTransitions->first]/occurrencesOfTrnasitionsInExpectedPath[itTransitions->first];
-      itTransitions ++;
+    double sumOfChosenTransitionsTimes = 0;
+    std::map<std::pair<size_t, size_t>, double> newBranchLengths;
+    for (size_t j = 0; j < mappingStates.size()-1; j++){
+      std::pair<size_t,size_t> transition(mappingStates[j], mappingStates[j+1]);
+      newBranchLengths[transition] = timeDurationPerTransitionPerNode[transition]/occurrencesOfTrnasitionsInExpectedPath[transition];
+      sumOfChosenTransitionsTimes += newBranchLengths[transition];
     }
-
-
     // now fragmenting the edge
     double segmentBranchLength;
-    double dwellingTime;
+    //double dwellingTime;
     uint newNodeId;
+    double sumOfTransitionsTime = 0;
     std::pair<size_t,size_t> transition;
     for (size_t j = 0; j < mappingStates.size()-2; j++){
       transition = pair<size_t,size_t>(mappingStates[j], mappingStates[j+1]);
-      segmentBranchLength = newBranchLengths[transition];
+      segmentBranchLength = newBranchLengths[transition]/(sumOfChosenTransitionsTimes/branchLength);
+      sumOfTransitionsTime += segmentBranchLength;
       auto edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
       newNodeId = expectedMapping->createNodeOnEdge(expectedMapping->getEdgeIndex(edge_to_fragment), segmentBranchLength);
       (expectedMapping->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(mappingStates[j+1]));
 
 
+    }
+    auto lastTransition = pair<size_t,size_t>(mappingStates[mappingStates.size()-2], mappingStates[mappingStates.size()-1]);
+    double estimatedRemained = newBranchLengths[lastTransition]/(sumOfChosenTransitionsTimes/branchLength);
+    double truelyRemained = branchLength-sumOfTransitionsTime;
+    double epsilon = 1e-6;
+    if (std::abs(estimatedRemained - truelyRemained) > epsilon){
+      throw Exception("StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState(): sum of segments is"+std::to_string(sumOfTransitionsTime)+ " while branch length is "+ std::to_string(branchLength) + "\n");
     }
 
   }
@@ -997,7 +1023,7 @@ void StochasticMapping::getNumOfOcuurencesForEachTransitionPerMapping(size_t map
   }
 }
 /******************************************************************************/
-void StochasticMapping::getExpectedNumberOfTransitionsPerGivenTermianls(std::shared_ptr<PhyloTree> expectedTree, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations){
+void StochasticMapping::getExpectedNumberOfTransitionsPerGivenTermianls(std::shared_ptr<PhyloTree> expectedTree, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::unordered_map<uint, vector<size_t>> &mostFreqPaths){
   vector<uint> nodeIndexes = tree_->getNodeIndexes(tree_->getAllNodes());
   for (size_t i = 0; i < nodeIndexes.size(); i++){
     if (nodeIndexes[i] == tree_->getRootIndex()){
@@ -1013,7 +1039,7 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerGivenTermianls(std::sha
     }
     size_t startState = static_cast<size_t>(getNodeState(fatherNode));
     size_t endState = static_cast<size_t>(getNodeState(node));
-    getExpectedNumberOfTransitionsPerBranchGivenTerminals(nodeIndexes[i], fatherId, startState, endState, transitionOcurrences, timeDurations);
+    getExpectedNumberOfTransitionsPerBranchGivenTerminals(nodeIndexes[i], fatherId, startState, endState, transitionOcurrences, timeDurations, mostFreqPaths);
     
 
   }
@@ -1251,10 +1277,11 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerGivenTermianls(std::sha
 
 /******************************************************************************/
 // This fucntion is needed for the multi-state heuristic approach 
-void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations){
+void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::unordered_map<uint, vector<size_t>> &mostFreqPaths){
   size_t counter = 0;
   auto branch = tree_->getEdgeToFather(nodeId);
   auto branchLength = branch->getLength();
+  std::unordered_map<string, int> mappingsFrequencies;
   for (size_t i = 0; i < numOfMappings_; i++){
     if (!(isAccounted(nodeId, i))){
       continue;
@@ -1267,6 +1294,17 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(ui
       counter ++;
       auto mutationPath = mappings_[nodeId][i];
       vector<size_t> states = mutationPath.getStates();
+      string states_str = "";
+
+      for (auto &state : states){
+        states_str += std::to_string(state);
+      }
+      if (mappingsFrequencies.find(states_str) != mappingsFrequencies.end()){
+        mappingsFrequencies[states_str] += 1;
+      }else{
+        mappingsFrequencies[states_str] = 1;
+
+      }
       auto times = mutationPath.getTimes();
       if (states.size() == 0){
         std::pair<size_t, size_t> noTransition(fatherState, sonState);
@@ -1346,7 +1384,31 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(ui
   if (sumOfTimeDuration <= 0){
     std::cout << "problem is here!" << std::endl;
   }
+  auto itPath = mappingsFrequencies.begin();
+  string mostFrequent = mappingsFrequencies.begin()->first;
+  int maxFreq = 0;
 
+  while (itPath != mappingsFrequencies.end()){
+    if (itPath->second > maxFreq){
+      mostFrequent = itPath->first;
+      maxFreq = itPath->second;
+    }
+    itPath ++;
+  }
+  mostFreqPaths[nodeId];
+  if (mostFrequent != ""){
+    mostFreqPaths[nodeId].push_back(startState);
+    stringToVector(mostFrequent, mostFreqPaths[nodeId]);
+  }
+  
+}
+/******************************************************************************/
+void StochasticMapping::stringToVector(const std::string& str, vector<size_t> &res) {
+    for (char c : str) {
+        if (c >= '0' && c <= '9') {
+            res.push_back(c - '0');
+        }
+    }
 }
 
 /******************************************************************************/

@@ -437,15 +437,16 @@ std::vector <std::pair<size_t, size_t>> MultiStateMappingPath::getEulerPath(vect
 } 
 /**********************************************************************************************************/
 // bit for each edge. For each vertex we have its degree, which gets updated.
-vector<vector<pair<size_t, size_t>>> MultiStateMappingPath::chinesePostman(std::vector<vector<size_t>> &graph, size_t start, size_t end){
+vector<vector<pair<size_t, size_t>>> MultiStateMappingPath::chinesePostman(std::vector<vector<size_t>> &graph, size_t start, size_t end, bool &foundPath){
+    vector<vector<pair<size_t,size_t>>> disjointPaths; // this object will store the resulted path or optional paths
     vector<pair<size_t,size_t>> bestPath;
     bool circuitCloseEdgeAdded = false;
     if (start != end){
-        if (std::find(graph[end].begin(), graph[end].end(), start) == graph[end].end()){
-            graph[end].push_back(start);
-            circuitCloseEdgeAdded = true;
+        //if (std::find(graph[end].begin(), graph[end].end(), start) == graph[end].end()){
+        graph[end].push_back(start);
+        circuitCloseEdgeAdded = true;
 
-        }
+        //}
 
     }
 
@@ -484,17 +485,21 @@ vector<vector<pair<size_t, size_t>>> MultiStateMappingPath::chinesePostman(std::
     std::vector<pair<size_t, size_t>> infiniteEdges;
     // if there are some infinite edges - find them
     if (infinitePath){
-        for (size_t i = 0; i < bestPath.size(); i++){
-            if (weights[bestPath[i]] == std::numeric_limits<double>::infinity()){
-                infiniteEdges.push_back(bestPath[i]);
-            }
-        }
+        foundPath = false;
+        printGraph(graph);
+        return disjointPaths;
+        // for (size_t i = 0; i < bestPath.size(); i++){
+        //     if (weights[bestPath[i]] == std::numeric_limits<double>::infinity()){
+        //         infiniteEdges.push_back(bestPath[i]);
+        //     }
+        // }
     }
+
     std::map<pair<size_t,size_t>, std::vector<pair<size_t, size_t>>> edgeWithPath;
     for (auto &edge : bestPath){
-        if ((infinitePath) && (std::find(infiniteEdges.begin(), infiniteEdges.end(), edge) != infiniteEdges.end())){
-            continue;
-        }
+        // if ((infinitePath) && (std::find(infiniteEdges.begin(), infiniteEdges.end(), edge) != infiniteEdges.end())){
+        //     continue;
+        // }
         if (std::find(graph[edge.first].begin(), graph[edge.first].end(), edge.second) == graph[edge.first].end()){
             // this edge does not present in the graph, so it represents a path that should be restored from dijkstra
             auto source = edge.first;
@@ -510,25 +515,26 @@ vector<vector<pair<size_t, size_t>>> MultiStateMappingPath::chinesePostman(std::
             }
         }
     }
-    if (infinitePath){
-        // we apply dijkstra on a modified graph, that includes the <dst, source> edge
-        std::unordered_map<size_t, unordered_map<size_t, size_t>> trackPathsUpdated;
-        std::map<std::pair<size_t, size_t>, double> weightsUpdated = findWeightsForOddVerticesEdges(graph, start, end, indexToEdge, false, trackPathsUpdated);
-        for (auto &infiniteEdge : infiniteEdges){
-            auto source = infiniteEdge.first;
-            auto dst = infiniteEdge.second;
-            size_t currentNode = dst;
-            auto &trackInfinitePath = trackPathsUpdated[source];
-            edgeWithPath[infiniteEdge];
-            while (currentNode != source){
-                std::pair<size_t,size_t> edgeInPath(trackInfinitePath[currentNode], currentNode);
-                edgeWithPath[infiniteEdge].push_back(edgeInPath); //putting it in a reverse order
-                currentNode = trackInfinitePath[currentNode];
+    // if (infinitePath){
+    //     // we apply dijkstra on a modified graph, that includes the <dst, source> edge
+    //     std::unordered_map<size_t, unordered_map<size_t, size_t>> trackPathsUpdated;
+    //     bool isReachable = true;
+    //     std::map<std::pair<size_t, size_t>, double> weightsUpdated = findWeightsForOddVerticesEdges(graph, start, end, indexToEdge, false, trackPathsUpdated, isReachable, false);
+    //     for (auto &infiniteEdge : infiniteEdges){
+    //         auto source = infiniteEdge.first;
+    //         auto dst = infiniteEdge.second;
+    //         size_t currentNode = dst;
+    //         auto &trackInfinitePath = trackPathsUpdated[source];
+    //         edgeWithPath[infiniteEdge];
+    //         while (currentNode != source){
+    //             std::pair<size_t,size_t> edgeInPath(trackInfinitePath[currentNode], currentNode);
+    //             edgeWithPath[infiniteEdge].push_back(edgeInPath); //putting it in a reverse order
+    //             currentNode = trackInfinitePath[currentNode];
                 
-            }
+    //         }
 
-        }
-    } 
+    //     }
+    // } 
     if (circuitCloseEdgeAdded){
         graph[end].pop_back(); // we do it because this edge is added in the eiuler tour function
     }
@@ -555,28 +561,28 @@ vector<vector<pair<size_t, size_t>>> MultiStateMappingPath::chinesePostman(std::
 
     }
     // if there are disjoint paths, i.e., infinitePath is true, we need to find all the subpaths
-    vector<vector<pair<size_t,size_t>>> disjointPaths;
-    if (infinitePath){
-        std::pair<size_t,size_t> artificialEdge(end, start);   
-        vector<pair<size_t,size_t>> subPath;
-        for (size_t i = 0; i < chinese.size();i++){
-            if (chinese[i] != artificialEdge){
-                subPath.push_back(chinese[i]);
+    //vector<vector<pair<size_t,size_t>>> disjointPaths;
+    // if (infinitePath){
+    //     std::pair<size_t,size_t> artificialEdge(end, start);   
+    //     vector<pair<size_t,size_t>> subPath;
+    //     for (size_t i = 0; i < chinese.size();i++){
+    //         if (chinese[i] != artificialEdge){
+    //             subPath.push_back(chinese[i]);
 
-            }else{
-                disjointPaths.push_back(subPath);
-                subPath.clear();
-            }
-            if(i == chinese.size()-1){
-                disjointPaths.push_back(subPath);
-            }
+    //         }else{
+    //             disjointPaths.push_back(subPath);
+    //             subPath.clear();
+    //         }
+    //         if(i == chinese.size()-1){
+    //             disjointPaths.push_back(subPath);
+    //         }
 
 
-        }
-    }else{
+    //     }
+    //}else{
         // there are no disjoint paths, so we return the path results from the euler function without any modifications
-        disjointPaths.push_back(chinese);
-    }
+    disjointPaths.push_back(chinese);
+    //}
     return disjointPaths;
     
 
@@ -588,6 +594,17 @@ void MultiStateMappingPath::fillRelativeTimeDuration(std::unordered_map<size_t, 
 
     }
     
+}
+/**********************************************************************************/
+
+void MultiStateMappingPath::printGraph(vector<vector<size_t>>& graph){
+    std::cout << "Printing Graph!" << std::endl;
+    for (size_t i = 0; i < graph.size(); i++){
+        std::cout << "Current Vertex is " << i << std::endl;
+        for (size_t j = 0; j < graph[i].size(); j++){
+            std::cout << "\t" << graph[i][j] << std::endl;
+        }
+    }
 }
 /**********************************************************************************/
 vector<vector<size_t>> MultiStateMappingPath::createGraphForChinesePostman(std::unordered_map<size_t, size_t> &indicesToNodes, std::unordered_map<size_t, size_t> &nodesToIndices, std::unordered_map<size_t, double> &relativeTimeDuration, std::map<std::pair<size_t, size_t>, double> &transitions){
@@ -657,7 +674,7 @@ vector<vector<size_t>> MultiStateMappingPath::createGraphFromPath(vector<pair<si
 
 /**********************************************************************************/
 
-vector<size_t> MultiStateMappingPath::findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime){
+vector<size_t> MultiStateMappingPath::findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime, bool &foundPath){
     vector<size_t> finalPath;
     bool validTSP = false;
     std::unordered_map<size_t, double> relativeTimeDuration;
@@ -668,7 +685,13 @@ vector<size_t> MultiStateMappingPath::findExpectedMappingPathForEachNode(size_t 
         std::unordered_map<size_t, size_t> indicesToNodes;
         std::unordered_map<size_t, size_t> nodesToIndices;
         vector<vector<size_t>> graph = createGraphForChinesePostman(indicesToNodes, nodesToIndices, relativeTimeDuration, transitions);
-        vector<vector<pair<size_t, size_t>>> disjointPaths = chinesePostman(graph, nodesToIndices[start], nodesToIndices[end]);
+        vector<vector<pair<size_t, size_t>>> disjointPaths = chinesePostman(graph, nodesToIndices[start], nodesToIndices[end], foundPath);
+        if (!(foundPath)){
+            return finalPath;
+        }
+        if (disjointPaths.size() == 0){
+            return finalPath;
+        }
         if (disjointPaths.size() == 1){
             bestChinesePath = disjointPaths[0];
             for (size_t i = 0; i < bestChinesePath.size();i++){
@@ -690,7 +713,7 @@ vector<size_t> MultiStateMappingPath::findExpectedMappingPathForEachNode(size_t 
                 std::unordered_map<size_t, size_t> indicesToNodesSub;
                 std::unordered_map<size_t, size_t> nodesToIndicesSub;
                 vector<vector<size_t>> subGraph = createGraphFromPath(disjointPath, indicesToNodesSub, nodesToIndicesSub, graph.size());
-                vector<vector<pair<size_t, size_t>>> disjointSubPaths = chinesePostman(subGraph, nodesToIndicesSub[nodesToIndices[start]], nodesToIndicesSub[nodesToIndices[end]]);
+                vector<vector<pair<size_t, size_t>>> disjointSubPaths = chinesePostman(subGraph, nodesToIndicesSub[nodesToIndices[start]], nodesToIndicesSub[nodesToIndices[end]], foundPath);
                 auto currChinesePath = disjointSubPaths[0];
                 double currentWeight = 0;
                 nodesInOrder.push_back(start);
