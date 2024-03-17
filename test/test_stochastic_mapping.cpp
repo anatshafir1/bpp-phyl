@@ -360,7 +360,7 @@ void stochasticMapping(){
     }
     std::cout << "Expected mapping tree: " << std::endl;
         
-    auto expected_mapping = stm->generateExpectedMapping(mappings);
+    auto expected_mapping = stm->generateExpectedMapping();
     printTree(expected_mapping, true);
     // print the trees
     delete stm;

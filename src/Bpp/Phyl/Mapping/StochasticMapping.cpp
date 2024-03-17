@@ -194,7 +194,7 @@ void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapp
 
 /******************************************************************************/
 
-shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping(vector<shared_ptr<PhyloTree> >& mappings, size_t divMethod)
+shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping()
 {
   // // initialize the expected history
   Newick writer;

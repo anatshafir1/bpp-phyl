@@ -110,7 +110,7 @@ protected:
     std::map<uint, std::vector<size_t>>* MLAncr_;         // ML ancestors for the expected mapping
     
 public:
-  #define EPSILON_THRESHOLD 0.005
+  #define EPSILON_THRESHOLD 0.01
 
   explicit StochasticMapping(std::shared_ptr<LikelihoodCalculationSingleProcess> drl, size_t numOfMappings, size_t numOfMappingTrials = 1000000); // it is a good general practice to use "explicit" keyword on constructors with a single argument: https://stackoverflow.com/questions/121162/what-does-the-explicit-keyword-mean
 
@@ -166,12 +166,12 @@ public:
     }
     std::shared_ptr<PhyloTree> createExpectedMappingHistory(size_t mappingsNum){
       generateStochasticMapping();
-      std::vector<std::shared_ptr<PhyloTree>> mappings;
-      for (size_t i = 0; i < mappingsNum; i++){
-        auto mappingTree = createMappingHistoryTree(i);
-        mappings.push_back(mappingTree);
-      }
-      auto expected_mapping = generateExpectedMapping(mappings);
+      // std::vector<std::shared_ptr<PhyloTree>> mappings;
+      // for (size_t i = 0; i < mappingsNum; i++){
+      //   auto mappingTree = createMappingHistoryTree(i);
+      //   mappings.push_back(mappingTree);
+      // }
+      auto expected_mapping = generateExpectedMapping();
       return expected_mapping;
     }
 
@@ -194,7 +194,7 @@ public:
      *
      **/
   
-    std::shared_ptr<PhyloTree> generateExpectedMapping(std::vector<std::shared_ptr<PhyloTree>>& mappings, size_t divMethod = 0);
+    std::shared_ptr<PhyloTree> generateExpectedMapping();
 
     /**
      *@brief Creates a single expected (i.e, average) history based the rewards provided by te algorithm of Minin and Suchard (2008)

@@ -20,7 +20,7 @@ using namespace std;
 namespace bpp{
   class MultiStateMappingPath{
     public:
-     #define EPSILON_THRESHOLD 0.005
+     #define EPSILON_THRESHOLD 0.01
       MultiStateMappingPath() {}
       virtual ~MultiStateMappingPath() {}
 
