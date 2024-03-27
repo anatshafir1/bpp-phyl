@@ -165,15 +165,11 @@ public:
       return *MLAncr_;
     }
     std::shared_ptr<PhyloTree> createExpectedMappingHistory(size_t mappingsNum){
-      generateStochasticMapping();
-      // std::vector<std::shared_ptr<PhyloTree>> mappings;
-      // for (size_t i = 0; i < mappingsNum; i++){
-      //   auto mappingTree = createMappingHistoryTree(i);
-      //   mappings.push_back(mappingTree);
-      // }
+      //generateStochasticMapping();
       auto expected_mapping = generateExpectedMapping();
       return expected_mapping;
     }
+    
 
 
 
@@ -334,7 +330,7 @@ public:
     /*
     * try to fix a mapping for a given node
     */
-   bool tryToReplaceMapping(double branchLength, uint nodeId, size_t mappingIndex, size_t maxNumOfIterations);
+   bool tryToReplaceMapping(double branchLength, uint nodeId, size_t mappingIndex, vector<MutationPath> &mappings, size_t maxNumOfIterations);
    double getRateToLeaveState(uint nodeId, size_t mapping);
     /**
      *@brief create a tree from a mapping
@@ -349,7 +345,9 @@ public:
    std::vector<std::shared_ptr<PhyloTree>> createMappingHistoryTrees() const;
 
   private:
-    bool sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, size_t maxIterNum, bool replace = false);
+  void assignDewellingTimesUnderEachStatePerMappingPerBranch(uint nodeId, size_t initialState, vector<double> &dwellingTimes, MutationPath &mutationPath);
+    void sampleAllAncestals();
+    bool sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, vector<MutationPath>& mappings, size_t maxIterNum, bool replace = false);
     bool isAccounted(uint nodeId, size_t mappingIndex);
     void clearMapping(size_t mappingIndex);
     void initMapOfNumOfOccurences(std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences);
@@ -461,7 +459,7 @@ public:
      * @param maxIterNum            Maximal number of imulation trials
      * @return: true if the mapping was successful. Otherwise, false.
      */
-    bool sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum = 10000);
+    bool sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, vector<MutationPath> &mappings, size_t maxIterNum = 10000);
 
     /* converts a vector of dwelling times to a mutation path and then updates the bracnh stemming from the given node */
     /* @param node                      The node at the bottom of the branch
@@ -486,13 +484,14 @@ public:
     * @param endState       The desired end state of the branch (the expected ancestral state)
     * @param transitionOcurrences   The map which should store the expected number of transitions for each possible transition given the termianl states, per each node
     */
-    void getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::unordered_map<uint, vector<size_t>> &mostFreqPaths);
+    void getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<pair<size_t, size_t>, double> &transitionOcurrences, std::map<pair<size_t, size_t>, double> &timeDurations, vector<size_t> &mostFreqPath, vector<MutationPath> &mappings);
     void getExpectedNumberOfTransitionsPerGivenTermianls(std::shared_ptr<PhyloTree> expectedTree, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::unordered_map<uint, vector<size_t>> &mostFreqPaths);
 
     void findTransitionsAndTimeDurationsForBinary(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes, std::map<uint, std::vector<double>> &ancestralStatesFrequencies);
     void findExpectedHistoryTransitionsAndTimeDurationsMultiState(std::shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &dwellingTimes);
     void getTimeDurationsPerStateGivenAncestrals(std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::map<uint, std::vector<double>> &timeDurationsPerState);
     void stringToVector(const std::string& str, vector<size_t> &res);
+    void findExpectedPathOnBranch(std::shared_ptr<PhyloTree> expectedMapping, size_t fatherState, size_t sonState, uint fatherId, uint nodeId, std::map<pair<size_t, size_t>, double> &transitionOcurrences, std::map<pair<size_t, size_t>, double> &timeDurations, vector<double> &timeDurationsPerState, vector<MutationPath> &nodeMappings, vector<size_t> &mostFreqPath);
 
 
 

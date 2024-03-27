@@ -58,6 +58,24 @@ StochasticMapping::~StochasticMapping()
 {}
 
 /******************************************************************************/
+void StochasticMapping::sampleAllAncestals(){
+  // initializing the ancestral states for each node and mapping
+  auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
+  for(size_t i = 0; i < nodeIndices.size(); i++){
+    ancetralStates_[nodeIndices[i]].resize(numOfMappings_);
+  }
+  for (size_t i = 0; i < numOfMappings_; ++i)
+  {
+    /* step 1+2: simulate a set of ancestral states, based on the fractional likelihoods from step 1 */
+    
+    sampleAncestrals(i);
+  }
+  ConditionalProbabilities_.clear();
+
+}
+
+
+/******************************************************************************/
 
 void StochasticMapping::generateStochasticMapping()
 {
@@ -196,32 +214,155 @@ void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapp
 
 shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping()
 {
+  sampleAllAncestals();
   // // initialize the expected history
   Newick writer;
   Newick reader;
   std::string tree_str = writer.writeTreeToParenthesis(*tree_);
   std::shared_ptr<PhyloTree> expectedMapping = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree(tree_str));
+  auto nodeIds = tree_->getNodeIndexes(tree_->getAllNodes());
+
 
   // compute a vector of the posterior asssignment probabilities for each inner node
   std::map<uint, std::vector<double>> ancestralStatesFrequencies;
   computeStatesFrequencies(ancestralStatesFrequencies);
-  // calculate expected duration times
-  std::map<uint, std::vector<double>> dwellingTimes;
-  getDewellingTimesUnderEachStatePerNode(&dwellingTimes);
-
   // set the ancestral states according to the maximal posterior (i.e, conditional) probability
   setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
-  size_t numberOfStates = likelihood_->getStateMap().getNumberOfModelStates();
-  // if (numberOfStates == 2){
-  //findTransitionsAndTimeDurationsForBinary(expectedMapping, dwellingTimes, ancestralStatesFrequencies);
-  // }else{
-  //   findExpectedHistoryTransitionsAndTimeDurationsMultiState(expectedMapping, dwellingTimes);
+  
+  // find mappings
+  auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
+  // calculate expected duration times
+  //std::map<uint, std::vector<double>> dwellingTimes;
+  for (size_t i = 0; i < nodeIndices.size(); i++){
+    if (tree_->isLeaf(tree_->getNode(nodeIndices[i]))){
+      continue;
+    }
+    //auto father = nodeIndices[i];
+    auto sons = tree_->getSons(nodeIndices[i]);
+    for (size_t j = 0; j < sons.size(); j++){
+      uint fatherId;
+      auto node = expectedMapping->getNode(sons[j]);
+      auto fatherNode = expectedMapping->getFatherOfNode(node);
+      if (expectedMapping->getRootIndex() == expectedMapping->getNodeIndex(fatherNode)){
+        fatherId = tree_->getRootIndex();
+      }else{
+        fatherId = expectedMapping->getNodeIndex(fatherNode);
+      }
+      vector<MutationPath> nodeMappings;
+      vector<double> nodeDwellingTimes;
+      nodeDwellingTimes.resize(likelihood_-> getStateMap().getNumberOfModelStates());
+      for (size_t mappingIndex= 0; mappingIndex < numOfMappings_; mappingIndex++){
+        bool success = sampleMutationsGivenAncestralsPerBranch(fatherId, sons[j], mappingIndex, nodeMappings, numOfMappingTrials_);
+        assignDewellingTimesUnderEachStatePerMappingPerBranch(sons[j], ancetralStates_[fatherId][mappingIndex], nodeDwellingTimes, nodeMappings[mappingIndex]);
 
-  // }
-  findExpectedHistoryTransitionsAndTimeDurationsMultiState(expectedMapping, dwellingTimes);
+      }
+      // get dwelling times
+      for (size_t s = 0; s < nodeDwellingTimes.size(); s++){
+        nodeDwellingTimes[s] /= static_cast<double>(numOfMappings_);
+      }
+
+      size_t startState = static_cast<size_t>(getNodeState(fatherNode));
+      size_t endState = static_cast<size_t>(getNodeState(node));
+      std::map<pair<size_t, size_t>, double> transitionOcurrences;
+      std::map<pair<size_t, size_t>, double> timeDurations;
+      vector<size_t> mostFreqPath;
+      getExpectedNumberOfTransitionsPerBranchGivenTerminals(sons[j], fatherId, startState, endState, transitionOcurrences, timeDurations, mostFreqPath, nodeMappings);
+      vector<double> timeDurationsPerState;
+      size_t nbStates = likelihood_-> getStateMap().getNumberOfModelStates();
+      timeDurationsPerState.resize(nbStates);
+      auto it = timeDurations.begin();
+      while (it != timeDurations.end()){
+        auto &transition = it->first;
+        size_t currState = transition.first;
+        timeDurationsPerState[currState] += timeDurations[transition];
+        it ++;
+      }
+      findExpectedPathOnBranch(expectedMapping, startState, endState, fatherId, sons[j], transitionOcurrences, timeDurations, timeDurationsPerState, nodeMappings, mostFreqPath);
+      
+      
+    }
+  }
+  ancetralStates_.clear();
+
+  
+
+  //getDewellingTimesUnderEachStatePerNode(&dwellingTimes);
+
+
+  //size_t numberOfStates = likelihood_->getStateMap().getNumberOfModelStates();
+  //findExpectedHistoryTransitionsAndTimeDurationsMultiState(expectedMapping, dwellingTimes);
 
   return expectedMapping;
 }
+/******************************************************************************/
+void StochasticMapping::findExpectedPathOnBranch(std::shared_ptr<PhyloTree> expectedMapping, size_t fatherState, size_t sonState, uint fatherId, uint nodeId, std::map<pair<size_t, size_t>, double> &transitionOcurrences, std::map<pair<size_t, size_t>, double> &timeDurations, vector<double> &timeDurationsPerState, vector<MutationPath> &nodeMappings, vector<size_t> &mostFreqPath){  
+  auto branch = expectedMapping->getEdgeToFather(nodeId);
+  double branchLength = branch->getLength();
+  bool foundPath = true;
+  auto mappingStates = MultiStateMappingPath::findExpectedMappingPathForEachNode(fatherState, sonState, transitionOcurrences, timeDurationsPerState, branchLength, foundPath);
+  if (mappingStates.size() > 0){
+    mappingStates.push_back(sonState); // this is a dummy transition, just to create the transition of the last state to itself.
+
+  }else{
+    if (foundPath){
+      return;
+
+    }else{
+      std::cout << "Most frequent path:\n";
+      if (mostFreqPath.size() == 0){
+        return;
+      }
+      for (auto &state : mostFreqPath){
+        mappingStates.push_back(state);
+        std::cout << state << ",";
+      }
+      mappingStates.push_back(sonState);
+      std::cout << sonState << std::endl;
+    }
+      
+  }
+  std::map<pair<size_t, size_t>, double> occurrencesOfTrnasitionsInExpectedPath;
+  for (size_t j = 0; j < mappingStates.size()-1; j++){
+    std::pair<size_t,size_t> transition(mappingStates[j], mappingStates[j+1]);
+    if (occurrencesOfTrnasitionsInExpectedPath.find(transition) != occurrencesOfTrnasitionsInExpectedPath.end()){
+      occurrencesOfTrnasitionsInExpectedPath[transition] += 1;
+    }else{
+      occurrencesOfTrnasitionsInExpectedPath[transition] = 1;
+    }
+  }
+  double sumOfChosenTransitionsTimes = 0;
+  std::map<std::pair<size_t, size_t>, double> newBranchLengths;
+  for (size_t j = 0; j < mappingStates.size()-1; j++){
+    std::pair<size_t,size_t> transition(mappingStates[j], mappingStates[j+1]);
+    newBranchLengths[transition] = timeDurations[transition]/occurrencesOfTrnasitionsInExpectedPath[transition];
+    sumOfChosenTransitionsTimes += newBranchLengths[transition];
+  }
+  // now fragmenting the edge
+  double segmentBranchLength;
+  //double dwellingTime;
+  uint newNodeId;
+  double sumOfTransitionsTime = 0;
+  std::pair<size_t,size_t> transition;
+  for (size_t j = 0; j < mappingStates.size()-2; j++){
+    transition = pair<size_t,size_t>(mappingStates[j], mappingStates[j+1]);
+    segmentBranchLength = newBranchLengths[transition]/(sumOfChosenTransitionsTimes/branchLength);
+    sumOfTransitionsTime += segmentBranchLength;
+    auto edge_to_fragment = expectedMapping->getEdgeToFather(nodeId);
+    newNodeId = expectedMapping->createNodeOnEdge(expectedMapping->getEdgeIndex(edge_to_fragment), segmentBranchLength);
+    (expectedMapping->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(mappingStates[j+1]));
+
+
+  }
+  auto lastTransition = pair<size_t,size_t>(mappingStates[mappingStates.size()-2], mappingStates[mappingStates.size()-1]);
+  double estimatedRemained = newBranchLengths[lastTransition]/(sumOfChosenTransitionsTimes/branchLength);
+  double truelyRemained = branchLength-sumOfTransitionsTime;
+  double epsilon = 1e-6;
+  if (std::abs(estimatedRemained - truelyRemained) > epsilon){
+    throw Exception("StochasticMapping::findExpectedHistoryTransitionsAndTimeDurationsMultiState(): sum of segments is"+std::to_string(sumOfTransitionsTime)+ " while branch length is "+ std::to_string(branchLength) + "\n");
+  }
+
+}
+
 /******************************************************************************/
 void StochasticMapping::getTimeDurationsPerStateGivenAncestrals(std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::map<uint, std::vector<double>> &timeDurationsPerState){
   auto nodes = tree_->getAllNodes();
@@ -767,7 +908,7 @@ bool StochasticMapping::sampleMutationsGivenAncestrals(size_t mappingIndex, vect
       // 3. If the simulation has failed -> resample the ancestral states.
       // 4. Once the ancestral states are resampled -> call again to sampleMutationsGivenAncestrals()
        
-      bool success = sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex, numOfMappingTrials_);
+      bool success = sampleMutationsGivenAncestralsPerBranch(father, sons[j], mappingIndex, mappings_[sons[j]], numOfMappingTrials_);
       if (!success){
         allSuccess = false;
         if (failedNodes){
@@ -819,7 +960,7 @@ void StochasticMapping::updateBranchMapping(PhyloNode* son, const MutationPath& 
 
 /******************************************************************************/
 
-bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, size_t maxIterNum)
+bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uint son, size_t mappingIndex, vector<MutationPath> &mappings, size_t maxIterNum)
 {
   
   size_t fatherState = ancetralStates_[father][mappingIndex];
@@ -829,19 +970,19 @@ bool StochasticMapping::sampleMutationsGivenAncestralsPerBranch(uint father, uin
   auto branchLength = branchPtr->getLength();
 
   /* simulate mapping on a branch until you manage to finish at the son's state */
-  bool success = sampleEvolutionaryPathForBranch(sonState, fatherState, father, son, branchLength, mappingIndex, maxIterNum); //TODO put the following lines (inside the for loop) into the new function
+  bool success = sampleEvolutionaryPathForBranch(sonState, fatherState, father, son, branchLength, mappingIndex, mappings, maxIterNum); //TODO put the following lines (inside the for loop) into the new function
   if (!success){
     std::cout << "Mapping failure! " << "Mapping index: " << mappingIndex;
     std::cout << ", nodeId: " << son << ", fatherState: " << fatherState << ", sonState: " << sonState << ", branchLength: " << branchLength;
-    std::cout << ", probability of son given father: " << ConditionalProbabilities_[son][fatherState][sonState];
-    if (!(father == tree_->getRootIndex())){
-      auto grandFather = tree_->getFatherOfNode (tree_->getNode(father));
-      uint grandFatherId = tree_->getNodeIndex(grandFather);
-      size_t grandFatherState = ancetralStates_[grandFatherId][mappingIndex];
-      std::cout << ", father id: " << father << ", grand father id: " << grandFatherId << ", grandFather state: " << grandFatherState;
-      std::cout << ", probability of father given grandFather: " << ConditionalProbabilities_[father][grandFatherState][fatherState] << std::endl;
+    //std::cout << ", probability of son given father: " << ConditionalProbabilities_[son][fatherState][sonState];
+    // if (!(father == tree_->getRootIndex())){
+    //   auto grandFather = tree_->getFatherOfNode (tree_->getNode(father));
+    //   uint grandFatherId = tree_->getNodeIndex(grandFather);
+    //   size_t grandFatherState = ancetralStates_[grandFatherId][mappingIndex];
+    //   std::cout << ", father id: " << father << ", grand father id: " << grandFatherId << ", grandFather state: " << grandFatherState;
+    //   std::cout << ", probability of father given grandFather: " << ConditionalProbabilities_[father][grandFatherState][fatherState] << std::endl;
 
-    }
+    // }
 
   }
   return success;
@@ -879,7 +1020,7 @@ void StochasticMapping::getDewellingTimesUnderEachStatePerNode(std::map<uint, ve
   }
 }
 // /*****************************************************************************/
-bool StochasticMapping::sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, size_t maxIterNum, bool replace){
+bool StochasticMapping::sampleEvolutionaryPathForBranch(size_t sonState, size_t fatherState, uint father, uint son, double branchLength, size_t mappingIndex, vector<MutationPath>& mappings, size_t maxIterNum, bool replace){
   bool success = true;
   auto alphabet = likelihood_->getData()->getAlphabet();
 
@@ -926,17 +1067,21 @@ bool StochasticMapping::sampleEvolutionaryPathForBranch(size_t sonState, size_t 
     }
     else                      // if the simulation was sucessfully, add it to the build mapping
     {
-      if (replace){
-        mappings_[son][mappingIndex] = tryMapping;
-
-      }else{
-        mappings_[son].push_back(tryMapping);
-        // *** debug ***//
-        if (mappings_[son].size() != mappingIndex+1){
-          throw Exception ("StochasticMapping::sampleMutationsGivenAncestralsPerBranch: Something went wrong when filling mappings_ object!");
-        }
-
+      mappings.push_back(tryMapping);
+      if (mappings.size() != mappingIndex+1){
+        throw Exception("StochasticMapping::sampleEvolutionaryPathForBranch(): Unsuccessful mapping was sampled!!!");
       }
+      // if (replace){
+      //   mappings_[son][mappingIndex] = tryMapping;
+
+      // }else{
+      //   mappings_[son].push_back(tryMapping);
+      //   // *** debug ***//
+      //   if (mappings_[son].size() != mappingIndex+1){
+      //     throw Exception ("StochasticMapping::sampleMutationsGivenAncestralsPerBranch: Something went wrong when filling mappings_ object!");
+      //   }
+
+      // }
 
       return success;
     }
@@ -955,6 +1100,34 @@ bool StochasticMapping::isAccounted(uint nodeId, size_t mappingIndex){
   }
   return accounted;
 }
+/******************************************************************************/
+void StochasticMapping::assignDewellingTimesUnderEachStatePerMappingPerBranch(uint nodeId, size_t initialState, vector<double> &dwellingTimes, MutationPath &mutationPath){
+  vector<size_t> states;
+  states = mutationPath.getStates();
+  auto times = mutationPath.getTimes();
+  auto branchPtr = tree_->getIncomingEdges(tree_->getNode(nodeId))[0];
+  auto branchLength = branchPtr->getLength();
+  double spentTimeOnBranch = 0;
+  for (size_t i = 0; i < states.size(); i++){
+    spentTimeOnBranch += times[i];
+    if (i == 0){
+      // dwelling time of the intial state (that lasts from the previous branch)
+      dwellingTimes[initialState] += times[i];
+    }else{
+      dwellingTimes[states[i-1]] += times[i];
+    }
+  }
+  double timeSpentUnderLastState = branchLength-spentTimeOnBranch;
+  if (states.size() == 0){
+    dwellingTimes[initialState] += timeSpentUnderLastState;
+  }else{
+    dwellingTimes[states[states.size()-1]] += timeSpentUnderLastState;
+  }
+
+}
+
+
+
 /******************************************************************************/
 void StochasticMapping::getDewellingTimesUnderEachStatePerMappingRecursively(uint nodeId, size_t initialState, vector<double> *dwellingTimesStates, size_t mappingIndex, std::map<uint, std::vector<double>> *dwellingTimesPerNode){
   auto mutationPath = mappings_[nodeId][mappingIndex];
@@ -1039,7 +1212,8 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerGivenTermianls(std::sha
     }
     size_t startState = static_cast<size_t>(getNodeState(fatherNode));
     size_t endState = static_cast<size_t>(getNodeState(node));
-    getExpectedNumberOfTransitionsPerBranchGivenTerminals(nodeIndexes[i], fatherId, startState, endState, transitionOcurrences, timeDurations, mostFreqPaths);
+    mostFreqPaths[nodeIndexes[i]];
+    getExpectedNumberOfTransitionsPerBranchGivenTerminals(nodeIndexes[i], fatherId, startState, endState, transitionOcurrences[nodeIndexes[i]], timeDurations[nodeIndexes[i]], mostFreqPaths[nodeIndexes[i]], mappings_[nodeIndexes[i]]);
     
 
   }
@@ -1277,7 +1451,7 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerGivenTermianls(std::sha
 
 /******************************************************************************/
 // This fucntion is needed for the multi-state heuristic approach 
-void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<uint, std::map<pair<size_t, size_t>, double>> &transitionOcurrences, std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::unordered_map<uint, vector<size_t>> &mostFreqPaths){
+void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(uint nodeId, uint fatherId, size_t startState, size_t endState, std::map<pair<size_t, size_t>, double> &transitionOcurrences, std::map<pair<size_t, size_t>, double> &timeDurations, vector<size_t> &mostFreqPath, vector<MutationPath> &mappings){
   size_t counter = 0;
   auto branch = tree_->getEdgeToFather(nodeId);
   auto branchLength = branch->getLength();
@@ -1292,7 +1466,7 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(ui
 
     if ((fatherState == startState) && (sonState == endState)){
       counter ++;
-      auto mutationPath = mappings_[nodeId][i];
+      auto mutationPath = mappings[i];
       vector<size_t> states = mutationPath.getStates();
       string states_str = "";
 
@@ -1309,47 +1483,42 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(ui
       if (states.size() == 0){
         std::pair<size_t, size_t> noTransition(fatherState, sonState);
 
-        if (timeDurations.find(nodeId) == timeDurations.end()){
-          timeDurations[nodeId][noTransition] = branchLength;
-        }else if (timeDurations[nodeId].find(noTransition) == timeDurations[nodeId].end()){
-          timeDurations[nodeId][noTransition] = branchLength;
+
+        if (timeDurations.find(noTransition) == timeDurations.end()){
+          timeDurations[noTransition] = branchLength;
         }else{
-          timeDurations[nodeId][noTransition] += branchLength;
+          timeDurations[noTransition] += branchLength;
         }
         continue;
       }
       std::pair<size_t, size_t> firstTransitionOnBranch(fatherState, states[0]);
       // updating number of occurrences
 
-      if (transitionOcurrences.find(nodeId) == transitionOcurrences.end()){
-        transitionOcurrences[nodeId][firstTransitionOnBranch] = 1;
-      }else if (transitionOcurrences[nodeId].find(firstTransitionOnBranch) == transitionOcurrences[nodeId].end()){
-        transitionOcurrences[nodeId][firstTransitionOnBranch] = 1;
+      if (transitionOcurrences.find(firstTransitionOnBranch) == transitionOcurrences.end()){
+        transitionOcurrences[firstTransitionOnBranch] = 1;
       }else{
-        transitionOcurrences[nodeId][firstTransitionOnBranch] += 1;
+        transitionOcurrences[firstTransitionOnBranch] += 1;
 
       }
       // updating time durations
       double timeSoFar = 0;
       timeSoFar += times[0];
 
-      if (timeDurations.find(nodeId) == timeDurations.end()){
-        timeDurations[nodeId][firstTransitionOnBranch] = times[0];
-      }else if (timeDurations[nodeId].find(firstTransitionOnBranch) == timeDurations[nodeId].end()){
-        timeDurations[nodeId][firstTransitionOnBranch] = times[0];
+      if (timeDurations.find(firstTransitionOnBranch) == timeDurations.end()){
+        timeDurations[firstTransitionOnBranch] = times[0];
       }else{
-        timeDurations[nodeId][firstTransitionOnBranch] += times[0];
+        timeDurations[firstTransitionOnBranch] += times[0];
       }
 
 
       for (size_t j = 0; j < states.size()-1; j++){
         std::pair<size_t, size_t> transition(states[j], states[j+1]);
-        if (transitionOcurrences[nodeId].find(transition) == transitionOcurrences[nodeId].end()){
-          transitionOcurrences[nodeId][transition] = 1;
-          timeDurations[nodeId][transition] = times[j+1];
+        if (transitionOcurrences.find(transition) == transitionOcurrences.end()){
+          transitionOcurrences[transition] = 1;
+          timeDurations[transition] = times[j+1];
         }else{
-          transitionOcurrences[nodeId][transition] += 1;
-          timeDurations[nodeId][transition] += times[j+1];
+          transitionOcurrences[transition] += 1;
+          timeDurations[transition] += times[j+1];
 
         }
         timeSoFar += times[j+1];
@@ -1357,28 +1526,28 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(ui
       }
       std::pair<size_t, size_t> selfTransition(states[states.size()-1], states[states.size()-1]);
       remainedTime = branchLength - timeSoFar;
-      if (timeDurations[nodeId].find(selfTransition) == timeDurations[nodeId].end()){
-        timeDurations[nodeId][selfTransition] = remainedTime;
+      if (timeDurations.find(selfTransition) == timeDurations.end()){
+        timeDurations[selfTransition] = remainedTime;
       }else{
-        timeDurations[nodeId][selfTransition] += remainedTime;
+        timeDurations[selfTransition] += remainedTime;
 
       }
 
     }
 
   }
-  auto it = transitionOcurrences[nodeId].begin();
-  while (it != transitionOcurrences[nodeId].end()){
-    transitionOcurrences[nodeId][it->first] /= static_cast<double>(counter);
+  auto it = transitionOcurrences.begin();
+  while (it != transitionOcurrences.end()){
+    transitionOcurrences[it->first] /= static_cast<double>(counter);
     it ++;
   }
-  auto itTime = timeDurations[nodeId].begin();
+  auto itTime = timeDurations.begin();
   // just for debug!!!
   double sumOfTimeDuration = 0;
   //
-  while (itTime != timeDurations[nodeId].end()){
-    timeDurations[nodeId][itTime->first] /= static_cast<double>(counter);
-    sumOfTimeDuration += timeDurations[nodeId][itTime->first];
+  while (itTime != timeDurations.end()){
+    timeDurations[itTime->first] /= static_cast<double>(counter);
+    sumOfTimeDuration += timeDurations[itTime->first];
     itTime ++;
   }
   if (sumOfTimeDuration <= 0){
@@ -1395,10 +1564,10 @@ void StochasticMapping::getExpectedNumberOfTransitionsPerBranchGivenTerminals(ui
     }
     itPath ++;
   }
-  mostFreqPaths[nodeId];
+
   if (mostFrequent != ""){
-    mostFreqPaths[nodeId].push_back(startState);
-    stringToVector(mostFrequent, mostFreqPaths[nodeId]);
+    mostFreqPath.push_back(startState);
+    stringToVector(mostFrequent, mostFreqPath);
   }
   
 }
@@ -1783,12 +1952,12 @@ void StochasticMapping::printUnrepresentedLeavesWithCorrespondingMappings(ofstre
 
 }
 /******************************************************************************/
-bool StochasticMapping::tryToReplaceMapping(double branchLength, uint nodeId, size_t mappingIndex, size_t maxNumOfIterations){
+bool StochasticMapping::tryToReplaceMapping(double branchLength, uint nodeId, size_t mappingIndex, vector<MutationPath> &mappings, size_t maxNumOfIterations){
   auto fatherNode = tree_->getFatherOfNode(tree_->getNode(nodeId));
   uint father = tree_->getNodeIndex(fatherNode);
   size_t fatherState = ancetralStates_[father][mappingIndex];
   size_t sonState = ancetralStates_[nodeId][mappingIndex];
-  bool success = sampleEvolutionaryPathForBranch(sonState, fatherState, father, nodeId, branchLength, mappingIndex, maxNumOfIterations, true);
+  bool success = sampleEvolutionaryPathForBranch(sonState, fatherState, father, nodeId, branchLength, mappingIndex, mappings, maxNumOfIterations, true);
   return success;
 }
 /******************************************************************************/

@@ -347,17 +347,17 @@ void stochasticMapping(){
 
     unsigned int mappingsNum = 3;
     StochasticMapping* stm = new StochasticMapping(lik, mappingsNum);//ChromEvolOptions::NumOfSimulations_);
-    stm->generateStochasticMapping();
-    std::vector<std::shared_ptr<PhyloTree>> mappings;
-    for (size_t i = 0; i < mappingsNum; i++){
-        auto mappingTree = stm->createMappingHistoryTree(i);
-        mappings.push_back(mappingTree);
-        printTree(mappingTree, true);
-        std::cout << "****************" << std::endl;
+    //stm->generateStochasticMapping();
+    // std::vector<std::shared_ptr<PhyloTree>> mappings;
+    // for (size_t i = 0; i < mappingsNum; i++){
+    //     auto mappingTree = stm->createMappingHistoryTree(i);
+    //     mappings.push_back(mappingTree);
+    //     printTree(mappingTree, true);
+    //     std::cout << "****************" << std::endl;
 
 
 
-    }
+    // }
     std::cout << "Expected mapping tree: " << std::endl;
         
     auto expected_mapping = stm->generateExpectedMapping();
