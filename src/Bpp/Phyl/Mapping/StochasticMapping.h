@@ -437,7 +437,7 @@ public:
      * @param expectedMapping           The expected mapping instance whose nodes names should be updated according to their assigned states.
      * @param posteriorProbabilities    Vector of posterior assignment proabilities to inner node to decide on assignments
      */
-    void setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &ancestralStatesFrequencies);
+    bool setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &ancestralStatesFrequencies);
 
     /* simulates mutations on phylogeny based the sampled ancestrals, tips data, and the simulation parameters
      * @param mappingIndex               mapping history index

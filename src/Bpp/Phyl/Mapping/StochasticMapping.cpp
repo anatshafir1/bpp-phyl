@@ -70,7 +70,7 @@ void StochasticMapping::sampleAllAncestals(){
     
     sampleAncestrals(i);
   }
-  ConditionalProbabilities_.clear();
+  
 
 }
 
@@ -187,27 +187,78 @@ double StochasticMapping::getRateToLeaveState(uint nodeId, size_t mapping){
 
 }
 /******************************************************************************/
-// Note: Currently implemented only for binary trait!!!
-void StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &ancestralStatesFrequencies){
-  std::map<uint, std::vector<std::pair<size_t, double>>> orderedStatesWithTimes;
+bool StochasticMapping::setExpectedAncestrals(shared_ptr<PhyloTree> expectedMapping, std::map<uint, std::vector<double>> &ancestralStatesFrequencies){
+  bool allAncestralsConsistent = true;
+  // find all the possible combination of father son states
+  std::map<uint, vector<pair<size_t,size_t>>> allowedStates; // son id is the key. The value is a vector of all possible combination of states, where the son is the
+  // second in the pair, and the father state is the first in the pair
+  auto nodeIndices = expectedMapping->getNodeIndexes(expectedMapping->getAllNodes());
+  for (size_t n = 0; n < nodeIndices.size(); n++){
+    if (expectedMapping->isLeaf(expectedMapping->getNode(nodeIndices[n]))){
+      continue;
+    }
+    auto sons = expectedMapping->getSons(nodeIndices[n]);
+    uint fatherId = nodeIndices[n];
+    for (size_t j = 0; j < sons.size(); j++){
+      allowedStates[sons[j]];
+      for (size_t m = 0; m < numOfMappings_; m++){
+        std::pair<size_t,size_t> fatherSonCombStates(ancetralStates_[fatherId][m], ancetralStates_[sons[j]][m]);
+        auto itComb = std::find(allowedStates[sons[j]].begin(), allowedStates[sons[j]].end(), fatherSonCombStates);
+        if (itComb == allowedStates[sons[j]].end()){
+          allowedStates[sons[j]].push_back(fatherSonCombStates);
+
+        }
+      }
+    }
+  }
+  std::map<uint, size_t> expectedAncestrals;
+  for (size_t n = 0; n < nodeIndices.size(); n++){
+    if (expectedMapping->isLeaf(expectedMapping->getNode(nodeIndices[n]))){
+      continue;
+    }
+    if (expectedMapping->getRootIndex() == nodeIndices[n]){
+      auto d = std::distance(ancestralStatesFrequencies[nodeIndices[n]].begin(),std::max_element(ancestralStatesFrequencies[nodeIndices[n]].begin(), ancestralStatesFrequencies[nodeIndices[n]].end()));
+      if (MLAncr_){
+        expectedAncestrals[nodeIndices[n]] = (*MLAncr_)[nodeIndices[n]][0];
+
+      }else{
+        expectedAncestrals[nodeIndices[n]] = static_cast<size_t>(d);
+
+      }
+    }
+    auto sons = expectedMapping->getSons(nodeIndices[n]);
+    uint father = nodeIndices[n];
+    for (size_t j = 0; j < sons.size(); j++){
+      size_t state;
+      uint nodeId = sons[j];
+      if (MLAncr_){
+        state = (*MLAncr_)[nodeId][0];
+      }else{
+        auto d = std::distance(ancestralStatesFrequencies[nodeId].begin(),std::max_element(ancestralStatesFrequencies[nodeId].begin(), ancestralStatesFrequencies[nodeId].end()));
+        state = static_cast<size_t>(d);
+      }
+      std::pair<size_t,size_t> statesFatherSon(expectedAncestrals[father], state);
+      auto it = std::find(allowedStates[nodeId].begin(), allowedStates[nodeId].end(), statesFatherSon);
+      if (it != allowedStates[nodeId].end()){
+        expectedAncestrals[nodeId] = state;
+
+      }else{
+        allAncestralsConsistent = false;
+        return allAncestralsConsistent;
+      }
+    }
+  }
   auto nodes = expectedMapping->getAllNodes();
   for (size_t i = 0; i < nodes.size(); i++){
-    size_t state;
-    uint nodeId = expectedMapping->getNodeIndex(nodes[i]);
-    if (MLAncr_){
-      state = (*MLAncr_)[nodeId][0];
-    }else{
-      auto d = std::distance(ancestralStatesFrequencies[nodeId].begin(),std::max_element(ancestralStatesFrequencies[nodeId].begin(), ancestralStatesFrequencies[nodeId].end()));
-      state = static_cast<size_t>(d);
-    }
-
+    uint currNodeId = expectedMapping->getNodeIndex(nodes[i]);
     if (expectedMapping->isLeaf(nodes[i])){
-      nodes[i]->setName(nodes[i]->getName()+"-"+ std::to_string(state));
+      nodes[i]->setName(nodes[i]->getName()+"-"+ std::to_string(expectedAncestrals[currNodeId]));
     }else{
-      nodes[i]->setName("N"+ std::to_string(nodeId)+"-"+ std::to_string(state));
+      nodes[i]->setName("N"+ std::to_string(currNodeId)+"-"+ std::to_string(expectedAncestrals[currNodeId]));
     }
-    
   }
+  return allAncestralsConsistent;
+
 }
 
 /******************************************************************************/
@@ -227,7 +278,22 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping()
   std::map<uint, std::vector<double>> ancestralStatesFrequencies;
   computeStatesFrequencies(ancestralStatesFrequencies);
   // set the ancestral states according to the maximal posterior (i.e, conditional) probability
-  setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
+  bool allConsistent = setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
+  // also need to handle cases where the most posterior states of father and son do not come together.
+  size_t counter = 0;
+  while((!allConsistent) && (counter < 10)){
+    ancestralStatesFrequencies.clear();
+    ancetralStates_.clear();
+    sampleAllAncestals();
+    computeStatesFrequencies(ancestralStatesFrequencies);
+    allConsistent = setExpectedAncestrals(expectedMapping, ancestralStatesFrequencies);
+    counter ++;
+  }
+
+  ConditionalProbabilities_.clear();
+  if (!allConsistent){
+    throw Exception("StochasticMapping::generateExpectedMapping(): did not find any consistent states between father and son!");
+  }
   
   // find mappings
   auto nodeIndices = tree_->getNodeIndexes(tree_->getAllNodes());
@@ -283,14 +349,6 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping()
     }
   }
   ancetralStates_.clear();
-
-  
-
-  //getDewellingTimesUnderEachStatePerNode(&dwellingTimes);
-
-
-  //size_t numberOfStates = likelihood_->getStateMap().getNumberOfModelStates();
-  //findExpectedHistoryTransitionsAndTimeDurationsMultiState(expectedMapping, dwellingTimes);
 
   return expectedMapping;
 }
