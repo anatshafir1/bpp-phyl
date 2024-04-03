@@ -607,7 +607,7 @@ void MultiStateMappingPath::printGraph(vector<vector<size_t>>& graph){
     }
 }
 /**********************************************************************************/
-vector<vector<size_t>> MultiStateMappingPath::createGraphForChinesePostman(std::unordered_map<size_t, size_t> &indicesToNodes, std::unordered_map<size_t, size_t> &nodesToIndices, std::unordered_map<size_t, double> &relativeTimeDuration, std::map<std::pair<size_t, size_t>, double> &transitions){
+vector<vector<size_t>> MultiStateMappingPath::createGraphForChinesePostman(std::unordered_map<size_t, size_t> &indicesToNodes, std::unordered_map<size_t, size_t> &nodesToIndices, std::unordered_map<size_t, double> &relativeTimeDuration, std::map<std::pair<size_t, size_t>, double> &transitions, bool &isValidGraph, size_t &start, size_t &end){
     size_t index = 0;
     size_t numberOfVertices = 0;
     for (size_t i = 0; i < relativeTimeDuration.size(); i++){
@@ -623,16 +623,28 @@ vector<vector<size_t>> MultiStateMappingPath::createGraphForChinesePostman(std::
     graph.resize(numberOfVertices);
     auto edges = createEdges(relativeTimeDuration, transitions);
     auto it = edges.begin();
+
+    // should check if the source and destination nodes exist as terminals in at least one of the edges
+    bool startFound = false;
+    bool endFound = false;
+
     while (it != edges.end()){
         auto &node = it->first;
+        if (node == start){
+            startFound = true;
+        }
         auto &neighbors = edges[node];
         for (size_t i = 0; i < neighbors.size(); i++){
+            if (neighbors[i] == end){
+                endFound = true;
+            }
             graph[nodesToIndices[node]].push_back(nodesToIndices[neighbors[i]]);
 
         }
         it++;
 
     }
+    isValidGraph = (startFound) && (endFound);
     return graph;
 
 }
@@ -684,7 +696,12 @@ vector<size_t> MultiStateMappingPath::findExpectedMappingPathForEachNode(size_t 
         vector<pair<size_t, size_t>> bestChinesePath;
         std::unordered_map<size_t, size_t> indicesToNodes;
         std::unordered_map<size_t, size_t> nodesToIndices;
-        vector<vector<size_t>> graph = createGraphForChinesePostman(indicesToNodes, nodesToIndices, relativeTimeDuration, transitions);
+        bool isValidGraph = true;
+        vector<vector<size_t>> graph = createGraphForChinesePostman(indicesToNodes, nodesToIndices, relativeTimeDuration, transitions, isValidGraph, start, end);
+        if (!isValidGraph){
+            foundPath = false;
+            return finalPath;
+        }
         vector<vector<pair<size_t, size_t>>> disjointPaths = chinesePostman(graph, nodesToIndices[start], nodesToIndices[end], foundPath);
         if (!(foundPath)){
             return finalPath;

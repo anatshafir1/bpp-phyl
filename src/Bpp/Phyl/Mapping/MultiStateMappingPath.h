@@ -77,7 +77,7 @@ namespace bpp{
       static void countNumberOfInfiniteEdges(std::vector <size_t> &infinitePath, size_t &numOfInfiniteEdges, std::vector<double> &weightsPerIndices);
       static void fillRelativeTimeDuration(std::unordered_map<size_t, double> &relativeTimeDuration, vector<double> &dwellingTimes, double totalDurationTime);
       static vector<vector<size_t>> createGraphFromPath(vector<pair<size_t, size_t>> &disjointPath, std::unordered_map<size_t, size_t> &indicesToNodesSub, std::unordered_map<size_t, size_t> &nodesToIndicesSub, size_t originalGraphSize);
-      static vector<vector<size_t>> createGraphForChinesePostman(std::unordered_map<size_t, size_t> &indicesToNodes, std::unordered_map<size_t, size_t> &nodesToIndices, std::unordered_map<size_t, double> &relativeTimeDuration, std::map<std::pair<size_t, size_t>, double> &transitions);
+      static vector<vector<size_t>> createGraphForChinesePostman(std::unordered_map<size_t, size_t> &indicesToNodes, std::unordered_map<size_t, size_t> &nodesToIndices, std::unordered_map<size_t, double> &relativeTimeDuration, std::map<std::pair<size_t, size_t>, double> &transitions, bool &isValidGraph, size_t &start, size_t &end);
       // TSP implementation
       static vector<size_t> TSP(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, double totalDurationTime, bool &validPath, std::unordered_map<size_t, double> &relativeTimeDuration);
       static vector<size_t> findExpectedMappingPathForEachNode(size_t start, size_t end, std::map<std::pair<size_t, size_t>, double> &transitions, vector<double> &dwellingTimes, double totalDurationTime, bool &foundPath);
