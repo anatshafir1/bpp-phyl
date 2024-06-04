@@ -320,7 +320,8 @@ shared_ptr<PhyloTree> StochasticMapping::generateExpectedMapping()
       for (size_t mappingIndex= 0; mappingIndex < numOfMappings_; mappingIndex++){
         bool success = sampleMutationsGivenAncestralsPerBranch(fatherId, sons[j], mappingIndex, nodeMappings, numOfMappingTrials_);
         if (!success){
-          throw Exception("Mapping failure!!!");
+          throw std::runtime_error("Mapping failure!!!");
+          //throw Exception("Mapping failure!!!");
         }
         assignDewellingTimesUnderEachStatePerMappingPerBranch(sons[j], ancetralStates_[fatherId][mappingIndex], nodeDwellingTimes, nodeMappings[mappingIndex]);
 

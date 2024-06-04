@@ -54,7 +54,7 @@
 #include <iomanip>
 #include <map>
 #include <regex>
-
+#include <stdexcept> 
 
 using namespace std;
 
@@ -166,7 +166,13 @@ public:
     }
     std::shared_ptr<PhyloTree> createExpectedMappingHistory(size_t mappingsNum){
       //generateStochasticMapping();
-      auto expected_mapping = generateExpectedMapping();
+      std::shared_ptr<PhyloTree> expected_mapping;
+      try{
+        expected_mapping = generateExpectedMapping();
+
+      }catch (const std::runtime_error& e){
+        throw std::runtime_error(std::string("Mapping failure: ") + e.what());
+      }
       return expected_mapping;
     }
     
