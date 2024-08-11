@@ -46,6 +46,7 @@
 #include "../Likelihood/DataFlow/LikelihoodCalculationSingleProcess.h"
 #include "../Simulation/MutationProcess.h"
 #include "../Simulation/SubstitutionProcessSequenceSimulator.h"
+#include <Bpp/Phyl/Simulation/SimpleSubstitutionProcessSequenceSimulator.h>
 #include <Bpp/Phyl/Io/Newick.h>
 #include "MultiStateMappingPath.h"
 
@@ -175,9 +176,16 @@ public:
       }
       return expected_mapping;
     }
+      /**
+     *@brief Creates a tree from a simulated path
+     *
+     * @param originalTree The original phylogenetic tree to which we should add the trait history
+     * @param simResult    An object that stores the simulated data hostory for each node
+     *  
+     **/
+  
+    static std::shared_ptr<PhyloTree> createTreeFromMappingHistory(PhyloTree &originalTree, SiteSimulationResult* simResult);
     
-
-
 
     /**
      *@brief Creates a single expected (i.e, average) history based on
@@ -222,6 +230,23 @@ public:
       int state = stoi(match_state[1]);
       return state;
     }
+
+
+        /* extracts the state of a node in a mapping
+     * @param node              The node to get the state of
+     * @return                  Node state is int
+     */
+    static int getNodeStateStat(std::shared_ptr<PhyloNode> node){
+      auto nodeName = node->getName();
+      std::smatch match_state;
+      std::regex state_rgx("-([\\d]+)");
+      regex_search(nodeName, match_state, state_rgx);
+      int state = stoi(match_state[1]);
+      return state;
+    }
+    static void getNodesForEachModel(std::shared_ptr<PhyloTree> mappingHistoryTree, std::map <uint, std::vector<uint>> &nodeModels);
+    static std::map <uint, std::vector<uint>> getNodesForEachModel(std::shared_ptr<PhyloTree> mappingHistoryTree);
+
     /**
      *@brief Gets the dwelling times for each state in a given mapping. Note: the function assums thay the 
      *        vector dwellingTimes is already resized according to the number of states!

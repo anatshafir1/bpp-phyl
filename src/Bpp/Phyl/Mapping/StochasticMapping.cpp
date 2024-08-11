@@ -424,6 +424,82 @@ void StochasticMapping::findExpectedPathOnBranch(std::shared_ptr<PhyloTree> expe
   }
 
 }
+/**************************************************************************** */
+std::map <uint, std::vector<uint>> StochasticMapping::getNodesForEachModel(std::shared_ptr<PhyloTree> mappingHistoryTree){
+  std::map <uint, std::vector<uint>> nodeModels;
+  StochasticMapping::getNodesForEachModel(mappingHistoryTree, nodeModels);
+  return nodeModels;
+}
+/****************************************************************************/
+void StochasticMapping::getNodesForEachModel(std::shared_ptr<PhyloTree> mappingHistoryTree, std::map <uint, std::vector<uint>> &nodeModels){
+  auto nodes = mappingHistoryTree->getAllNodes();
+  for (size_t i = 0; i < nodes.size(); i ++){
+    uint nodeId = mappingHistoryTree->getNodeIndex(nodes[i]);
+    int nodeState = StochasticMapping::getNodeStateStat(nodes[i]);
+    if (!(mappingHistoryTree->isLeaf(nodeId))){
+      auto sons = mappingHistoryTree->getSons(nodeId);
+      for (size_t j = 0; j < sons.size(); j++){
+        // add +1 so that it will work for the general function that constructs the heterogeneous model
+        nodeModels[static_cast<uint>(nodeState)+1].push_back(sons[j]);
+      }
+    }
+  }
+  return;
+}
+/**************************************************************************** */
+std::shared_ptr<PhyloTree> StochasticMapping::createTreeFromMappingHistory(PhyloTree &originalTree, SiteSimulationResult* simResult){
+  Newick writer;
+  Newick reader;
+  std::string tree_str = writer.writeTreeToParenthesis(originalTree);
+  std::shared_ptr<PhyloTree> mappingHistoryTree = std::shared_ptr<PhyloTree>(reader.parenthesisToPhyloTree(tree_str));
+  auto nodeIds = originalTree.getNodeIndexes(originalTree.getAllNodes());
+  size_t rootState = simResult->getRootAncestralState();
+  uint rootId = originalTree.getRootIndex();
+  for (auto & nodeId : nodeIds){
+    if (originalTree.getRootIndex() == nodeId){
+      continue;
+    }
+    MutationPath mutPath = simResult->getMutationPath(nodeId);
+    // example: 0 -> 1 -> 2 -> 0: states will be 1, 2, 0
+    // times will be: t[0->1], t[1->2], t[2->0]
+    vector<size_t> states = mutPath.getStates();
+    vector<double> times = mutPath.getTimes();
+    // now fragmenting the edge
+    double segmentBranchLength;
+    uint newNodeId;
+    auto state = simResult->getAncestralState(nodeId);
+    if (originalTree.isLeaf(nodeId)){
+      auto leafName = (mappingHistoryTree->getNode(nodeId))->getName();
+      (mappingHistoryTree->getNode(nodeId))->setName(leafName+ "-"+ std::to_string(state));
+
+    }else{
+      (mappingHistoryTree->getNode(nodeId))->setName("N"+ std::to_string(nodeId)+"-"+ std::to_string(state));
+
+    }
+    
+
+    for (size_t j = 0; j < states.size(); j++){
+      segmentBranchLength = times[j];
+      auto edge_to_fragment = mappingHistoryTree->getEdgeToFather(nodeId);
+      // fragmenting the edge: now instead of father(0) -> son(0), it will be father(0) -> dummy(1) -> son(0)
+      // notably now the father of node id (son(0)) has changed to dummy(1), so after adding the next node,
+      // we will have father(0) -> dummy(1) -> dummy(2) -> son(0)
+      newNodeId = mappingHistoryTree->createNodeOnEdge(mappingHistoryTree->getEdgeIndex(edge_to_fragment), segmentBranchLength);
+      (mappingHistoryTree->getNode(newNodeId))->setName("N_dummy_"+ std::to_string(newNodeId)+"-"+ std::to_string(states[j]));
+      rootId ++;
+
+    }
+  }
+  uint newRootIndex = mappingHistoryTree->getRootIndex();
+  if (newRootIndex != rootId){
+    throw Exception("StochasticMapping::createTreeFromMappingHistory(): Something went wrong in the tree fragmenting!!");
+  }
+
+  (mappingHistoryTree->getNode(rootId))->setName("N"+ std::to_string(rootId)+"-"+ std::to_string(rootState));
+  return mappingHistoryTree;
+
+}
+    
 
 /******************************************************************************/
 void StochasticMapping::getTimeDurationsPerStateGivenAncestrals(std::map<uint, std::map<pair<size_t, size_t>, double>> &timeDurations, std::map<uint, std::vector<double>> &timeDurationsPerState){
