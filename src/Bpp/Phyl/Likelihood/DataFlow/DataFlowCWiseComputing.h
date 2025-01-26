@@ -2370,6 +2370,7 @@ private:
     }
     MatrixLik prodMat;
     copyBppToEigen(res_vec, prodMat);
+    prodMat.normalize();
     result = prodMat.transpose();
 
 
